@@ -4,9 +4,9 @@
 - [x] **LCA Utility:** Implement `FindLowestCommonAncestor` in `internal/rpg/paths.go`.
 - [x] **Semantic Namer:** Implement `NamingStrategy` for labeling latent domains.
 - [x] **Builder Refactor:** Update `rpg.Builder` to support "Global Discovery Mode" (Inverted Flow).
-- [ ] **Integration:** Wire up `EmbeddingClusterer` as the Global Domain Discoverer in `main.go`.
-- [ ] **Verification:** Verify that root-level files and scattered dependencies are correctly clustered.
-- [ ] **Deprecation:** Mark `DirectoryDomainDiscoverer` as deprecated.
+- [x] **Integration:** Wire up `EmbeddingClusterer` as the Global Domain Discoverer in `main.go`.
+- [x] **Verification:** Verify that root-level files and scattered dependencies are correctly clustered.
+- [x] **Deprecation:** Mark `DirectoryDomainDiscoverer` as deprecated.
 
 ## 🔍 Analysis & Investigation
 

@@ -87,7 +87,7 @@
 
 ### Campaign 4.2: Import Performance Remediation
 **Goal:** Resolve the critical \"O(N^2)\" performance bottleneck in the Neo4j edge importer by implementing a generic indexing strategy (`:CodeElement` label).
-**Status:** In Progress
+**Status:** Completed
 **Key Deliverables:**
 - [x] **Optimization:** Refactor `internal/loader` to use `MATCH (n:CodeElement)` for O(1) edge lookups.
 - [x] **Schema Update:** `ApplyConstraints` to enforce `CodeElement` uniqueness.
