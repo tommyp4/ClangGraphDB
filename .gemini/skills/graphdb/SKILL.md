@@ -50,7 +50,7 @@ Scans code and generates a graph JSONL file.
 *   *Options:* `-workers` (concurrency), `-file-list` (specific files).
 
 **Step 2: Enrich (Build Intent Layer):**
-Groups code into high-level features (RPG) using embeddings and LLMs. Includes a pre-calculation phase for embeddings with progress tracking.
+Performs **Global Semantic Clustering** to identify latent functional domains across the entire codebase, independent of directory structure. Grounds these domains using Lowest Common Ancestor (LCA) logic.
 ```bash
 .gemini/skills/graphdb/scripts/graphdb enrich-features -input graph.jsonl -output rpg.jsonl
 ```
