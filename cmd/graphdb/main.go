@@ -30,6 +30,12 @@ import (
 // Version is injected at build time
 var Version = "dev"
 
+var (
+	ingestCmd = handleIngest
+	enrichCmd = handleEnrichFeatures
+	importCmd = handleImport
+)
+
 func main() {
 	// Attempt to load .env file from current or parent directories
 	_ = config.LoadEnv()
@@ -41,13 +47,13 @@ func main() {
 
 	switch os.Args[1] {
 	case "ingest":
-		handleIngest(os.Args[2:])
+		ingestCmd(os.Args[2:])
 	case "query":
 		handleQuery(os.Args[2:])
 	case "enrich-features":
-		handleEnrichFeatures(os.Args[2:])
+		enrichCmd(os.Args[2:])
 	case "import":
-		handleImport(os.Args[2:])
+		importCmd(os.Args[2:])
 	case "build-all":
 		handleBuildAll(os.Args[2:])
 	case "version", "--version", "-v":
@@ -95,21 +101,30 @@ func handleBuildAll(args []string) {
 	fs.Parse(args)
 
 	ingestArgs = []string{"-dir", *dirPtr, "-output", "graph.jsonl"}
-	handleIngest(ingestArgs)
+	ingestCmd(ingestArgs)
 
 	// 2. Enrich
 	fmt.Println("\n[Phase 2/3] Enriching Features...")
 	// Use semantic clustering by default for better quality
 	enrichArgs := []string{"-dir", *dirPtr, "-input", "graph.jsonl", "-output", "rpg.jsonl"}
-	handleEnrichFeatures(enrichArgs)
+	enrichCmd(enrichArgs)
 
 	// 3. Import
 	fmt.Println("\n[Phase 3/3] Importing to Neo4j...")
-	importArgs := []string{"-input", "rpg.jsonl"}
+
+	// Phase 3.A: Import Structural Graph
+	fmt.Println("Importing Structural Graph (graph.jsonl)...")
+	importArgs1 := []string{"-input", "graph.jsonl"}
 	if *cleanPtr {
-		importArgs = append(importArgs, "-clean")
+		importArgs1 = append(importArgs1, "-clean")
 	}
-	handleImport(importArgs)
+	importCmd(importArgs1)
+
+	// Phase 3.B: Import Semantic Graph
+	fmt.Println("Importing Semantic Graph (rpg.jsonl)...")
+	importArgs2 := []string{"-input", "rpg.jsonl"}
+	// Note: No clean flag here, as we are appending to the graph
+	importCmd(importArgs2)
 
 	fmt.Println("\n✅ Build-All Sequence Complete!")
 }
