@@ -60,11 +60,11 @@
 
 ### Campaign 3.6.5: Smart Discovery Foundation (Ingestion Fidelity)
 **Goal:** Improve the fidelity of file ingestion and physical discovery. This serves as the bedrock for the Global Semantic Topology by ensuring the "Universe of Files" is correct (respecting nested .gitignore) and that we have a robust way to identify physical roots.
-**Status:** In Progress (Uncommitted Changes)
+**Status:** Completed
 **Key Deliverables:**
-- [ ] **Recursive Walker:** Refactor `walker.go` to respect nested `.gitignore` files (Critical for monorepos).
-- [ ] **Smart Discovery:** Update `discovery.go` to support `.` (root) scanning and better top-level directory detection.
-- [ ] **Strict Matching:** Fix `builder.go` to use strict path prefixes (prevents `auth` matching `authentication`). *(Note: This logic will be superseded by Campaign 3.7 but is part of the current stabilization).*
+- [x] **Recursive Walker:** Refactor `walker.go` to respect nested `.gitignore` files (Critical for monorepos).
+- [x] **Smart Discovery:** Update `discovery.go` to support `.` (root) scanning and better top-level directory detection.
+- [x] **Strict Matching:** Fix `builder.go` to use strict path prefixes (prevents `auth` matching `authentication`).
 
 ### Campaign 3.7: RPG Remediation (Global Semantic Topology)
 **Goal:** Address the "Directory-Bound" violation identified in `plans/RPG_GAP_ANALYSIS.md`. Invert the control flow to perform **Global Semantic Clustering** first, establishing latent functional domains across the entire codebase (e.g., SQL + Python + JS), and *then* ground them to physical directories using LCA (Lowest Common Ancestor).
