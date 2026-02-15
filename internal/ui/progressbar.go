@@ -31,10 +31,26 @@ func NewProgressBar(total int64, description string) *ProgressBar {
 		width:       40,
 		start:       time.Now(),
 		writer:      os.Stderr,
-		Format: func(current, total int64) string {
-			return fmt.Sprintf("%d/%d", current, total)
-		},
+		Format: FormatCountFn,
 	}
+}
+
+// FormatCountFn formats integers with commas for readability.
+func FormatCountFn(current, total int64) string {
+	format := func(n int64) string {
+		s := fmt.Sprintf("%d", n)
+		if len(s) <= 3 {
+			return s
+		}
+		var res []string
+		for len(s) > 3 {
+			res = append([]string{s[len(s)-3:]}, res...)
+			s = s[:len(s)-3]
+		}
+		res = append([]string{s}, res...)
+		return strings.Join(res, ",")
+	}
+	return fmt.Sprintf("%s/%s", format(current), format(total))
 }
 
 // NewSpinner creates a new spinner for indeterminate progress.
