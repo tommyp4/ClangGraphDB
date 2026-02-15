@@ -160,8 +160,11 @@ func (p *TypeScriptParser) Parse(filePath string, content []byte) ([]*graph.Node
 			
 			nodeName := c.Node.Content(content)
 			var label string
+			var nodeType string
+			
 			if strings.HasPrefix(captureName, "class") {
 				label = "Class"
+				nodeType = "class"
 			} else if strings.HasPrefix(captureName, "function") || strings.HasPrefix(captureName, "method") {
 				label = "Function"
 			} else if strings.HasPrefix(captureName, "field") {
@@ -170,10 +173,24 @@ func (p *TypeScriptParser) Parse(filePath string, content []byte) ([]*graph.Node
 				continue
 			}
 			
-			id := fmt.Sprintf("%s:%s", filePath, nodeName)
+			// Context
+			searchNode := c.Node
+			if nodeType == "class" {
+				if p := c.Node.Parent(); p != nil {
+					searchNode = p
+				}
+			}
+			enclosingClass := findEnclosingTSClass(searchNode, content)
+			
+			var fullID string
+			if enclosingClass != "" {
+				fullID = fmt.Sprintf("%s:%s.%s", filePath, enclosingClass, nodeName)
+			} else {
+				fullID = fmt.Sprintf("%s:%s", filePath, nodeName)
+			}
 			
 			n := &graph.Node{
-				ID:    id,
+				ID:    fullID,
 				Label: label,
 				Properties: map[string]interface{}{
 					"name": nodeName,
@@ -186,7 +203,6 @@ func (p *TypeScriptParser) Parse(filePath string, content []byte) ([]*graph.Node
 	}
 
 	// 3. Inheritance Query
-    // Using generic capture for extends target and filtering in Go
 	inheritanceQueryStr := `
 		(class_declaration
 			name: (type_identifier) @class.name
@@ -216,6 +232,7 @@ func (p *TypeScriptParser) Parse(filePath string, content []byte) ([]*graph.Node
         var className string
         var extendsTarget string
         var implementsTargets []string
+        var classNode *sitter.Node
         
         for _, c := range m.Captures {
             name := qInh.CaptureNameForId(c.Index)
@@ -223,6 +240,7 @@ func (p *TypeScriptParser) Parse(filePath string, content []byte) ([]*graph.Node
             
             if name == "class.name" {
                 className = contentStr
+                classNode = c.Node
             } else if name == "extends.target" {
                 if contentStr != "extends" {
                     extendsTarget = contentStr
@@ -235,7 +253,21 @@ func (p *TypeScriptParser) Parse(filePath string, content []byte) ([]*graph.Node
         }
         
         if className != "" {
-            sourceID := fmt.Sprintf("%s:%s", filePath, className)
+            // Reconstruct Class ID using context
+            // Note: Inheritance query capture is on the name node, but inside class_declaration
+            // Logic is similar to Def query
+             searchNode := classNode
+            if p := classNode.Parent(); p != nil {
+                searchNode = p
+            }
+            enclosingClass := findEnclosingTSClass(searchNode, content)
+            
+            var sourceID string
+            if enclosingClass != "" {
+                sourceID = fmt.Sprintf("%s:%s.%s", filePath, enclosingClass, className)
+            } else {
+                sourceID = fmt.Sprintf("%s:%s", filePath, className)
+            }
             
             if extendsTarget != "" {
                 if idx := strings.Index(extendsTarget, "<"); idx != -1 {
@@ -309,14 +341,26 @@ func (p *TypeScriptParser) Parse(filePath string, content []byte) ([]*graph.Node
 		}
 		
 		if targetName != "" && callNode != nil {
-			sourceFunc := findEnclosingFunction(callNode, content)
-			if sourceFunc != "" {
-				targetID := resolveTargetID(targetName, imports, filePath)
-				edges = append(edges, &graph.Edge{
-					SourceID: fmt.Sprintf("%s:%s", filePath, sourceFunc),
-					TargetID: targetID,
-					Type:     "CALLS",
-				})
+			sourceFuncNode := findEnclosingTSFunctionNode(callNode)
+			if sourceFuncNode != nil {
+				// Reconstruct Source ID
+				funcName := extractTSFunctionName(sourceFuncNode, content)
+				if funcName != "" {
+					enclosingClass := findEnclosingTSClass(sourceFuncNode, content)
+					var sourceID string
+					if enclosingClass != "" {
+						sourceID = fmt.Sprintf("%s:%s.%s", filePath, enclosingClass, funcName)
+					} else {
+						sourceID = fmt.Sprintf("%s:%s", filePath, funcName)
+					}
+					
+					targetID := resolveTargetID(targetName, imports, filePath)
+					edges = append(edges, &graph.Edge{
+						SourceID: sourceID,
+						TargetID: targetID,
+						Type:     "CALLS",
+					})
+				}
 			}
 		}
 	}
@@ -345,25 +389,49 @@ func resolveTargetID(symbol string, imports map[string]string, currentFile strin
 	return fmt.Sprintf("%s:%s", currentFile, symbol)
 }
 
-func findEnclosingFunction(n *sitter.Node, content []byte) string {
+func findEnclosingTSClass(n *sitter.Node, content []byte) string {
+    curr := n.Parent()
+    for curr != nil {
+        if curr.Type() == "class_declaration" || curr.Type() == "interface_declaration" {
+            nameNode := curr.ChildByFieldName("name")
+            if nameNode != nil {
+                return nameNode.Content(content)
+            }
+        }
+        curr = curr.Parent()
+    }
+    return ""
+}
+
+func findEnclosingTSFunctionNode(n *sitter.Node) *sitter.Node {
 	curr := n.Parent()
 	for curr != nil {
 		t := curr.Type()
 		if t == "function_declaration" || t == "generator_function_declaration" || t == "method_definition" {
-			nameNode := curr.ChildByFieldName("name")
-			if nameNode != nil {
-				return nameNode.Content(content)
-			}
+			return curr
 		}
 		if t == "arrow_function" || t == "function_expression" {
 			 if curr.Parent() != nil && curr.Parent().Type() == "variable_declarator" {
-				 nameNode := curr.Parent().ChildByFieldName("name")
-				 if nameNode != nil {
-					 return nameNode.Content(content)
-				 }
+				 return curr.Parent() // Return variable declarator to extract name
 			 }
 		}
 		curr = curr.Parent()
+	}
+	return nil
+}
+
+func extractTSFunctionName(n *sitter.Node, content []byte) string {
+	t := n.Type()
+	if t == "variable_declarator" {
+		nameNode := n.ChildByFieldName("name")
+		if nameNode != nil {
+			return nameNode.Content(content)
+		}
+	} else {
+		nameNode := n.ChildByFieldName("name")
+		if nameNode != nil {
+			return nameNode.Content(content)
+		}
 	}
 	return ""
 }

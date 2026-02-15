@@ -34,3 +34,4 @@ asp_test.jsonl
 
 # Environment Variables
 .env
+*.jsonl

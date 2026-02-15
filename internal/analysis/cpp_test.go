@@ -56,7 +56,7 @@ public:
 	// Helper to find edge
 	hasEdge := func(srcName, tgtName string) bool {
 		for _, e := range edges {
-			if strings.HasSuffix(e.SourceID, ":"+srcName) && strings.HasSuffix(e.TargetID, ":"+tgtName) {
+			if strings.HasSuffix(e.SourceID, srcName) && strings.HasSuffix(e.TargetID, tgtName) {
 				return true
 			}
 		}
@@ -147,12 +147,16 @@ void main() {
 	// 4. Check Usage of Global
 	hasGlobalUsage := false
 	for _, e := range edges {
-		if strings.HasSuffix(e.SourceID, ":doWork") && strings.HasSuffix(e.TargetID, ":global_counter") && e.Type == "USES" {
+		if strings.HasSuffix(e.SourceID, "doWork") && strings.HasSuffix(e.TargetID, "global_counter") && e.Type == "USES" {
 			hasGlobalUsage = true
 			break
 		}
 	}
 	if !hasGlobalUsage {
+		t.Logf("Edges found:")
+		for _, e := range edges {
+			t.Logf("  %s -> %s (%s)", e.SourceID, e.TargetID, e.Type)
+		}
 		t.Errorf("Expected USES edge doWork -> global_counter")
 	}
 
@@ -174,5 +178,62 @@ void main() {
 	}
 	if !hasIncludeRes {
 		t.Errorf("Expected resolution of Math::Add to math.h, but didn't find edge")
+	}
+}
+
+func TestParseCPP_ClassAndConstructor(t *testing.T) {
+	parser, ok := analysis.GetParser(".cpp")
+	if !ok {
+		t.Fatalf("CPP parser not registered")
+	}
+
+	absPath, err := filepath.Abs("dummy_collision.cpp")
+	content := []byte(`
+namespace MyApp {
+    class User {
+    public:
+        User() {} // Constructor
+        void save() {}
+    };
+
+    class Order {
+    public:
+        Order() {} // Constructor
+        void save() {}
+    };
+}
+`)
+
+	nodes, _, err := parser.Parse(absPath, content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	ids := make(map[string]int)
+	for _, n := range nodes {
+		ids[n.ID]++
+	}
+
+	for id, count := range ids {
+		if count > 1 {
+			t.Errorf("Duplicate ID found: %s (Count: %d)", id, count)
+		}
+	}
+
+	// Expected specific IDs (Qualified with namespace and class)
+	// C++ convention: Namespace::Class::Method
+	expectedIDs := []string{
+		absPath + ":MyApp::User",
+		absPath + ":MyApp::User::User", // Constructor
+		absPath + ":MyApp::User::save",
+		absPath + ":MyApp::Order",
+		absPath + ":MyApp::Order::Order", // Constructor
+		absPath + ":MyApp::Order::save",
+	}
+
+	for _, expected := range expectedIDs {
+		if _, exists := ids[expected]; !exists {
+			t.Errorf("Expected ID not found: %s", expected)
+		}
 	}
 }

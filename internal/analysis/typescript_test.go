@@ -140,3 +140,56 @@ func TestParseTypeScript(t *testing.T) {
         t.Errorf("Found edge to alias 'UserAlias', expected resolution to 'User'")
     }
 }
+
+func TestParseTypeScript_ClassAndConstructor(t *testing.T) {
+	parser, ok := analysis.GetParser(".ts")
+	if !ok {
+		t.Fatalf("TypeScript parser not registered")
+	}
+
+	absPath, err := filepath.Abs("dummy_collision.ts")
+	content := []byte(`
+export class User {
+    constructor() { }
+    save() { }
+}
+
+export class Order {
+    constructor() { }
+    save() { }
+}
+`)
+
+	nodes, _, err := parser.Parse(absPath, content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	ids := make(map[string]int)
+	for _, n := range nodes {
+		ids[n.ID]++
+	}
+
+	for id, count := range ids {
+		if count > 1 {
+			t.Errorf("Duplicate ID found: %s (Count: %d)", id, count)
+		}
+	}
+
+	// Expected specific IDs (Qualified with class)
+	// TypeScript convention: Class.Method
+	expectedIDs := []string{
+		absPath + ":User",
+		absPath + ":User.constructor",
+		absPath + ":User.save",
+		absPath + ":Order",
+		absPath + ":Order.constructor",
+		absPath + ":Order.save",
+	}
+
+	for _, expected := range expectedIDs {
+		if _, exists := ids[expected]; !exists {
+			t.Errorf("Expected ID not found: %s", expected)
+		}
+	}
+}

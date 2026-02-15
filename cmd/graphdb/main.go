@@ -14,7 +14,6 @@ import (
 	"graphdb/internal/rpg"
 	"graphdb/internal/storage"
 	"graphdb/internal/ui"
-	"io/fs"
 	"log"
 	"os"
 	"os/exec"
@@ -134,15 +133,8 @@ func handleIngest(args []string) {
 		file.Close()
 	} else {
 		log.Printf("Counting files in %s...", *dirPtr)
-		err := filepath.WalkDir(*dirPtr, func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			if !d.IsDir() {
-				totalFiles++
-			}
-			return nil
-		})
+		var err error
+		totalFiles, err = walker.Count(context.Background(), *dirPtr)
 		if err != nil {
 			log.Fatalf("Failed to count files: %v", err)
 		}
