@@ -58,6 +58,24 @@
 - [x] **Hierarchy Navigation:** New `ExploreDomain` query returns feature + parent + children + siblings + implementing functions. Wired to `--type explore-domain` CLI.
 - [x] **Cleanup:** Remove legacy `FileClusterer` and enforce semantic clustering by default (Plan: `plans/refactor_remove_file_clusterer.md`).
 
+### Campaign 3.6.5: Smart Discovery Foundation (Ingestion Fidelity)
+**Goal:** Improve the fidelity of file ingestion and physical discovery. This serves as the bedrock for the Global Semantic Topology by ensuring the "Universe of Files" is correct (respecting nested .gitignore) and that we have a robust way to identify physical roots.
+**Status:** In Progress (Uncommitted Changes)
+**Key Deliverables:**
+- [ ] **Recursive Walker:** Refactor `walker.go` to respect nested `.gitignore` files (Critical for monorepos).
+- [ ] **Smart Discovery:** Update `discovery.go` to support `.` (root) scanning and better top-level directory detection.
+- [ ] **Strict Matching:** Fix `builder.go` to use strict path prefixes (prevents `auth` matching `authentication`). *(Note: This logic will be superseded by Campaign 3.7 but is part of the current stabilization).*
+
+### Campaign 3.7: RPG Remediation (Global Semantic Topology)
+**Goal:** Address the "Directory-Bound" violation identified in `plans/RPG_GAP_ANALYSIS.md`. Invert the control flow to perform **Global Semantic Clustering** first, establishing latent functional domains across the entire codebase (e.g., SQL + Python + JS), and *then* ground them to physical directories using LCA (Lowest Common Ancestor).
+**Status:** Planned
+**Key Deliverables:**
+- [ ] **Global Pooling:** Refactor `Builder` to accept a global node list and skip directory pre-filtering.
+- [ ] **Latent Domain Discovery:** Implement K-Means on the global pool to identify high-level functional centroids (Domains) independent of file paths.
+- [ ] **LCA Grounding:** Implement "Lowest Common Ancestor" logic to calculate the physical `ScopePath` for a cluster *after* it is formed.
+- [ ] **Semantic Labeling:** Integrate LLM or centroid-term-based labeling for discovering Domain names (e.g., "Cluster-1" -> "Authentication").
+- [ ] **Refactor:** Deprecate `DirectoryDomainDiscoverer` and remove path-prefix constraints in `builder.go`.
+
 ### Campaign 4: The Go Import Loader (Dependency Removal)
 **Goal:** Port the Neo4j bulk loading logic (`import_to_neo4j.js`) to Go, eliminating the Node.js runtime dependency for standard workflows.
 **Status:** Completed

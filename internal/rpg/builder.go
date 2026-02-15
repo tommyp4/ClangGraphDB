@@ -68,8 +68,9 @@ func (b *Builder) Build(rootPath string, functions []graph.Node) ([]Feature, []g
 		for _, fn := range functions {
 			// Check if function path starts with domain path prefix
 			if p, ok := fn.Properties["file"].(string); ok {
-				// Use HasPrefix for correct path matching, or Contains if prefix is loose
-				if strings.Contains(p, pathPrefix) {
+				// Strict prefix matching to avoid "auth" matching "authentication"
+				// Match exact directory or subdirectory
+				if pathPrefix == "" || p == pathPrefix || strings.HasPrefix(p, pathPrefix+"/") {
 					domainFuncs = append(domainFuncs, fn)
 				}
 			}

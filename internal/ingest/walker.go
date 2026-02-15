@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/monochromegane/go-gitignore"
 )
@@ -44,53 +45,114 @@ func (w *Walker) Count(ctx context.Context, dirPath string) (int64, error) {
 	return count, err
 }
 
-func (w *Walker) Walk(ctx context.Context, dirPath string, visitor func(path string, d fs.DirEntry) error) error {
-	// Check for .gitignore in the root directory
-	gitignorePath := filepath.Join(dirPath, ".gitignore")
-	var ignoreMatcher gitignore.IgnoreMatcher
+func (w *Walker) Walk(ctx context.Context, rootPath string, visitor func(path string, d fs.DirEntry) error) error {
+	return w.walkRecursiveWithPatterns(ctx, rootPath, rootPath, []string{}, visitor)
+}
 
-	// Check if file exists
+func (w *Walker) walkRecursiveWithPatterns(ctx context.Context, rootPath string, currentPath string, patterns []string, visitor func(path string, d fs.DirEntry) error) error {
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+
+	// Check for local .gitignore and extend patterns if found
+	gitignorePath := filepath.Join(currentPath, ".gitignore")
 	if _, err := os.Stat(gitignorePath); err == nil {
-		matcher, err := gitignore.NewGitIgnore(gitignorePath)
+		content, err := os.ReadFile(gitignorePath)
 		if err == nil {
-			ignoreMatcher = matcher
+			// Parse and rewrite patterns
+			lines := strings.Split(string(content), "\n")
+			relDir, _ := filepath.Rel(rootPath, currentPath)
+			relDir = filepath.ToSlash(relDir)
+			
+			for _, line := range lines {
+				trimmed := strings.TrimSpace(line)
+				if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+					continue
+				}
+
+				// Handle negation
+				isNegated := strings.HasPrefix(trimmed, "!")
+				if isNegated {
+					trimmed = trimmed[1:]
+				}
+
+				// Handle root-relative anchor
+				if strings.HasPrefix(trimmed, "/") {
+					trimmed = trimmed[1:]
+				}
+
+				// Prepend current directory relative to root
+				if relDir != "." {
+					trimmed = filepath.ToSlash(filepath.Join(relDir, trimmed))
+				}
+
+				// Restore negation
+				if isNegated {
+					trimmed = "!" + trimmed
+				}
+
+				patterns = append(patterns, trimmed)
+			}
 		}
 	}
 
-	return filepath.WalkDir(dirPath, func(path string, d fs.DirEntry, err error) error {
+	// Build a single matcher for the current context (if any patterns exist)
+	var matcher gitignore.IgnoreMatcher
+	if len(patterns) > 0 {
+		matcher = gitignore.NewGitIgnoreFromReader(rootPath, strings.NewReader(strings.Join(patterns, "\n")))
+	}
+
+	entries, err := os.ReadDir(currentPath)
+	if err != nil {
+		return err
+	}
+
+	for _, d := range entries {
+		fullPath := filepath.Join(currentPath, d.Name())
+		isDir := d.IsDir()
+
+		// Always ignore .git directory
+		if isDir && d.Name() == ".git" {
+			continue
+		}
+
+		// Check ignored status
+		if matcher != nil {
+			if matcher.Match(fullPath, isDir) {
+				continue
+			}
+		}
+
+		// Visit the file or directory
+		err = visitor(fullPath, d)
+		if err == filepath.SkipDir {
+			continue
+		}
 		if err != nil {
 			return err
 		}
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
 
-		// Always ignore .git directory
-		if d.IsDir() && d.Name() == ".git" {
-			return filepath.SkipDir
-		}
-
-		// Check .gitignore
-		if ignoreMatcher != nil {
-			// Calculate relative path for matching
-			relPath, err := filepath.Rel(dirPath, path)
+		// Recurse if it's a directory
+		if isDir {
+			// Pass a copy of patterns to avoid side effects (though append returns new slice if capacity exceeded, 
+			// it's safer to rely on slice value semantics in recursion)
+			// Actually, 'patterns' is a new slice in this scope (value passed), but the underlying array might be shared.
+			// However, since we appended above, 'patterns' in this scope points to a new array or the same. 
+			// In the recursive call, we want the *current* accumulated patterns.
+			// The next level will append to it. 
+			// We should pass 'patterns' as is. 
+			// Wait, if next level appends, does it affect this level's future usage?
+			// No, because we don't use 'patterns' after the loop.
+			// But for siblings in the loop? 
+			// We iterate 'entries'. For each directory 'd', we call recurse.
+			// 'patterns' variable here includes patterns from 'currentPath/.gitignore'.
+			// This is correct for all children of 'currentPath'.
+			
+			err = w.walkRecursiveWithPatterns(ctx, rootPath, fullPath, patterns, visitor)
 			if err != nil {
 				return err
 			}
-
-			// "." means root, which we don't want to skip
-			if relPath == "." {
-				return nil
-			}
-
-			if ignoreMatcher.Match(path, d.IsDir()) {
-				if d.IsDir() {
-					return filepath.SkipDir
-				}
-				return nil // Skip file
-			}
 		}
-
-		return visitor(path, d)
-	})
+	}
+	return nil
 }

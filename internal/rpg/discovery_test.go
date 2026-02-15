@@ -24,9 +24,9 @@ func TestDirectoryDomainDiscoverer_DiscoverDomains(t *testing.T) {
 	}
 
 	expected := map[string]string{
-		"auth":    filepath.Join("internal", "auth"),
-		"billing": filepath.Join("internal", "billing"),
-		"app":     filepath.Join("cmd", "app"),
+		filepath.Join("internal", "auth"):    filepath.Join("internal", "auth"),
+		filepath.Join("internal", "billing"): filepath.Join("internal", "billing"),
+		filepath.Join("cmd", "app"):          filepath.Join("cmd", "app"),
 	}
 
 	if len(domains) != 3 {

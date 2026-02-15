@@ -331,7 +331,7 @@ func handleEnrichFeatures(args []string) {
 
 	builder := &rpg.Builder{
 		Discoverer: &rpg.DirectoryDomainDiscoverer{
-			BaseDirs: []string{"internal", "pkg", "cmd", "src"},
+			BaseDirs: []string{"."},
 		},
 		Clusterer: clusterer,
 	}
@@ -723,6 +723,9 @@ func handleQuery(args []string) {
 			log.Fatalf("Embedding failed: %v", err)
 		}
 		result, err = provider.SearchFeatures(embeddings[0], *limitPtr)
+		if err != nil {
+			log.Fatalf("SearchFeatures failed: %v", err)
+		}
 
 	case "search-similar":
 		if *targetPtr == "" {
@@ -734,6 +737,9 @@ func handleQuery(args []string) {
 			log.Fatalf("Embedding failed: %v", err)
 		}
 		result, err = provider.SearchSimilarFunctions(embeddings[0], *limitPtr)
+		if err != nil {
+			log.Fatalf("SearchSimilarFunctions failed: %v", err)
+		}
 
 	case "hybrid-context":
 		if *targetPtr == "" {
