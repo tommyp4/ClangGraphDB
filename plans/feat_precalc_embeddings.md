@@ -1,22 +1,22 @@
 # Feature Implementation Plan: Pre-calculated Embeddings & One-Shot Build
 
 ## 📋 Todo Checklist
-- [ ] **Phase 1: Refactoring & Preparation**
-    - [ ] Create `internal/rpg/text.go` with `NodeToText`.
-    - [ ] Add unit tests for `NodeToText`.
-- [ ] **Phase 2: Embedding Phase Implementation**
-    - [ ] Modify `EmbeddingClusterer` to accept pre-calculated embeddings.
-    - [ ] Update `cluster_semantic.go` to use the pre-calculated map.
-    - [ ] Add tests for `EmbeddingClusterer` with pre-calculated embeddings.
-- [ ] **Phase 3: Integration in `enrich-features`**
-    - [ ] Update `cmd/graphdb/main.go` (`handleEnrichFeatures`) to pre-calculate embeddings with a progress bar.
-    - [ ] Pass the map to the `Clusterer`.
-- [ ] **Phase 4: The "One-Shot" Command**
-    - [ ] Implement `handleBuildAll` in `cmd/graphdb/main.go`.
-    - [ ] Add `build-all` case to `main()`.
-- [ ] **Phase 5: Documentation & Polish**
-    - [ ] Update `.gemini/skills/graphdb/SKILL.md`.
-    - [ ] Verify all changes.
+- [x] **Phase 1: Refactoring & Preparation**
+    - [x] Create `internal/rpg/text.go` with `NodeToText`.
+    - [x] Add unit tests for `NodeToText`.
+- [x] **Phase 2: Embedding Phase Implementation**
+    - [x] Modify `EmbeddingClusterer` to accept pre-calculated embeddings.
+    - [x] Update `cluster_semantic.go` to use the pre-calculated map.
+    - [x] Add tests for `EmbeddingClusterer` with pre-calculated embeddings.
+- [x] **Phase 3: Integration in `enrich-features`**
+    - [x] Update `cmd/graphdb/main.go` (`handleEnrichFeatures`) to pre-calculate embeddings with a progress bar.
+    - [x] Pass the map to the `Clusterer`.
+- [x] **Phase 4: The "One-Shot" Command**
+    - [x] Implement `handleBuildAll` in `cmd/graphdb/main.go`.
+    - [x] Add `build-all` case to `main()`.
+- [x] **Phase 5: Documentation & Polish**
+    - [x] Update `.gemini/skills/graphdb/SKILL.md`.
+    - [x] Verify all changes.
 
 ## 🔍 Analysis & Investigation
 The `enrich-features` command currently "hangs" during the clustering phase because `EmbeddingClusterer` calls `EmbedBatch` on potentially large sets of functions without progress feedback. By moving the embedding process to a dedicated pre-calculation step with a progress bar, we improve UX and observability.

@@ -52,7 +52,7 @@
 - [x] **Bug Fixes:** Corrected `IMPLEMENTS` edge direction (Function -> Feature), fixed enrichment to cover all features with domain-scoped functions, populated `ScopePath` on child features, removed dead code.
 - [x] **Feature Embeddings:** `Enricher` now generates embeddings for all Feature nodes via `Embedder` integration.
 - [x] **Atomic Feature Extraction:** New `FeatureExtractor` interface and `LLMFeatureExtractor` -- extracts Verb-Object descriptors per function (e.g., \"validate email\", \"hash password\").
-- [x] **Semantic Clustering:** New `EmbeddingClusterer` with K-Means++ on atomic feature embeddings, replacing file-based grouping. Available via `--cluster-mode=semantic` flag.
+- [x] **Semantic Clustering:** New `EmbeddingClusterer` with K-Means++ on atomic feature embeddings, replacing file-based grouping.
 - [x] **3-Level Hierarchy:** `Builder` supports optional `CategoryClusterer` for Domain -> Category -> Feature hierarchy (per research).
 - [x] **Enrichment Improvements:** Increased truncation to 3000 chars, atomic features included as summarization context.
 - [x] **Hierarchy Navigation:** New `ExploreDomain` query returns feature + parent + children + siblings + implementing functions. Wired to `--type explore-domain` CLI.
@@ -123,11 +123,18 @@
 
 ### Campaign 5.2: UX - Async Embedding Generation
 **Goal:** Address the synchronous blocking behavior of `EmbeddingClusterer` by pre-calculating embeddings with progress reporting before clustering begins. This prevents the "hang" during large domain processing.
-**Status:** Planned
+**Status:** Completed
 **Key Deliverables:**
-- [ ] **Pre-calculation:** Implement batched embedding generation in `main.go` with progress bar.
-- [ ] **Optimization:** Update `EmbeddingClusterer` to use pre-calculated embeddings.
-- [ ] **Plan:** Ref: `plans/feat_precalc_embeddings.md`.
+- [x] **Pre-calculation:** Implement batched embedding generation in `main.go` with progress bar.
+- [x] **Optimization:** Update `EmbeddingClusterer` to use pre-calculated embeddings.
+- [x] **Plan:** Ref: `plans/feat_precalc_embeddings.md`.
+
+### Campaign 5.3: Orchestration - One-Shot Build
+**Goal:** Implement a `build-all` command that orchestrates the entire graph construction pipeline (Ingest -> Enrich -> Import) for improved developer experience.
+**Status:** Completed
+**Key Deliverables:**
+- [x] **Implementation:** Create `handleBuildAll` in `main.go`.
+- [x] **Workflow:** Update `SKILL.md` to reflect the streamlined process.
 
 ### Campaign 6: The Spanner Backend (Storage Swap)
 **Goal:** Establish the multi-tenant, immutable storage layer using Google Spanner Graph by swapping the storage implementation.

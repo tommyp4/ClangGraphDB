@@ -52,10 +52,9 @@ Scans code and generates a graph JSONL file.
 **Step 2: Enrich (Build Intent Layer):**
 Groups code into high-level features (RPG) using embeddings and LLMs. Includes a pre-calculation phase for embeddings with progress tracking.
 ```bash
-.gemini/skills/graphdb/scripts/graphdb enrich-features -input graph.jsonl -output rpg.jsonl -cluster-mode semantic
+.gemini/skills/graphdb/scripts/graphdb enrich-features -input graph.jsonl -output rpg.jsonl
 ```
 *   *Options:*
-    *   `-cluster-mode`: `semantic` (recommended) or `file`.
     *   `-embed-batch-size`: Batch size for embedding generation (default: 100).
 
 **Step 3: Import (Load to Neo4j):**

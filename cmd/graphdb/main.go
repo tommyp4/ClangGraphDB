@@ -92,7 +92,7 @@ func handleBuildAll(args []string) {
 	// 2. Enrich
 	fmt.Println("\n[Phase 2/3] Enriching Features...")
 	// Use semantic clustering by default for better quality
-	enrichArgs := []string{"-dir", *dirPtr, "-input", "graph.jsonl", "-output", "rpg.jsonl", "-cluster-mode", "semantic"}
+	enrichArgs := []string{"-dir", *dirPtr, "-input", "graph.jsonl", "-output", "rpg.jsonl"}
 	handleEnrichFeatures(enrichArgs)
 
 	// 3. Import

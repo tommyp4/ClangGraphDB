@@ -32,11 +32,10 @@ func (c *EmbeddingClusterer) Cluster(nodes []graph.Node, domain string) (map[str
 	indicesToEmbed := make([]int, 0)
 
 	for i, n := range nodes {
-		text := NodeToText(n)
-
 		if val, ok := c.PrecomputedEmbeddings[n.ID]; ok {
 			embeddings[i] = val
 		} else {
+			text := NodeToText(n)
 			// Fallback: try text lookup if ID fails (though ID is safer for map key)
 			// Actually, let's stick to ID for precomputed map as it's unique.
 			// But wait, the previous logic used text content.

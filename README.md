@@ -93,11 +93,15 @@ To analyze a codebase, you must first ingest it into the Graph Database. Run the
     .gemini/skills/graphdb/scripts/graphdb ingest -dir <target-dir> -nodes graph_data/nodes.jsonl -edges graph_data/edges.jsonl
     ```
 
-2.  **Build RPG Features** (Groups functions into semantic features using LLM):
+2. **Build RPG Features** (Groups functions into semantic features using LLM):
+
     ```bash
-    .gemini/skills/graphdb/scripts/graphdb enrich-features -dir <target-dir> -input graph_data/nodes.jsonl -output graph_data/rpg.jsonl
+
+    .gemini/skills/graphdb/scripts/graphdb enrich-features -dir <target-dir> -input graph.jsonl -output rpg.jsonl
+
     ```
-    Flags: `--cluster-mode=semantic` for embedding-based clustering, `--mock-embedding` for dry runs.
+
+    Flags: `--mock-embedding` for dry runs.
 
 3.  **Import to Neo4j** (Loads JSONL into the database):
     ```bash
