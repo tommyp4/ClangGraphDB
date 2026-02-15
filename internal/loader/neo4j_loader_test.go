@@ -14,12 +14,21 @@ func TestBuildNodeQuery(t *testing.T) {
 	if !strings.Contains(query, "MERGE (n:Function {id: row.id})") {
 		t.Error("Missing MERGE clause with correct label")
 	}
+	if !strings.Contains(query, "SET n:CodeElement") {
+		t.Error("Missing SET n:CodeElement clause")
+	}
 }
 
 func TestBuildEdgeQuery(t *testing.T) {
 	query := buildEdgeQuery("CALLS")
 	if !strings.Contains(query, "UNWIND $batch AS row") {
 		t.Error("Missing UNWIND clause")
+	}
+	if !strings.Contains(query, "MATCH (source:CodeElement {id: row.sourceId})") {
+		t.Error("Missing MATCH source with :CodeElement label")
+	}
+	if !strings.Contains(query, "MATCH (target:CodeElement {id: row.targetId})") {
+		t.Error("Missing MATCH target with :CodeElement label")
 	}
 	if !strings.Contains(query, "MERGE (source)-[r:CALLS]->(target)") {
 		t.Error("Missing MERGE clause with correct type")

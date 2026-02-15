@@ -95,6 +95,7 @@ func (l *Neo4jLoader) ApplyConstraints(ctx context.Context) error {
 		"CREATE CONSTRAINT IF NOT EXISTS FOR (n:File) REQUIRE n.id IS UNIQUE",
 		"CREATE CONSTRAINT IF NOT EXISTS FOR (n:Function) REQUIRE n.id IS UNIQUE",
 		"CREATE CONSTRAINT IF NOT EXISTS FOR (n:Class) REQUIRE n.id IS UNIQUE",
+		"CREATE CONSTRAINT IF NOT EXISTS FOR (n:CodeElement) REQUIRE n.id IS UNIQUE",
 		"CREATE INDEX IF NOT EXISTS FOR (n:Function) ON (n.name)",
 		"CREATE INDEX IF NOT EXISTS FOR (n:File) ON (n.file)",
 	}
@@ -147,6 +148,7 @@ func buildNodeQuery(label string) string {
 			UNWIND $batch AS row
 			MERGE (n:%s {id: row.id})
 			SET n += row
+			SET n:CodeElement
 		`, sanitizeLabel(label))
 }
 
@@ -170,8 +172,8 @@ func groupEdgesByType(edges []graph.Edge) map[string][]map[string]any {
 func buildEdgeQuery(relType string) string {
 	return fmt.Sprintf(`
 			UNWIND $batch AS row
-			MATCH (source {id: row.sourceId})
-			MATCH (target {id: row.targetId})
+			MATCH (source:CodeElement {id: row.sourceId})
+			MATCH (target:CodeElement {id: row.targetId})
 			MERGE (source)-[r:%s]->(target)
 		`, sanitizeLabel(relType))
 }

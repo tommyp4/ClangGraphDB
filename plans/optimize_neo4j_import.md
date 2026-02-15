@@ -1,9 +1,9 @@
 # Feature Implementation Plan: Optimize Neo4j Edge Import
 
 ## 📋 Todo Checklist
-- [ ] Update `internal/loader/neo4j_loader_test.go` to assert new query structure.
-- [ ] Modify `internal/loader/neo4j_loader.go` to implement `CodeElement` label strategy.
-- [ ] Verify tests pass.
+- [x] Update `internal/loader/neo4j_loader_test.go` to assert new query structure.
+- [x] Modify `internal/loader/neo4j_loader.go` to implement `CodeElement` label strategy.
+- [x] Verify tests pass.
 
 ## 🔍 Analysis & Investigation
 The current edge import process in `Neo4jLoader` is extremely slow due to inefficient Cypher queries.
