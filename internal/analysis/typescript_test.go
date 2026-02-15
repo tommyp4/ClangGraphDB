@@ -61,9 +61,21 @@ func TestParseTypeScript(t *testing.T) {
 		name, _ := n.Properties["name"].(string)
 		if name == "hello" && n.Label == "Function" {
 			foundHello = true
+			if _, ok := n.Properties["end_line"]; !ok {
+				t.Errorf("Function 'hello' missing end_line")
+			}
+			if _, ok := n.Properties["content"]; ok {
+				t.Errorf("Function 'hello' should not have content")
+			}
 		}
 		if name == "Greeter" && n.Label == "Class" {
 			foundGreeter = true
+			if _, ok := n.Properties["end_line"]; !ok {
+				t.Errorf("Class 'Greeter' missing end_line")
+			}
+			if _, ok := n.Properties["content"]; ok {
+				t.Errorf("Class 'Greeter' should not have content")
+			}
 		}
 	}
 

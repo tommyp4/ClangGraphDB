@@ -41,9 +41,21 @@ func TestParseSQL(t *testing.T) {
 		name, _ := n.Properties["name"].(string)
 		if name == "CalculateTotal" && n.Label == "Function" {
 			foundCalculateTotal = true
+			if _, ok := n.Properties["end_line"]; !ok {
+				t.Errorf("Function 'CalculateTotal' missing end_line")
+			}
+			if _, ok := n.Properties["content"]; ok {
+				t.Errorf("Function 'CalculateTotal' should not have content")
+			}
 		}
 		if name == "ProcessOrder" && n.Label == "Function" { // Procedure treated as Function
 			foundProcessOrder = true
+			if _, ok := n.Properties["end_line"]; !ok {
+				t.Errorf("Function 'ProcessOrder' missing end_line")
+			}
+			if _, ok := n.Properties["content"]; ok {
+				t.Errorf("Function 'ProcessOrder' should not have content")
+			}
 		}
 	}
 

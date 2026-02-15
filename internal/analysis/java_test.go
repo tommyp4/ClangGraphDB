@@ -35,6 +35,12 @@ func TestParseJava(t *testing.T) {
 		for _, n := range nodes {
 			nName, _ := n.Properties["name"].(string)
 			if nName == name && n.Label == label {
+				if _, ok := n.Properties["end_line"]; !ok {
+					t.Errorf("Node '%s' (%s) missing end_line", name, label)
+				}
+				if _, ok := n.Properties["content"]; ok {
+					t.Errorf("Node '%s' (%s) should not have content", name, label)
+				}
 				return true
 			}
 		}

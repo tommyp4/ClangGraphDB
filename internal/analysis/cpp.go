@@ -166,6 +166,7 @@ func (p *CppParser) Parse(filePath string, content []byte) ([]*graph.Node, []*gr
 					"name": nodeContent,
 					"file": filePath,
 					"line": c.Node.StartPoint().Row + 1,
+					"end_line": c.Node.EndPoint().Row + 1,
 					"namespace": namespace,
 				},
 			})

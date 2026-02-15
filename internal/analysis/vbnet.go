@@ -28,19 +28,23 @@ func (p *VBNetParser) Parse(filePath string, content []byte) ([]*graph.Node, []*
 	lines := strings.Split(string(content), "\n")
 	
 	// Create File Node
+	// Removed "content" property to reduce memory usage
 	fileNode := &graph.Node{
 		ID:    filePath,
 		Label: "File",
 		Properties: map[string]interface{}{
-			"name":    filePath, // Simplification
-			"content": string(content),
+			"name":    filePath, 
 			"lang":    "vbnet",
 		},
 	}
 	nodes = append(nodes, fileNode)
 
-	currentFunction := ""
-	// currentClass := "" // Not strictly needed for call tracking unless we want fully qualified names
+	type pendingFunc struct {
+		Name      string
+		StartLine int
+		Signature string
+	}
+	var currentFunc *pendingFunc
 
 	for i, line := range lines {
 		lineNumber := i + 1
@@ -49,7 +53,6 @@ func (p *VBNetParser) Parse(filePath string, content []byte) ([]*graph.Node, []*
 		// 1. Check for Class/Module Definition
 		if matches := classRegex.FindStringSubmatch(trimmed); matches != nil {
 			className := matches[1]
-			// currentClass = className
 			
 			classID := fmt.Sprintf("%s:%s", filePath, className)
 			classNode := &graph.Node{
@@ -67,37 +70,46 @@ func (p *VBNetParser) Parse(filePath string, content []byte) ([]*graph.Node, []*
 		// 2. Check for Function/Sub Definition
 		if matches := funcRegex.FindStringSubmatch(trimmed); matches != nil {
 			funcName := matches[1]
-			currentFunction = funcName
 			
-			funcID := fmt.Sprintf("%s:%s", filePath, funcName)
-			funcNode := &graph.Node{
-				ID:    funcID,
-				Label: "Function",
-				Properties: map[string]interface{}{
-					"name":      funcName,
-					"signature": trimmed, // Rough signature
-					"file":      filePath,
-					"line":      lineNumber,
-				},
+			currentFunc = &pendingFunc{
+				Name:      funcName,
+				StartLine: lineNumber,
+				Signature: trimmed,
 			}
-			nodes = append(nodes, funcNode)
 
 			// Edge: DEFINED_IN File
+			funcID := fmt.Sprintf("%s:%s", filePath, funcName)
 			edges = append(edges, &graph.Edge{
 				SourceID: funcID,
 				TargetID: filePath,
 				Type:     "DEFINED_IN",
 			})
-			continue // Skip checking for calls on the definition line itself (simplification)
+			continue // Skip checking for calls on the definition line itself
 		}
 
 		// 3. Check for End of Function/Sub
 		if endFuncRegex.MatchString(trimmed) {
-			currentFunction = ""
+			if currentFunc != nil {
+				// Create the Function Node now that we have the end line
+				funcID := fmt.Sprintf("%s:%s", filePath, currentFunc.Name)
+				funcNode := &graph.Node{
+					ID:    funcID,
+					Label: "Function",
+					Properties: map[string]interface{}{
+						"name":      currentFunc.Name,
+						"signature": currentFunc.Signature,
+						"file":      filePath,
+						"line":      currentFunc.StartLine,
+						"end_line":  lineNumber,
+					},
+				}
+				nodes = append(nodes, funcNode)
+				currentFunc = nil
+			}
 		}
 
 		// 4. Check for Calls (only if inside a function)
-		if currentFunction != "" {
+		if currentFunc != nil {
 			// Find all calls in the line
 			callMatches := callRegex.FindAllStringSubmatch(trimmed, -1)
 			for _, match := range callMatches {
@@ -109,12 +121,8 @@ func (p *VBNetParser) Parse(filePath string, content []byte) ([]*graph.Node, []*
 				}
 
 				// Construct IDs
-				sourceID := fmt.Sprintf("%s:%s", filePath, currentFunction)
+				sourceID := fmt.Sprintf("%s:%s", filePath, currentFunc.Name)
 				// Target ID is tricky without semantic analysis. 
-				// We'll assume it's in the same file for the test case, or just use the name.
-				// However, to match the test expectation `strings.HasSuffix(e.TargetID, ":Calculate")`,
-				// we should probably construct a similar ID structure.
-				// For now, let's guess it's a local function.
 				targetID := fmt.Sprintf("%s:%s", filePath, calledFunc)
 
 				edges = append(edges, &graph.Edge{
@@ -124,6 +132,23 @@ func (p *VBNetParser) Parse(filePath string, content []byte) ([]*graph.Node, []*
 				})
 			}
 		}
+	}
+
+	// Handle case where function is not closed at EOF
+	if currentFunc != nil {
+		funcID := fmt.Sprintf("%s:%s", filePath, currentFunc.Name)
+		funcNode := &graph.Node{
+			ID:    funcID,
+			Label: "Function",
+			Properties: map[string]interface{}{
+				"name":      currentFunc.Name,
+				"signature": currentFunc.Signature,
+				"file":      filePath,
+				"line":      currentFunc.StartLine,
+				"end_line":  len(lines),
+			},
+		}
+		nodes = append(nodes, funcNode)
 	}
 
 	return nodes, edges, nil

@@ -11,6 +11,8 @@ import (
 	"google.golang.org/genai"
 )
 
+type SourceLoader func(path string, start, end int) (string, error)
+
 type Summarizer interface {
 	Summarize(snippets []string) (string, string, error)
 }
@@ -18,6 +20,7 @@ type Summarizer interface {
 type Enricher struct {
 	Client   Summarizer
 	Embedder embedding.Embedder
+	Loader   SourceLoader
 }
 
 func (e *Enricher) Enrich(feature *Feature, functions []graph.Node) error {
@@ -30,11 +33,17 @@ func (e *Enricher) Enrich(feature *Feature, functions []graph.Node) error {
 			snippet = "// Atomic features: " + strings.Join(af, ", ") + "\n"
 		}
 
-		if content, ok := fn.Properties["content"].(string); ok {
-			if len(content) > 3000 {
-				snippet += content[:3000] + "..."
-			} else {
-				snippet += content
+		file, okFile := fn.Properties["file"].(string)
+		line, okLine := getInt(fn.Properties["line"])
+		endLine, okEnd := getInt(fn.Properties["end_line"])
+
+		if okFile && okLine && okEnd && e.Loader != nil {
+			if content, err := e.Loader(file, line, endLine); err == nil {
+				if len(content) > 3000 {
+					snippet += content[:3000] + "..."
+				} else {
+					snippet += content
+				}
 			}
 		}
 
@@ -66,6 +75,21 @@ func (e *Enricher) Enrich(feature *Feature, functions []graph.Node) error {
 	}
 
 	return nil
+}
+
+func getInt(v interface{}) (int, bool) {
+	switch val := v.(type) {
+	case int:
+		return val, true
+	case float64:
+		return int(val), true
+	case uint32:
+		return int(val), true
+	case int64:
+		return int(val), true
+	default:
+		return 0, false
+	}
 }
 
 type VertexSummarizer struct {
