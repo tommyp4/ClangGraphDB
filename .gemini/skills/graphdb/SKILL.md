@@ -10,13 +10,21 @@ Your goal is to answer questions about dependencies, seams, testing contexts, an
 
 ## Tool Usage
 You will use the `graphdb` Go binary directly. Always execute commands from the **project root directory**.
-**Base Command:** `.gemini/skills/graphdb/scripts/graphdb <command> [options]`
+
+**Binary Location Selection:**
+*   **Linux/macOS:** `.gemini/skills/graphdb/scripts/graphdb`
+*   **Windows:** `.gemini/skills/graphdb/scripts/graphdb-win.exe`
+
+**Variable Definition:**
+Define `${graphdb_bin}` as the path to the binary appropriate for the current operating system.
+
+**Base Command:** `${graphdb_bin} <command> [options]`
 
 ## Setup & Infrastructure
 
 ### Installation
-The skill relies on a pre-compiled Go binary (`.gemini/skills/graphdb/scripts/graphdb`).
-If it does not exist, build it from the project root: `make build`
+The skill relies on a pre-compiled Go binary (`${graphdb_bin}`).
+If it does not exist, build it from the project root: `make build` (Linux/macOS) or use the cross-compilation script for Windows.
 
 ### Environment Variables
 The tool automatically inherits the following environment variables. Assume they are already configured correctly. Do not manually verify, echo, or debug these variables unless the tool explicitly fails with a configuration error.
@@ -29,7 +37,7 @@ The tool automatically inherits the following environment variables. Assume they
 ### 1. The "One-Shot" Build (Recommended)
 To rebuild the entire graph from scratch (Ingest -> Enrich -> Import), use the `build-all` command. This handles all phases sequentially.
 ```bash
-.gemini/skills/graphdb/scripts/graphdb build-all -dir .
+${graphdb_bin} build-all -dir .
 ```
 *   *Options:*
     *   `-clean`: Wipe the database before importing (default: true).
@@ -39,20 +47,20 @@ If you need granular control over each step, follow this sequence:
 
 **Step 0: Check Sync Status**
 1. Get local commit: `git rev-parse HEAD`
-2. Get graph commit: `.gemini/skills/graphdb/scripts/graphdb query -type status`
-3. **Decision:** If hashes match, skip to "Analysis & Querying".
+2. Get graph commit: `${graphdb_bin} query -type status`
+3. **Decision:** If the commit hashes match, you can **skip** the ingestion pipeline and proceed directly to "Analysis & Querying".
 
 **Step 1: Ingest (Parse & Generate Graph):**
 Scans code and generates a graph JSONL file.
 ```bash
-.gemini/skills/graphdb/scripts/graphdb ingest -dir . -output graph.jsonl
+${graphdb_bin} ingest -dir . -output graph.jsonl
 ```
 *   *Options:* `-workers` (concurrency), `-file-list` (specific files).
 
 **Step 2: Enrich (Build Intent Layer):**
 Performs **Global Semantic Clustering** to identify latent functional domains across the entire codebase, independent of directory structure. Grounds these domains using Lowest Common Ancestor (LCA) logic.
 ```bash
-.gemini/skills/graphdb/scripts/graphdb enrich-features -input graph.jsonl -output rpg.jsonl
+${graphdb_bin} enrich-features -input graph.jsonl -output rpg.jsonl
 ```
 *   *Options:*
     *   `-embed-batch-size`: Batch size for embedding generation (default: 100).
@@ -60,7 +68,9 @@ Performs **Global Semantic Clustering** to identify latent functional domains ac
 **Step 3: Import (Load to Neo4j):**
 Loads the generated JSONL files into the active Neo4j database.
 ```bash
-.gemini/skills/graphdb/scripts/graphdb import -input rpg.jsonl -clean
+${graphdb_bin} import -input rpg.jsonl -clean
+# OR Split Files
+${graphdb_bin} import -nodes nodes.jsonl -edges edges.jsonl -clean
 ```
 *   *Options:* `-clean` (wipe DB first), `-batch-size`.
 
@@ -69,7 +79,7 @@ The primary way to interact with the graph is via the `query` command.
 
 **Base Syntax:**
 ```bash
-.gemini/skills/graphdb/scripts/graphdb query -type <type> -target "<search_term>" [options]
+${graphdb_bin} query -type <type> -target "<search_term>" [options]
 ```
 
 #### Supported Languages
