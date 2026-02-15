@@ -26,42 +26,46 @@ The tool automatically inherits the following environment variables. Assume they
 
 ## Workflows
 
-### 1. Ingestion Pipeline
-To ensure the graph reflects the current state of the codebase, follow these steps:
+### 1. The "One-Shot" Build (Recommended)
+To rebuild the entire graph from scratch (Ingest -> Enrich -> Import), use the `build-all` command. This handles all phases sequentially.
+```bash
+.gemini/skills/graphdb/scripts/graphdb build-all -dir .
+```
+*   *Options:*
+    *   `-clean`: Wipe the database before importing (default: true).
 
-**Step 0: Check Sync Status (Recommended)**
-Before starting a full rebuild, verify if the graph is already in sync with your local checkout.
+### 2. Manual Pipeline
+If you need granular control over each step, follow this sequence:
+
+**Step 0: Check Sync Status**
 1. Get local commit: `git rev-parse HEAD`
 2. Get graph commit: `.gemini/skills/graphdb/scripts/graphdb query -type status`
-3. **Decision:** If the commit hashes match, you can **skip** the ingestion pipeline and proceed directly to "Analysis & Querying".
+3. **Decision:** If hashes match, skip to "Analysis & Querying".
 
-**Step 1: Ingest (Parse & Embed):**
-Scans code, generates embeddings, and creates a graph JSONL file.
+**Step 1: Ingest (Parse & Generate Graph):**
+Scans code and generates a graph JSONL file.
 ```bash
 .gemini/skills/graphdb/scripts/graphdb ingest -dir . -output graph.jsonl
 ```
-*   *Options:*
-    *   `-workers`: Concurrency level (default: 4).
-    *   `-file-list`: Process specific files from a list.
-    *   `-nodes` / `-edges`: Generate separate files for nodes and edges instead of a single output.
+*   *Options:* `-workers` (concurrency), `-file-list` (specific files).
 
 **Step 2: Enrich (Build Intent Layer):**
-Groups code into high-level features (RPG) using LLMs.
+Groups code into high-level features (RPG) using embeddings and LLMs. Includes a pre-calculation phase for embeddings with progress tracking.
 ```bash
 .gemini/skills/graphdb/scripts/graphdb enrich-features -input graph.jsonl -output rpg.jsonl -cluster-mode semantic
 ```
-*   *Options:* `-cluster-mode` (`file` or `semantic`).
+*   *Options:*
+    *   `-cluster-mode`: `semantic` (recommended) or `file`.
+    *   `-embed-batch-size`: Batch size for embedding generation (default: 100).
 
 **Step 3: Import (Load to Neo4j):**
 Loads the generated JSONL files into the active Neo4j database.
 ```bash
-.gemini/skills/graphdb/scripts/graphdb import -input graph.jsonl -clean
-# OR Split Files
-.gemini/skills/graphdb/scripts/graphdb import -nodes nodes.jsonl -edges edges.jsonl -clean
+.gemini/skills/graphdb/scripts/graphdb import -input rpg.jsonl -clean
 ```
 *   *Options:* `-clean` (wipe DB first), `-batch-size`.
 
-### 2. Analysis & Querying
+### 3. Analysis & Querying
 The primary way to interact with the graph is via the `query` command.
 
 **Base Syntax:**

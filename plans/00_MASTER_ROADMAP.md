@@ -56,7 +56,7 @@
 - [x] **3-Level Hierarchy:** `Builder` supports optional `CategoryClusterer` for Domain -> Category -> Feature hierarchy (per research).
 - [x] **Enrichment Improvements:** Increased truncation to 3000 chars, atomic features included as summarization context.
 - [x] **Hierarchy Navigation:** New `ExploreDomain` query returns feature + parent + children + siblings + implementing functions. Wired to `--type explore-domain` CLI.
-- [ ] **Cleanup:** Remove legacy `FileClusterer` and enforce semantic clustering by default (Plan: `plans/refactor_remove_file_clusterer.md`).
+- [x] **Cleanup:** Remove legacy `FileClusterer` and enforce semantic clustering by default (Plan: `plans/refactor_remove_file_clusterer.md`).
 
 ### Campaign 4: The Go Import Loader (Dependency Removal)
 **Goal:** Port the Neo4j bulk loading logic (`import_to_neo4j.js`) to Go, eliminating the Node.js runtime dependency for standard workflows.

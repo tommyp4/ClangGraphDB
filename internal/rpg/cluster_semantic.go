@@ -6,14 +6,14 @@ import (
 	"graphdb/internal/graph"
 	"math"
 	"math/rand"
-	"strings"
 )
 
 // EmbeddingClusterer groups functions by semantic similarity of their
 // atomic_features using embedding vectors and K-Means clustering.
 type EmbeddingClusterer struct {
-	Embedder      embedding.Embedder
-	MaxIterations int // K-Means iterations; 0 defaults to 50
+	Embedder              embedding.Embedder
+	MaxIterations         int // K-Means iterations; 0 defaults to 50
+	PrecomputedEmbeddings map[string][]float32
 }
 
 func (c *EmbeddingClusterer) Cluster(nodes []graph.Node, domain string) (map[string][]graph.Node, error) {
@@ -26,33 +26,45 @@ func (c *EmbeddingClusterer) Cluster(nodes []graph.Node, domain string) (map[str
 		return map[string][]graph.Node{domain + "-core": nodes}, nil
 	}
 
-	// 1. Build embedding for each function from its atomic_features
-	texts := make([]string, len(nodes))
+	// 1. Prepare embeddings
+	embeddings := make([][]float32, len(nodes))
+	textsToEmbed := make([]string, 0)
+	indicesToEmbed := make([]int, 0)
+
 	for i, n := range nodes {
-		if af, ok := n.Properties["atomic_features"].([]string); ok && len(af) > 0 {
-			texts[i] = strings.Join(af, ", ")
-		} else if afAny, ok := n.Properties["atomic_features"].([]interface{}); ok && len(afAny) > 0 {
-			parts := make([]string, len(afAny))
-			for j, v := range afAny {
-				parts[j] = fmt.Sprintf("%v", v)
-			}
-			texts[i] = strings.Join(parts, ", ")
+		text := NodeToText(n)
+
+		if val, ok := c.PrecomputedEmbeddings[n.ID]; ok {
+			embeddings[i] = val
 		} else {
-			// Fallback: use function name
-			name, _ := n.Properties["name"].(string)
-			texts[i] = name
-		}
-		if texts[i] == "" {
-			texts[i] = n.ID
+			// Fallback: try text lookup if ID fails (though ID is safer for map key)
+			// Actually, let's stick to ID for precomputed map as it's unique.
+			// But wait, the previous logic used text content.
+			// If the precomputation used NodeToText, and stored by ID, we are good.
+			// Let's assume PrecomputedEmbeddings is map[NodeID]Embedding.
+			textsToEmbed = append(textsToEmbed, text)
+			indicesToEmbed = append(indicesToEmbed, i)
 		}
 	}
 
-	embeddings, err := c.Embedder.EmbedBatch(texts)
-	if err != nil {
-		return nil, fmt.Errorf("embedding for clustering failed: %w", err)
+	// 2. Embed missing
+	if len(textsToEmbed) > 0 {
+		if c.Embedder == nil {
+			return nil, fmt.Errorf("missing embeddings for %d nodes and no Embedder provided", len(textsToEmbed))
+		}
+		newEmbeddings, err := c.Embedder.EmbedBatch(textsToEmbed)
+		if err != nil {
+			return nil, fmt.Errorf("embedding for clustering failed: %w", err)
+		}
+		if len(newEmbeddings) != len(textsToEmbed) {
+			return nil, fmt.Errorf("expected %d embeddings, got %d", len(textsToEmbed), len(newEmbeddings))
+		}
+		for j, idx := range indicesToEmbed {
+			embeddings[idx] = newEmbeddings[j]
+		}
 	}
 
-	// 2. Determine K: target 3-8 functions per cluster
+	// 3. Determine K: target 3-8 functions per cluster
 	k := len(nodes) / 5
 	if k < 2 {
 		k = 2
@@ -61,14 +73,14 @@ func (c *EmbeddingClusterer) Cluster(nodes []graph.Node, domain string) (map[str
 		k = len(nodes) / 2
 	}
 
-	// 3. Run K-Means
+	// 4. Run K-Means
 	maxIter := c.MaxIterations
 	if maxIter <= 0 {
 		maxIter = 50
 	}
 	assignments := kmeans(embeddings, k, maxIter)
 
-	// 4. Group nodes by cluster assignment
+	// 5. Group nodes by cluster assignment
 	clusters := make(map[string][]graph.Node)
 	for i, clusterIdx := range assignments {
 		key := fmt.Sprintf("%s-cluster-%d", domain, clusterIdx)

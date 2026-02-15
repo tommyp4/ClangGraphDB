@@ -86,15 +86,6 @@ func TestEmbeddingClusterer_Cluster(t *testing.T) {
 	if total != 6 {
 		t.Errorf("Expected 6 total nodes across clusters, got %d", total)
 	}
-
-	t.Logf("Clusters: %d", len(clusters))
-	for name, fns := range clusters {
-		ids := make([]string, len(fns))
-		for i, fn := range fns {
-			ids[i] = fn.ID
-		}
-		t.Logf("  %s: %v", name, ids)
-	}
 }
 
 func TestEmbeddingClusterer_SmallInput(t *testing.T) {
@@ -130,6 +121,38 @@ func TestEmbeddingClusterer_Empty(t *testing.T) {
 
 	if clusters != nil {
 		t.Errorf("Expected nil for empty input, got %v", clusters)
+	}
+}
+
+func TestEmbeddingClusterer_Precomputed(t *testing.T) {
+	precomputed := map[string][]float32{
+		"fn1": {1.0, 0.0},
+		"fn2": {1.0, 0.05}, // Close to fn1
+		"fn3": {0.0, 1.0},
+		"fn4": {0.05, 1.0}, // Close to fn3
+		"fn5": {0.5, 0.5},  // Middle
+	}
+
+	clusterer := &EmbeddingClusterer{
+		Embedder:              nil, // Should not be used
+		PrecomputedEmbeddings: precomputed,
+	}
+
+	nodes := []graph.Node{
+		{ID: "fn1", Properties: map[string]interface{}{"name": "A"}},
+		{ID: "fn2", Properties: map[string]interface{}{"name": "B"}},
+		{ID: "fn3", Properties: map[string]interface{}{"name": "C"}},
+		{ID: "fn4", Properties: map[string]interface{}{"name": "D"}},
+		{ID: "fn5", Properties: map[string]interface{}{"name": "E"}},
+	}
+
+	clusters, err := clusterer.Cluster(nodes, "precomp")
+	if err != nil {
+		t.Fatalf("Cluster failed with precomputed embeddings: %v", err)
+	}
+
+	if len(clusters) < 2 {
+		t.Errorf("Expected clusters with precomputed embeddings, got %d", len(clusters))
 	}
 }
 

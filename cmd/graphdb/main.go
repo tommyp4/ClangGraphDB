@@ -44,6 +44,8 @@ func main() {
 		handleEnrichFeatures(os.Args[2:])
 	case "import":
 		handleImport(os.Args[2:])
+	case "build-all":
+		handleBuildAll(os.Args[2:])
 	case "help", "--help", "-h":
 		printUsage()
 	default:
@@ -57,10 +59,51 @@ func printUsage() {
 	fmt.Println("Usage: graphdb <command> [options]")
 	fmt.Println("\nCommands:")
 	fmt.Println("  ingest           Parse code and generate graph nodes/edges (JSONL)")
-	fmt.Println("  query            Query the graph (structural or semantic)")
 	fmt.Println("  enrich-features  Build the RPG (Repository Planning Graph) Intent Layer")
 	fmt.Println("  import           Import JSONL files into Neo4j")
+	fmt.Println("  query            Query the graph (structural or semantic)")
+	fmt.Println("  build-all        One-shot: Ingest -> Enrich -> Import")
 	fmt.Println("\nRun 'graphdb <command> --help' for command-specific options.")
+}
+
+func handleBuildAll(args []string) {
+	// Minimal flag parsing for build-all, or just pass through relevant flags?
+	// For now, let's keep it simple: run the standard sequence with default filenames.
+	// Users can still override config via ENV vars.
+
+	fmt.Println("🚀 Starting GraphDB Build-All Sequence...")
+	fmt.Println("========================================")
+
+	// 1. Ingest
+	fmt.Println("\n[Phase 1/3] Ingesting Codebase...")
+	// Default to current dir, standard output
+	ingestArgs := []string{"-dir", ".", "-output", "graph.jsonl"}
+	// Allow user to override dir if they passed it to build-all?
+	// For simplicity, let's assume build-all runs on current dir unless we implement full arg parsing.
+	// Let's at least support -dir if provided.
+	fs := flag.NewFlagSet("build-all", flag.ExitOnError)
+	dirPtr := fs.String("dir", ".", "Directory to process")
+	cleanPtr := fs.Bool("clean", true, "Clean DB before import")
+	fs.Parse(args)
+
+	ingestArgs = []string{"-dir", *dirPtr, "-output", "graph.jsonl"}
+	handleIngest(ingestArgs)
+
+	// 2. Enrich
+	fmt.Println("\n[Phase 2/3] Enriching Features...")
+	// Use semantic clustering by default for better quality
+	enrichArgs := []string{"-dir", *dirPtr, "-input", "graph.jsonl", "-output", "rpg.jsonl", "-cluster-mode", "semantic"}
+	handleEnrichFeatures(enrichArgs)
+
+	// 3. Import
+	fmt.Println("\n[Phase 3/3] Importing to Neo4j...")
+	importArgs := []string{"-input", "rpg.jsonl"}
+	if *cleanPtr {
+		importArgs = append(importArgs, "-clean")
+	}
+	handleImport(importArgs)
+
+	fmt.Println("\n✅ Build-All Sequence Complete!")
 }
 
 func handleIngest(args []string) {
@@ -196,7 +239,8 @@ func handleEnrichFeatures(args []string) {
 	inputPtr := fs.String("input", "graph.jsonl", "Input graph file")
 	outputPtr := fs.String("output", "rpg.jsonl", "Output file for RPG nodes and edges")
 	batchSizePtr := fs.Int("batch-size", 20, "Batch size for LLM feature extraction")
-	clusterModePtr := fs.String("cluster-mode", "file", "Clustering mode: 'file' (structural) or 'semantic' (embedding-based)")
+	// Embedding batch size
+	embedBatchSizePtr := fs.Int("embed-batch-size", 100, "Batch size for embedding generation")
 
 	fs.Parse(args)
 
@@ -243,17 +287,48 @@ func handleEnrichFeatures(args []string) {
 	pb.Finish()
 	log.Printf("Extracted atomic features for %d functions", len(functions))
 
-	// 3. Setup Builder
-	var clusterer rpg.Clusterer
-	switch *clusterModePtr {
-	case "semantic":
-		embedder := setupEmbedder(cfg.GoogleCloudProject, loc, model)
-		clusterer = &rpg.EmbeddingClusterer{Embedder: embedder}
-		log.Println("Using semantic clustering (embedding-based)")
-	default:
-		clusterer = &rpg.FileClusterer{}
-		log.Println("Using file-based clustering")
+	// 3. Setup Builder & Clusterer
+	embedder := setupEmbedder(cfg.GoogleCloudProject, loc, model)
+
+	// PRE-CALCULATION STEP
+	log.Println("Pre-calculating embeddings for clustering...")
+	precomputed := make(map[string][]float32)
+
+	// Batch process functions for embedding
+	embedPb := ui.NewProgressBar(int64(len(functions)), "Generating Embeddings")
+	batchSize := *embedBatchSizePtr
+
+	var batchTexts []string
+	var batchIDs []string
+
+	for i, fn := range functions {
+		text := rpg.NodeToText(fn)
+		batchTexts = append(batchTexts, text)
+		batchIDs = append(batchIDs, fn.ID)
+
+		if len(batchTexts) >= batchSize || i == len(functions)-1 {
+			embeddings, err := embedder.EmbedBatch(batchTexts)
+			if err != nil {
+				log.Printf("Warning: Failed to embed batch: %v", err)
+			} else {
+				for j, emb := range embeddings {
+					precomputed[batchIDs[j]] = emb
+				}
+			}
+			embedPb.Add(int64(len(batchTexts)))
+			batchTexts = batchTexts[:0]
+			batchIDs = batchIDs[:0]
+		}
 	}
+	embedPb.Finish()
+	log.Printf("Generated embeddings for %d functions", len(precomputed))
+
+	clusterer := &rpg.EmbeddingClusterer{
+		Embedder:              embedder,
+		PrecomputedEmbeddings: precomputed,
+	}
+	log.Println("Using semantic clustering (embedding-based)")
+
 	builder := &rpg.Builder{
 		Discoverer: &rpg.DirectoryDomainDiscoverer{
 			BaseDirs: []string{"internal", "pkg", "cmd", "src"},
@@ -290,7 +365,6 @@ func handleEnrichFeatures(args []string) {
 
 	// 5. Setup Enricher
 	summarizer := setupSummarizer(cfg.GoogleCloudProject, loc)
-	embedder := setupEmbedder(cfg.GoogleCloudProject, loc, model)
 	enricher := &rpg.Enricher{
 		Client:   summarizer,
 		Embedder: embedder,
