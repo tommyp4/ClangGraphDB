@@ -72,7 +72,9 @@ func TestBuildGraphStateQuery(t *testing.T) {
 }
 
 func TestGetConstraints(t *testing.T) {
-	constraints := getConstraints()
+	// Test Default (768)
+	l := NewNeo4jLoader(nil, "test", 768)
+	constraints := l.getConstraints()
 	
 	hasFeatureVectorIndex := false
 	hasFunctionVectorIndex := false
@@ -84,7 +86,7 @@ func TestGetConstraints(t *testing.T) {
 				t.Error("feature_embeddings index has wrong target")
 			}
 			if !strings.Contains(q, "768") {
-				t.Error("feature_embeddings index has wrong dimensions")
+				t.Error("feature_embeddings index has wrong dimensions (expected 768)")
 			}
 		}
 		if strings.Contains(q, "CREATE VECTOR INDEX function_embeddings") {
@@ -100,5 +102,19 @@ func TestGetConstraints(t *testing.T) {
 	}
 	if !hasFunctionVectorIndex {
 		t.Error("Missing function_embeddings vector index")
+	}
+
+	// Test Dynamic Dimensions (3072)
+	l2 := NewNeo4jLoader(nil, "test", 3072)
+	constraints2 := l2.getConstraints()
+	found3072 := false
+	for _, q := range constraints2 {
+		if strings.Contains(q, "3072") {
+			found3072 = true
+			break
+		}
+	}
+	if !found3072 {
+		t.Error("Dynamic dimensions not reflected in constraints")
 	}
 }

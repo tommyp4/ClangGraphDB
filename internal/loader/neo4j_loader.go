@@ -11,15 +11,17 @@ import (
 
 // Neo4jLoader handles batch loading of graph data into Neo4j.
 type Neo4jLoader struct {
-	Driver neo4j.DriverWithContext
-	DBName string
+	Driver              neo4j.DriverWithContext
+	DBName              string
+	EmbeddingDimensions int
 }
 
 // NewNeo4jLoader creates a new loader instance.
-func NewNeo4jLoader(driver neo4j.DriverWithContext, dbName string) *Neo4jLoader {
+func NewNeo4jLoader(driver neo4j.DriverWithContext, dbName string, embeddingDimensions int) *Neo4jLoader {
 	return &Neo4jLoader{
-		Driver: driver,
-		DBName: dbName,
+		Driver:              driver,
+		DBName:              dbName,
+		EmbeddingDimensions: embeddingDimensions,
 	}
 }
 
@@ -91,7 +93,7 @@ func (l *Neo4jLoader) ApplyConstraints(ctx context.Context) error {
 	session := l.Driver.NewSession(ctx, neo4j.SessionConfig{DatabaseName: l.DBName})
 	defer session.Close(ctx)
 	
-	for _, query := range getConstraints() {
+	for _, query := range l.getConstraints() {
 		_, err := session.ExecuteWrite(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
 			return tx.Run(ctx, query, nil)
 		})
@@ -180,7 +182,12 @@ func buildGraphStateQuery() string {
 	`
 }
 
-func getConstraints() []string {
+func (l *Neo4jLoader) getConstraints() []string {
+	dims := l.EmbeddingDimensions
+	if dims <= 0 {
+		dims = 768 // Fallback default
+	}
+
 	return []string{
 		"CREATE CONSTRAINT IF NOT EXISTS FOR (n:File) REQUIRE n.id IS UNIQUE",
 		"CREATE CONSTRAINT IF NOT EXISTS FOR (n:Function) REQUIRE n.id IS UNIQUE",
@@ -189,18 +196,18 @@ func getConstraints() []string {
 		"CREATE INDEX IF NOT EXISTS FOR (n:Function) ON (n.name)",
 		"CREATE INDEX IF NOT EXISTS FOR (n:File) ON (n.file)",
 		// Vector Indexes (restored from Node.js implementation)
-		`CREATE VECTOR INDEX feature_embeddings IF NOT EXISTS
+		fmt.Sprintf(`CREATE VECTOR INDEX feature_embeddings IF NOT EXISTS
 		FOR (n:Feature) ON (n.embedding)
 		OPTIONS {indexConfig: {
-			` + "`vector.dimensions`" + `: 768,
-			` + "`vector.similarity_function`" + `: 'cosine'
-		}}`,
-		`CREATE VECTOR INDEX function_embeddings IF NOT EXISTS
+			`+"`vector.dimensions`"+`: %d,
+			`+"`vector.similarity_function`"+`: 'cosine'
+		}}`, dims),
+		fmt.Sprintf(`CREATE VECTOR INDEX function_embeddings IF NOT EXISTS
 		FOR (n:Function) ON (n.embedding)
 		OPTIONS {indexConfig: {
-			` + "`vector.dimensions`" + `: 768,
-			` + "`vector.similarity_function`" + `: 'cosine'
-		}}`,
+			`+"`vector.dimensions`"+`: %d,
+			`+"`vector.similarity_function`"+`: 'cosine'
+		}}`, dims),
 	}
 }
 
