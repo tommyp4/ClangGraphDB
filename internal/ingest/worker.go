@@ -13,11 +13,12 @@ import (
 )
 
 type WorkerPool struct {
-	workers  int
-	embedder embedding.Embedder
-	emitter  storage.Emitter
-	jobChan  chan string
-	wg       sync.WaitGroup
+	workers    int
+	embedder   embedding.Embedder
+	emitter    storage.Emitter
+	jobChan    chan string
+	wg         sync.WaitGroup
+	OnProgress func()
 }
 
 func NewWorkerPool(workers int, embedder embedding.Embedder, emitter storage.Emitter) *WorkerPool {
@@ -41,6 +42,9 @@ func (wp *WorkerPool) worker() {
 	for path := range wp.jobChan {
 		if err := wp.processFile(path); err != nil {
 			log.Printf("Error processing file %s: %v", path, err)
+		}
+		if wp.OnProgress != nil {
+			wp.OnProgress()
 		}
 	}
 }

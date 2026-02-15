@@ -66,6 +66,14 @@
 - [x] **Parity:** Support for `-clean`, `-incremental`, and `GraphState` commit tracking.
 - [x] **Optimization:** Efficient batching using `UNWIND` cypher queries.
 
+### Campaign 4.2: Import Performance Remediation
+**Goal:** Resolve the critical "O(N^2)" performance bottleneck in the Neo4j edge importer by implementing a generic indexing strategy (`:CodeElement` label).
+**Status:** In Progress
+**Key Deliverables:**
+- [ ] **Optimization:** Refactor `internal/loader` to use `MATCH (n:CodeElement)` for O(1) edge lookups.
+- [ ] **Schema Update:** `ApplyConstraints` to enforce `CodeElement` uniqueness.
+- [ ] **Verification:** Verify import speed on large graphs.
+
 ### Campaign 4.5: Gemini CLI Skill Integration (The Agent Bridge)
 **Goal:** Wrap the Go Binary in a Gemini CLI Skill to allow agents to invoke it directly for **both ingestion and querying**.
 **Status:** Completed

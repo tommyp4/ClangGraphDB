@@ -13,20 +13,19 @@ import (
 	"graphdb/internal/query"
 	"graphdb/internal/rpg"
 	"graphdb/internal/storage"
+	"graphdb/internal/ui"
+	"io/fs"
 	"log"
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 )
-
-
-
-
 
 func main() {
 	// Attempt to load .env file from current or parent directories
@@ -65,21 +64,19 @@ func printUsage() {
 	fmt.Println("\nRun 'graphdb <command> --help' for command-specific options.")
 }
 
-
-
 func handleIngest(args []string) {
-	fs := flag.NewFlagSet("ingest", flag.ExitOnError)
-	dirPtr := fs.String("dir", ".", "Directory to walk (ignored if -file-list is used)")
-	fileListPtr := fs.String("file-list", "", "Path to a file containing a list of files to process")
-	workersPtr := fs.Int("workers", 4, "Number of workers")
-	outputPtr := fs.String("output", "graph.jsonl", "Output file path (combined)")
-	nodesPtr := fs.String("nodes", "", "Output file path for nodes")
-	edgesPtr := fs.String("edges", "", "Output file path for edges")
-	
-	fs.Parse(args)
+	flags := flag.NewFlagSet("ingest", flag.ExitOnError)
+	dirPtr := flags.String("dir", ".", "Directory to walk (ignored if -file-list is used)")
+	fileListPtr := flags.String("file-list", "", "Path to a file containing a list of files to process")
+	workersPtr := flags.Int("workers", 4, "Number of workers")
+	outputPtr := flags.String("output", "graph.jsonl", "Output file path (combined)")
+	nodesPtr := flags.String("nodes", "", "Output file path for nodes")
+	edgesPtr := flags.String("edges", "", "Output file path for edges")
+
+	flags.Parse(args)
 
 	cfg := config.LoadConfig()
-	
+
 	loc := cfg.GoogleCloudLocation
 	if loc == "" {
 		loc = "us-central1"
@@ -120,6 +117,44 @@ func handleIngest(args []string) {
 	// Setup Walker
 	walker := ingest.NewWalker(*workersPtr, embedder, emitter)
 
+	// Count files first for progress bar
+	var totalFiles int64
+	if *fileListPtr != "" {
+		log.Printf("Counting files in list %s...", *fileListPtr)
+		file, err := os.Open(*fileListPtr)
+		if err != nil {
+			log.Fatalf("Failed to open file list: %v", err)
+		}
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			if scanner.Text() != "" {
+				totalFiles++
+			}
+		}
+		file.Close()
+	} else {
+		log.Printf("Counting files in %s...", *dirPtr)
+		err := filepath.WalkDir(*dirPtr, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if !d.IsDir() {
+				totalFiles++
+			}
+			return nil
+		})
+		if err != nil {
+			log.Fatalf("Failed to count files: %v", err)
+		}
+	}
+	log.Printf("Found %d files to process", totalFiles)
+
+	pb := ui.NewProgressBar(totalFiles, "Processing files")
+	walker.WorkerPool.OnProgress = func() {
+		pb.Add(1)
+	}
+	defer pb.Finish()
+
 	// Context with Cancel
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -135,7 +170,7 @@ func handleIngest(args []string) {
 
 	// Run
 	start := time.Now()
-	
+
 	if *fileListPtr != "" {
 		log.Printf("Starting ingestion from file list %s with %d workers...", *fileListPtr, *workersPtr)
 		file, err := os.Open(*fileListPtr)
@@ -162,10 +197,6 @@ func handleIngest(args []string) {
 
 	log.Printf("Done in %v.", time.Since(start))
 }
-
-
-
-
 
 func handleEnrichFeatures(args []string) {
 	fs := flag.NewFlagSet("enrich-features", flag.ExitOnError)
@@ -201,6 +232,9 @@ func handleEnrichFeatures(args []string) {
 	// 2. Extract atomic features per function
 	extractor := setupExtractor(cfg.GoogleCloudProject, loc)
 	log.Printf("Extracting atomic features (batch size: %d)...", *batchSizePtr)
+
+	pb := ui.NewProgressBar(int64(len(functions)), "Extracting features")
+
 	for i := range functions {
 		fn := &functions[i]
 		name, _ := fn.Properties["name"].(string)
@@ -208,15 +242,13 @@ func handleEnrichFeatures(args []string) {
 
 		descriptors, err := extractor.Extract(code, name)
 		if err != nil {
-			log.Printf("Warning: extraction failed for %s: %v", name, err)
+			// Skip logging to avoid breaking progress bar
 			continue
 		}
 		fn.Properties["atomic_features"] = descriptors
-
-		if (i+1)%(*batchSizePtr) == 0 {
-			log.Printf("  Extracted features for %d/%d functions", i+1, len(functions))
-		}
+		pb.Add(1)
 	}
+	pb.Finish()
 	log.Printf("Extracted atomic features for %d functions", len(functions))
 
 	// 3. Setup Builder
@@ -252,11 +284,26 @@ func handleEnrichFeatures(args []string) {
 	}
 
 	// 6. Enrich Features (recursively, using scoped member functions)
+	var totalFeatures int64
+	var countFeatures func(f *rpg.Feature)
+	countFeatures = func(f *rpg.Feature) {
+		totalFeatures++
+		for _, child := range f.Children {
+			countFeatures(child)
+		}
+	}
+	for i := range features {
+		countFeatures(&features[i])
+	}
+
+	pb = ui.NewProgressBar(totalFeatures, "Enriching features")
+
 	var enrichAll func(f *rpg.Feature)
 	enrichAll = func(f *rpg.Feature) {
 		if err := enricher.Enrich(f, f.MemberFunctions); err != nil {
-			log.Printf("Warning: failed to enrich feature %s: %v", f.Name, err)
+			// Skip logging to keep PB clean
 		}
+		pb.Add(1)
 		for _, child := range f.Children {
 			enrichAll(child)
 		}
@@ -264,6 +311,7 @@ func handleEnrichFeatures(args []string) {
 	for i := range features {
 		enrichAll(&features[i])
 	}
+	pb.Finish()
 
 	// 7. Flatten for Persistence
 	nodes, allEdges := rpg.Flatten(features, edges)
@@ -298,7 +346,7 @@ func handleImport(args []string) {
 	inputPtr := fs.String("input", "", "Path to combined JSONL file (nodes + edges)")
 	batchSizePtr := fs.Int("batch-size", 500, "Batch size for insertion")
 	cleanPtr := fs.Bool("clean", false, "Wipe database before importing")
-	
+
 	fs.Parse(args)
 
 	if *nodesPtr == "" && *edgesPtr == "" && *inputPtr == "" {
@@ -352,15 +400,15 @@ func handleImport(args []string) {
 				if err := json.Unmarshal(raw, &flat); err != nil {
 					continue
 				}
-				
+
 				// Heuristic: Edges have "source"
 				if _, ok := flat["source"]; ok {
 					continue // It's an edge
 				}
-				
+
 				id, _ := flat["id"].(string)
 				label, _ := flat["type"].(string)
-				
+
 				if id == "" {
 					continue
 				}
@@ -400,12 +448,12 @@ func handleImport(args []string) {
 				if err := json.Unmarshal(raw, &flat); err != nil {
 					continue
 				}
-				
+
 				// Heuristic: Edges have "source"
 				if _, ok := flat["source"]; !ok {
 					continue // It's a node
 				}
-				
+
 				src, _ := flat["source"].(string)
 				tgt, _ := flat["target"].(string)
 				typ, _ := flat["type"].(string)
@@ -426,7 +474,7 @@ func handleImport(args []string) {
 			log.Fatalf("Failed to import edges: %v", err)
 		}
 	}
-	
+
 	log.Println("Import complete.")
 
 	// 5. Update Graph State (Commit Hash)
@@ -445,7 +493,7 @@ func getGitCommit() (string, error) {
 	// Since we are inside the repo, exec is fine
 	cmd := "git"
 	args := []string{"rev-parse", "HEAD"}
-	
+
 	out, err := execCommand(cmd, args...)
 	if err != nil {
 		return "", err
@@ -466,7 +514,16 @@ func processBatches(path string, batchSize int, process func([]json.RawMessage) 
 	}
 	defer f.Close()
 
-	scanner := bufio.NewScanner(f)
+	var scanner *bufio.Scanner
+	if fi, err := f.Stat(); err == nil {
+		pb := ui.NewProgressBar(fi.Size(), fmt.Sprintf("Importing %s", filepath.Base(path)))
+		defer pb.Finish()
+		reader := &ui.ByteReader{Reader: f, Pb: pb}
+		scanner = bufio.NewScanner(reader)
+	} else {
+		scanner = bufio.NewScanner(f)
+	}
+
 	// Increase buffer size for large lines
 	buf := make([]byte, 0, 64*1024)
 	scanner.Buffer(buf, 10*1024*1024)
@@ -477,9 +534,9 @@ func processBatches(path string, batchSize int, process func([]json.RawMessage) 
 		// Copy slice because scanner reuses it
 		item := make([]byte, len(line))
 		copy(item, line)
-		
+
 		batch = append(batch, item)
-		
+
 		if len(batch) >= batchSize {
 			if err := process(batch); err != nil {
 				return err
@@ -487,13 +544,13 @@ func processBatches(path string, batchSize int, process func([]json.RawMessage) 
 			batch = batch[:0]
 		}
 	}
-	
+
 	if len(batch) > 0 {
 		if err := process(batch); err != nil {
 			return err
 		}
 	}
-	
+
 	return scanner.Err()
 }
 
@@ -511,7 +568,7 @@ func loadFunctions(path string) ([]graph.Node, error) {
 		if err := json.Unmarshal(scanner.Bytes(), &raw); err != nil {
 			continue
 		}
-		
+
 		// Check if it is a node and a Function
 		if typeVal, ok := raw["type"].(string); ok && typeVal == "Function" {
 			// Reconstruct node
@@ -537,7 +594,7 @@ func handleQuery(args []string) {
 	modulePtr := fs.String("module", ".*", "Module pattern for seams")
 	edgeTypesPtr := fs.String("edge-types", "", "Comma-separated relationship types for traverse")
 	directionPtr := fs.String("direction", "outgoing", "Traversal direction: incoming, outgoing, both")
-	
+
 	// Embedder args for 'features' type
 	locationPtr := fs.String("location", "us-central1", "GCP Location")
 	modelPtr := fs.String("model", "", "Embedding model name")
@@ -575,7 +632,7 @@ func handleQuery(args []string) {
 		embedder := setupEmbedder(cfg.GoogleCloudProject, *locationPtr, model)
 		embeddings, err := embedder.EmbedBatch([]string{*targetPtr})
 		if err != nil {
-			 log.Fatalf("Embedding failed: %v", err)
+			log.Fatalf("Embedding failed: %v", err)
 		}
 		result, err = provider.SearchFeatures(embeddings[0], *limitPtr)
 
@@ -586,7 +643,7 @@ func handleQuery(args []string) {
 		embedder := setupEmbedder(cfg.GoogleCloudProject, *locationPtr, model)
 		embeddings, err := embedder.EmbedBatch([]string{*targetPtr})
 		if err != nil {
-			 log.Fatalf("Embedding failed: %v", err)
+			log.Fatalf("Embedding failed: %v", err)
 		}
 		result, err = provider.SearchSimilarFunctions(embeddings[0], *limitPtr)
 
@@ -606,7 +663,7 @@ func handleQuery(args []string) {
 		if err != nil {
 			log.Printf("Warning: Embedding failed for hybrid search: %v", err)
 		}
-		
+
 		var similar []*query.FeatureResult
 		if len(embeddings) > 0 {
 			similar, _ = provider.SearchSimilarFunctions(embeddings[0], *limitPtr)
@@ -624,19 +681,19 @@ func handleQuery(args []string) {
 			log.Fatal("-target is required for 'neighbors'")
 		}
 		result, err = provider.GetNeighbors(*targetPtr, *depthPtr)
-		
+
 	case "impact":
 		if *targetPtr == "" {
 			log.Fatal("-target is required for 'impact'")
 		}
 		result, err = provider.GetImpact(*targetPtr, *depthPtr)
-		
+
 	case "globals":
 		if *targetPtr == "" {
 			log.Fatal("-target is required for 'globals'")
 		}
 		result, err = provider.GetGlobals(*targetPtr)
-		
+
 	case "seams":
 		result, err = provider.GetSeams(*modulePtr)
 
@@ -688,11 +745,11 @@ func handleQuery(args []string) {
 	default:
 		log.Fatalf("Unknown or missing query type: %s. Valid types: search-features, search-similar, hybrid-context, neighbors, impact, globals, seams, explore-domain, status", *typePtr)
 	}
-	
+
 	if err != nil {
 		log.Fatalf("Query failed: %v", err)
 	}
-	
+
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(result); err != nil {
