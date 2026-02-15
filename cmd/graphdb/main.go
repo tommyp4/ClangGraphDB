@@ -155,7 +155,7 @@ func handleIngest(args []string) {
 	defer emitter.Close()
 
 	// Setup Embedder
-	embedder := setupEmbedder(cfg.GoogleCloudProject, loc, model)
+	embedder := setupEmbedder(cfg.GoogleCloudProject, loc, model, cfg.GeminiEmbeddingDimensions)
 
 	// Setup Walker
 	walker := ingest.NewWalker(*workersPtr, embedder, emitter)
@@ -289,7 +289,7 @@ func handleEnrichFeatures(args []string) {
 	log.Printf("Extracted atomic features for %d functions", len(functions))
 
 	// 3. Setup Builder & Clusterer
-	embedder := setupEmbedder(cfg.GoogleCloudProject, loc, model)
+	embedder := setupEmbedder(cfg.GoogleCloudProject, loc, model, cfg.GeminiEmbeddingDimensions)
 
 	// PRE-CALCULATION STEP
 	log.Println("Pre-calculating embeddings for clustering...")
@@ -736,7 +736,7 @@ func handleQuery(args []string) {
 		if *targetPtr == "" {
 			log.Fatal("-target is required for 'search-features'")
 		}
-		embedder := setupEmbedder(cfg.GoogleCloudProject, *locationPtr, model)
+		embedder := setupEmbedder(cfg.GoogleCloudProject, *locationPtr, model, cfg.GeminiEmbeddingDimensions)
 		embeddings, err := embedder.EmbedBatch([]string{*targetPtr})
 		if err != nil {
 			log.Fatalf("Embedding failed: %v", err)
@@ -750,7 +750,7 @@ func handleQuery(args []string) {
 		if *targetPtr == "" {
 			log.Fatal("-target is required for 'search-similar'")
 		}
-		embedder := setupEmbedder(cfg.GoogleCloudProject, *locationPtr, model)
+		embedder := setupEmbedder(cfg.GoogleCloudProject, *locationPtr, model, cfg.GeminiEmbeddingDimensions)
 		embeddings, err := embedder.EmbedBatch([]string{*targetPtr})
 		if err != nil {
 			log.Fatalf("Embedding failed: %v", err)
@@ -771,7 +771,7 @@ func handleQuery(args []string) {
 		}
 
 		// 2. Semantic Search (Dependency Layer)
-		embedder := setupEmbedder(cfg.GoogleCloudProject, *locationPtr, model)
+		embedder := setupEmbedder(cfg.GoogleCloudProject, *locationPtr, model, cfg.GeminiEmbeddingDimensions)
 		embeddings, err := embedder.EmbedBatch([]string{*targetPtr})
 		if err != nil {
 			log.Printf("Warning: Embedding failed for hybrid search: %v", err)

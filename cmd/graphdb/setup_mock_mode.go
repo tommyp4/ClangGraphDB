@@ -10,14 +10,14 @@ import (
 	"os"
 )
 
-func setupEmbedder(project, location, modelName string) embedding.Embedder {
+func setupEmbedder(project, location, modelName string, dimensions int) embedding.Embedder {
 	if os.Getenv("GRAPHDB_MOCK_ENABLED") == "true" {
 		log.Println("Using Mock Embedder (test_mocks build)")
 		return &MockEmbedder{}
 	}
 
 	ctx := context.Background()
-	embedder, err := embedding.NewVertexEmbedder(ctx, project, location, modelName)
+	embedder, err := embedding.NewVertexEmbedder(ctx, project, location, modelName, dimensions)
 	if err != nil {
 		log.Fatalf("Failed to initialize Vertex Embedder: %v", err)
 	}

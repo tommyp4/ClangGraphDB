@@ -9,9 +9,9 @@ import (
 	"log"
 )
 
-func setupEmbedder(project, location, modelName string) embedding.Embedder {
+func setupEmbedder(project, location, modelName string, dimensions int) embedding.Embedder {
 	ctx := context.Background()
-	embedder, err := embedding.NewVertexEmbedder(ctx, project, location, modelName)
+	embedder, err := embedding.NewVertexEmbedder(ctx, project, location, modelName, dimensions)
 	if err != nil {
 		log.Fatalf("Failed to initialize Vertex Embedder: %v", err)
 	}

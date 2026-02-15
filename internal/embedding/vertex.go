@@ -14,12 +14,13 @@ type ModelClient interface {
 
 // VertexEmbedder implements the Embedder interface using Google Cloud Vertex AI via the GenAI SDK.
 type VertexEmbedder struct {
-	Client ModelClient
-	Model  string
+	Client              ModelClient
+	Model               string
+	OutputDimensionality int
 }
 
 // NewVertexEmbedder creates a new VertexEmbedder.
-func NewVertexEmbedder(ctx context.Context, projectID, location, modelName string) (*VertexEmbedder, error) {
+func NewVertexEmbedder(ctx context.Context, projectID, location, modelName string, outputDimensionality int) (*VertexEmbedder, error) {
 	// Initialize the client with Vertex AI backend configuration
 	// This automatically uses Application Default Credentials (ADC)
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
@@ -32,8 +33,9 @@ func NewVertexEmbedder(ctx context.Context, projectID, location, modelName strin
 	}
 
 	return &VertexEmbedder{
-		Client: client.Models,
-		Model:  modelName,
+		Client:              client.Models,
+		Model:               modelName,
+		OutputDimensionality: outputDimensionality,
 	}, nil
 }
 
@@ -70,6 +72,11 @@ func (v *VertexEmbedder) EmbedBatch(texts []string) ([][]float32, error) {
 		config := &genai.EmbedContentConfig{
 			TaskType:     "RETRIEVAL_DOCUMENT",
 			AutoTruncate: true,
+		}
+		
+		if v.OutputDimensionality > 0 {
+			val := int32(v.OutputDimensionality)
+			config.OutputDimensionality = &val
 		}
 
 		resp, err := v.Client.EmbedContent(ctx, v.Model, batch, config)
