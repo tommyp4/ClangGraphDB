@@ -20,6 +20,7 @@ type ProgressBar struct {
 	writer      io.Writer
 	isSpinner   bool
 	stopSpinner chan struct{}
+	Format      func(int64, int64) string // Custom format function (current, total) -> string
 }
 
 // NewProgressBar creates a new progress bar with a known total.
@@ -30,6 +31,9 @@ func NewProgressBar(total int64, description string) *ProgressBar {
 		width:       40,
 		start:       time.Now(),
 		writer:      os.Stderr,
+		Format: func(current, total int64) string {
+			return fmt.Sprintf("%d/%d", current, total)
+		},
 	}
 }
 
@@ -41,6 +45,9 @@ func NewSpinner(description string) *ProgressBar {
 		writer:      os.Stderr,
 		isSpinner:   true,
 		stopSpinner: make(chan struct{}),
+		Format: func(current, total int64) string {
+			return fmt.Sprintf("%d", current)
+		},
 	}
 	go pb.spin()
 	return pb
@@ -101,7 +108,8 @@ func (pb *ProgressBar) render() {
 	}
 
 	// Use \r to overwrite the line
-	fmt.Fprintf(pb.writer, "\r%s [%s] %.1f%% (%d/%d)   ", pb.description, bar, percent*100, pb.current, pb.total)
+	progressStr := pb.Format(pb.current, pb.total)
+	fmt.Fprintf(pb.writer, "\r%s [%s] %.1f%% (%s)   ", pb.description, bar, percent*100, progressStr)
 }
 
 // Finish completes the progress bar.
@@ -114,6 +122,30 @@ func (pb *ProgressBar) Finish() {
 	pb.mu.Lock()
 	defer pb.mu.Unlock()
 	fmt.Fprintln(pb.writer) // New line
+}
+
+// SetFormat allows changing the format function.
+func (pb *ProgressBar) SetFormat(f func(current, total int64) string) {
+	pb.mu.Lock()
+	defer pb.mu.Unlock()
+	pb.Format = f
+}
+
+// FormatBytesFn formats bytes into a human-readable string.
+func FormatBytesFn(current, total int64) string {
+	const unit = 1024
+	if total < unit {
+		return fmt.Sprintf("%d B / %d B", current, total)
+	}
+	div := int64(unit)
+	exp := 0
+	for n := total / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	valCurrent := float64(current) / float64(div)
+	valTotal := float64(total) / float64(div)
+	return fmt.Sprintf("%.2f / %.2f %cB", valCurrent, valTotal, "KMGTPE"[exp])
 }
 
 // ByteReader wraps an io.Reader to update a progress bar.

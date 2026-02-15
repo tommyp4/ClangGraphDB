@@ -517,6 +517,7 @@ func processBatches(path string, batchSize int, process func([]json.RawMessage) 
 	var scanner *bufio.Scanner
 	if fi, err := f.Stat(); err == nil {
 		pb := ui.NewProgressBar(fi.Size(), fmt.Sprintf("Importing %s", filepath.Base(path)))
+		pb.SetFormat(ui.FormatBytesFn)
 		defer pb.Finish()
 		reader := &ui.ByteReader{Reader: f, Pb: pb}
 		scanner = bufio.NewScanner(reader)
