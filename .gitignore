@@ -21,7 +21,8 @@ temp_tools/
 /graphdb
 /bin/graphdb
 /bin/graphdb_test
-.gemini/skills/graphdb/scripts/graphdb
+!.gemini/skills/graphdb/scripts/graphdb
+!.gemini/skills/graphdb/scripts/graphdb-win.exe
 .gemini/skills/graphdb/scripts/graphdb-test
 
 # Test Artifacts
