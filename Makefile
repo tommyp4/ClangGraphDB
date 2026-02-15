@@ -1,7 +1,23 @@
-.PHONY: build build-mocks
+.PHONY: build build-linux build-windows build-mocks
 
-build:
-	go build -o .gemini/skills/graphdb/scripts/graphdb ./cmd/graphdb
+VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+LDFLAGS := -ldflags "-X main.Version=$(VERSION)"
+
+build: build-linux
+
+build-all: build-linux build-windows
+
+build-linux:
+	go build $(LDFLAGS) -o .gemini/skills/graphdb/scripts/graphdb ./cmd/graphdb
+
+build-windows:
+	@echo "Building for Windows (requires Zig)..."
+	env CGO_ENABLED=1 \
+    GOOS=windows \
+    GOARCH=amd64 \
+    CC="zig cc -target x86_64-windows-gnu" \
+    CXX="zig c++ -target x86_64-windows-gnu" \
+    go build $(LDFLAGS) -o .gemini/skills/graphdb/scripts/graphdb-win.exe ./cmd/graphdb
 
 build-mocks:
 	go build -tags test_mocks -o .gemini/skills/graphdb/scripts/graphdb_test ./cmd/graphdb

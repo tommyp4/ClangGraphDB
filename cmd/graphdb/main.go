@@ -27,6 +27,9 @@ import (
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 )
 
+// Version is injected at build time
+var Version = "dev"
+
 func main() {
 	// Attempt to load .env file from current or parent directories
 	_ = config.LoadEnv()
@@ -47,6 +50,8 @@ func main() {
 		handleImport(os.Args[2:])
 	case "build-all":
 		handleBuildAll(os.Args[2:])
+	case "version", "--version", "-v":
+		fmt.Printf("graphdb version %s\n", Version)
 	case "help", "--help", "-h":
 		printUsage()
 	default:
@@ -57,6 +62,7 @@ func main() {
 }
 
 func printUsage() {
+	fmt.Printf("GraphDB Skill CLI (Version: %s)\n", Version)
 	fmt.Println("Usage: graphdb <command> [options]")
 	fmt.Println("\nCommands:")
 	fmt.Println("  ingest           Parse code and generate graph nodes/edges (JSONL)")
@@ -64,6 +70,7 @@ func printUsage() {
 	fmt.Println("  import           Import JSONL files into Neo4j")
 	fmt.Println("  query            Query the graph (structural or semantic)")
 	fmt.Println("  build-all        One-shot: Ingest -> Enrich -> Import")
+	fmt.Println("  version          Show version info")
 	fmt.Println("\nRun 'graphdb <command> --help' for command-specific options.")
 }
 
