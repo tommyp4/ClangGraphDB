@@ -56,6 +56,7 @@
 - [x] **3-Level Hierarchy:** `Builder` supports optional `CategoryClusterer` for Domain -> Category -> Feature hierarchy (per research).
 - [x] **Enrichment Improvements:** Increased truncation to 3000 chars, atomic features included as summarization context.
 - [x] **Hierarchy Navigation:** New `ExploreDomain` query returns feature + parent + children + siblings + implementing functions. Wired to `--type explore-domain` CLI.
+- [ ] **Cleanup:** Remove legacy `FileClusterer` and enforce semantic clustering by default (Plan: `plans/refactor_remove_file_clusterer.md`).
 
 ### Campaign 4: The Go Import Loader (Dependency Removal)
 **Goal:** Port the Neo4j bulk loading logic (`import_to_neo4j.js`) to Go, eliminating the Node.js runtime dependency for standard workflows.
@@ -70,9 +71,9 @@
 **Goal:** Resolve the critical \"O(N^2)\" performance bottleneck in the Neo4j edge importer by implementing a generic indexing strategy (`:CodeElement` label).
 **Status:** In Progress
 **Key Deliverables:**
-- [ ] **Optimization:** Refactor `internal/loader` to use `MATCH (n:CodeElement)` for O(1) edge lookups.
-- [ ] **Schema Update:** `ApplyConstraints` to enforce `CodeElement` uniqueness.
-- [ ] **Verification:** Verify import speed on large graphs.
+- [x] **Optimization:** Refactor `internal/loader` to use `MATCH (n:CodeElement)` for O(1) edge lookups.
+- [x] **Schema Update:** `ApplyConstraints` to enforce `CodeElement` uniqueness.
+- [x] **Verification:** Verify import speed on large graphs.
 
 ### Campaign 4.5: Gemini CLI Skill Integration (The Agent Bridge)
 **Goal:** Wrap the Go Binary in a Gemini CLI Skill to allow agents to invoke it directly for **both ingestion and querying**.
@@ -119,6 +120,14 @@
 - [x] **UI Integration:** Hook `ui.ProgressBar` into the clustering loop.
 - [x] **Determinism:** Sort domains for consistent processing order.
 - [x] **Plan:** Ref: `plans/feat_semantic_clustering_progress.md`.
+
+### Campaign 5.2: UX - Async Embedding Generation
+**Goal:** Address the synchronous blocking behavior of `EmbeddingClusterer` by pre-calculating embeddings with progress reporting before clustering begins. This prevents the "hang" during large domain processing.
+**Status:** Planned
+**Key Deliverables:**
+- [ ] **Pre-calculation:** Implement batched embedding generation in `main.go` with progress bar.
+- [ ] **Optimization:** Update `EmbeddingClusterer` to use pre-calculated embeddings.
+- [ ] **Plan:** Ref: `plans/feat_precalc_embeddings.md`.
 
 ### Campaign 6: The Spanner Backend (Storage Swap)
 **Goal:** Establish the multi-tenant, immutable storage layer using Google Spanner Graph by swapping the storage implementation.
