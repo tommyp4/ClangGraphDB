@@ -114,7 +114,7 @@ func (p *Neo4jProvider) Traverse(startNodeID string, relationship string, direct
 			gPath.Nodes[i] = &graph.Node{
 				ID:         id,
 				Label:      label,
-				Properties: n.Props,
+				Properties: sanitizeProperties(n.Props),
 			}
 		}
 
@@ -179,11 +179,8 @@ func (p *Neo4jProvider) SearchSimilarFunctions(embedding []float32, limit int) (
 
 		// Reconstruct node
 		node := &graph.Node{
-			Label: label,
-			Properties: make(map[string]any),
-		}
-		for k, v := range props {
-			node.Properties[k] = v
+			Label:      label,
+			Properties: sanitizeProperties(props),
 		}
 
 		features = append(features, &FeatureResult{
@@ -222,12 +219,9 @@ func (p *Neo4jProvider) SearchFeatures(embedding []float32, limit int) ([]*Featu
 		props, _, _ := neo4j.GetRecordValue[map[string]any](record, "props")
 
 		node := &graph.Node{
-			ID:    id,
-			Label: "Feature",
-			Properties: make(map[string]any),
-		}
-		for k, v := range props {
-			node.Properties[k] = v
+			ID:         id,
+			Label:      "Feature",
+			Properties: sanitizeProperties(props),
 		}
 
 		features = append(features, &FeatureResult{
@@ -603,14 +597,14 @@ func (p *Neo4jProvider) ExploreDomain(featureID string) (*DomainExplorationResul
 	// Build feature node
 	fid, _, _ := neo4j.GetRecordValue[string](record, "fid")
 	featureProps, _, _ := neo4j.GetRecordValue[map[string]any](record, "feature")
-	featureNode := &graph.Node{ID: fid, Label: "Feature", Properties: featureProps}
+	featureNode := &graph.Node{ID: fid, Label: "Feature", Properties: sanitizeProperties(featureProps)}
 
 	// Build parent node
 	var parentNode *graph.Node
 	pid, _, _ := neo4j.GetRecordValue[string](record, "pid")
 	if pid != "" {
 		parentProps, _, _ := neo4j.GetRecordValue[map[string]any](record, "parent")
-		parentNode = &graph.Node{ID: pid, Label: "Feature", Properties: parentProps}
+		parentNode = &graph.Node{ID: pid, Label: "Feature", Properties: sanitizeProperties(parentProps)}
 	}
 
 	// Helper to extract node list from collected results
@@ -627,7 +621,7 @@ func (p *Neo4jProvider) ExploreDomain(featureID string) (*DomainExplorationResul
 				continue
 			}
 			props, _ := m["props"].(map[string]any)
-			nodes = append(nodes, &graph.Node{ID: id, Label: label, Properties: props})
+			nodes = append(nodes, &graph.Node{ID: id, Label: label, Properties: sanitizeProperties(props)})
 		}
 		return nodes
 	}
@@ -663,4 +657,21 @@ func (p *Neo4jProvider) GetGraphState() (string, error) {
 	}
 
 	return commit, nil
+}
+
+// sanitizeProperties removes heavy fields like embeddings from node properties
+// to prevent context flooding in CLI output.
+func sanitizeProperties(props map[string]any) map[string]any {
+	if props == nil {
+		return nil
+	}
+	clean := make(map[string]any, len(props))
+	for k, v := range props {
+		// Filter out vector embeddings
+		if k == "embedding" {
+			continue
+		}
+		clean[k] = v
+	}
+	return clean
 }

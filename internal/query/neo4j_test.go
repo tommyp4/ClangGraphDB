@@ -321,3 +321,39 @@ func TestSearchFeatures(t *testing.T) {
 		t.Log("No results found (index might be building)")
 	}
 }
+
+func TestSanitizeEmbeddings(t *testing.T) {
+	p := getProvider(t)
+	defer p.Close()
+	defer cleanup(t, p)
+
+	// Setup a node with an embedding
+	v1 := []float64{0.1, 0.2, 0.3}
+	setupQuery := `
+		CREATE (f:Function {name: 'TestSanitize', id: 'TestSanitize', embedding: $v1, other: 'keep_me'})
+		CREATE (child:Function {name: 'TestSanitizeChild', id: 'TestSanitizeChild'})
+		CREATE (f)-[:CALLS]->(child)
+	`
+	_, err := neo4j.ExecuteQuery(p.ctx, p.driver, setupQuery, map[string]any{"v1": v1}, neo4j.EagerResultTransformer)
+	if err != nil {
+		t.Fatalf("Failed to setup fixture: %v", err)
+	}
+
+	// Use Traverse to fetch it
+	paths, err := p.Traverse("TestSanitize", "", Outgoing, 1)
+	if err != nil {
+		t.Fatalf("Traverse failed: %v", err)
+	}
+
+	if len(paths) == 0 {
+		t.Fatal("Expected at least one path (the node itself)")
+	}
+
+	node := paths[0].Nodes[0]
+	if _, ok := node.Properties["embedding"]; ok {
+		t.Error("Expected 'embedding' property to be sanitized/removed, but it was present")
+	}
+	if val, ok := node.Properties["other"].(string); !ok || val != "keep_me" {
+		t.Error("Expected 'other' property to be preserved")
+	}
+}
