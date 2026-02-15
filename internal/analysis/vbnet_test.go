@@ -39,14 +39,28 @@ func TestParseVBNet(t *testing.T) {
 
 	for _, n := range nodes {
 		name, _ := n.Properties["name"].(string)
+
+		// Check File Node for NO content
+		if n.Label == "File" {
+			if _, hasContent := n.Properties["content"]; hasContent {
+				t.Errorf("File node '%s' should NOT have 'content' property", n.ID)
+			}
+		}
+
 		if n.Label == "Class" && name == "Greeter" {
 			foundGreeter = true
 		}
 		if n.Label == "Function" && name == "Greet" {
 			foundGreet = true
+			if _, ok := n.Properties["end_line"]; !ok {
+				t.Errorf("Function 'Greet' missing end_line")
+			}
 		}
 		if n.Label == "Function" && name == "Calculate" {
 			foundCalculate = true
+			if _, ok := n.Properties["end_line"]; !ok {
+				t.Errorf("Function 'Calculate' missing end_line")
+			}
 		}
 	}
 

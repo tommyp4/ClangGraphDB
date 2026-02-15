@@ -40,9 +40,21 @@ public:
 		name, _ := n.Properties["name"].(string)
 		if name == "hello" && n.Label == "Function" {
 			foundHello = true
+			if _, ok := n.Properties["end_line"]; !ok {
+				t.Errorf("Function 'hello' missing end_line")
+			}
+			if _, ok := n.Properties["content"]; ok {
+				t.Errorf("Function 'hello' should not have content")
+			}
 		}
 		if name == "greet" && n.Label == "Function" {
 			foundGreet = true
+			if _, ok := n.Properties["end_line"]; !ok {
+				t.Errorf("Function 'greet' missing end_line")
+			}
+			if _, ok := n.Properties["content"]; ok {
+				t.Errorf("Function 'greet' should not have content")
+			}
 		}
 	}
 

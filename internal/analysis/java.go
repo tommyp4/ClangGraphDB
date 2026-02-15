@@ -137,6 +137,7 @@ func (p *JavaParser) Parse(filePath string, content []byte) ([]*graph.Node, []*g
 						"name": nodeContent,
 						"file": filePath,
 						"line": int(c.Node.StartPoint().Row + 1),
+						"end_line": int(c.Node.EndPoint().Row + 1),
 					},
 				})
 
@@ -192,6 +193,7 @@ func (p *JavaParser) Parse(filePath string, content []byte) ([]*graph.Node, []*g
 							"name": nodeContent,
 							"file": filePath,
 							"line": int(c.Node.StartPoint().Row + 1),
+							"end_line": int(c.Node.EndPoint().Row + 1),
 						},
 					})
 					
@@ -206,10 +208,12 @@ func (p *JavaParser) Parse(filePath string, content []byte) ([]*graph.Node, []*g
 
 		// Handle Fields specifically within the match to pair name and type
 		var fieldName, fieldType string
+		var fieldNode *sitter.Node
 		for _, c := range m.Captures {
 			name := qDef.CaptureNameForId(c.Index)
 			if name == "field.name" {
 				fieldName = c.Node.Content(content)
+				fieldNode = c.Node
 			}
 			if name == "field.type" {
 				fieldType = c.Node.Content(content)
@@ -243,6 +247,8 @@ func (p *JavaParser) Parse(filePath string, content []byte) ([]*graph.Node, []*g
 						"name": fieldName,
 						"type": resolvedType,
 						"file": filePath,
+						"line": int(fieldNode.StartPoint().Row + 1),
+						"end_line": int(fieldNode.EndPoint().Row + 1),
 					},
 				})
 				

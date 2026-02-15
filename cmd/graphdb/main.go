@@ -13,6 +13,7 @@ import (
 	"graphdb/internal/query"
 	"graphdb/internal/rpg"
 	"graphdb/internal/storage"
+	"graphdb/internal/tools/snippet"
 	"graphdb/internal/ui"
 	"log"
 	"math"
@@ -409,6 +410,7 @@ func handleEnrichFeatures(args []string) {
 	enricher := &rpg.Enricher{
 		Client:   summarizer,
 		Embedder: embedder,
+		Loader:   snippet.SliceFile,
 	}
 
 	// 6. Enrich Features (recursively, using scoped member functions)
@@ -712,6 +714,8 @@ func loadFunctions(path string) ([]graph.Node, error) {
 	}
 	return nodes, scanner.Err()
 }
+
+
 
 func handleQuery(args []string) {
 	fs := flag.NewFlagSet("query", flag.ExitOnError)

@@ -38,9 +38,21 @@ public class Greeter {
 		name, _ := n.Properties["name"].(string)
 		if name == "Greet" && n.Label == "Function" {
 			foundGreet = true
+			if _, ok := n.Properties["end_line"]; !ok {
+				t.Errorf("Function 'Greet' missing end_line")
+			}
+			if _, ok := n.Properties["content"]; ok {
+				t.Errorf("Function 'Greet' should not have content property")
+			}
 		}
 		if name == "Greeter" && n.Label == "Class" {
 			foundGreeter = true
+			if _, ok := n.Properties["end_line"]; !ok {
+				t.Errorf("Class 'Greeter' missing end_line")
+			}
+			if _, ok := n.Properties["content"]; ok {
+				t.Errorf("Class 'Greeter' should not have content property")
+			}
 		}
 	}
 
