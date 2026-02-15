@@ -66,15 +66,24 @@
 - [x] **Smart Discovery:** Update `discovery.go` to support `.` (root) scanning and better top-level directory detection.
 - [x] **Strict Matching:** Fix `builder.go` to use strict path prefixes (prevents `auth` matching `authentication`).
 
-### Campaign 3.7: RPG Remediation (Global Semantic Topology)
-**Goal:** Address the "Directory-Bound" violation identified in `plans/RPG_GAP_ANALYSIS.md`. Invert the control flow to perform **Global Semantic Clustering** first, establishing latent functional domains across the entire codebase (e.g., SQL + Python + JS), and *then* ground them to physical directories using LCA (Lowest Common Ancestor).
+### Campaign 3.7: Reliability Repair ("Unknown Feature" Fix)
+**Goal:** Resolve the critical "Unknown Feature" bug where nodes lack content for summarization. Enabling on-demand disk reading for the `Enricher` to ensure every node has a description.
 **Status:** Completed
 **Key Deliverables:**
-- [x] **Global Pooling:** Refactor `Builder` to accept a global node list and skip directory pre-filtering.
-- [x] **Latent Domain Discovery:** Implement K-Means on the global pool to identify high-level functional centroids (Domains) independent of file paths.
-- [x] **LCA Grounding:** Implement "Lowest Common Ancestor" logic to calculate the physical `ScopePath` for a cluster *after* it is formed.
-- [x] **Semantic Labeling:** Integrate LLM or centroid-term-based labeling for discovering Domain names (e.g., "Cluster-1" -> "Authentication").
-- [x] **Refactor:** Deprecate `DirectoryDomainDiscoverer` and remove path-prefix constraints in `builder.go`.
+- [x] **Parsers Update:** Extract `end_line` in all language parsers (`.ts`, `.cs`, `.java`, `.cpp`, `.sql`, `.vb`).
+- [x] **Enricher Update:** Inject `SourceLoader` to read function bodies from disk using `start_line`/`end_line`.
+- [x] **Verification:** Ensure `enrich-features` produces named/described nodes via E2E test.
+- [x] **Plan:** Ref: `plans/fix_missing_content_in_nodes.md`.
+
+### Campaign 3.8: RPG Realization II (Global Semantic Topology)
+**Goal:** Truly implement the "Latent Architecture Recovery" from the RPG papers. (Note: Previous attempts at Global Topology were partial). This campaign replaces directory-based discovery with global embedding clustering.
+**Status:** Pending
+**Key Deliverables:**
+- [ ] **GlobalClusterer:** Implement `GlobalEmbeddingClusterer` (K-Means on all repository functions).
+- [ ] **LCA Grounding:** Implement robust Lowest Common Ancestor logic to ground latent domains to the file system.
+- [ ] **Architecture Switch:** Update `Builder` to use `GlobalClusterer` by default.
+- [ ] **Naming:** Semantic labeling of latent clusters.
+- [ ] **Plan:** Ref: `plans/feat_global_discovery.md`.
 
 ### Campaign 4: The Go Import Loader (Dependency Removal)
 **Goal:** Port the Neo4j bulk loading logic (`import_to_neo4j.js`) to Go, eliminating the Node.js runtime dependency for standard workflows.
