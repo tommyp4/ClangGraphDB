@@ -2,6 +2,7 @@ package rpg
 
 import (
 	"graphdb/internal/graph"
+	"sort"
 	"strings"
 )
 
@@ -21,6 +22,11 @@ type Builder struct {
 	// CategoryClusterer enables 3-level hierarchy: Domain -> Category -> Feature.
 	// If nil, falls back to 2-level: Domain -> Feature.
 	CategoryClusterer Clusterer
+
+	// Callbacks for progress reporting
+	OnPhaseStart func(phaseName string, total int)
+	OnStepStart  func(stepName string)
+	OnStepEnd    func(stepName string)
 }
 
 func (b *Builder) Build(rootPath string, functions []graph.Node) ([]Feature, []graph.Edge, error) {
@@ -29,10 +35,27 @@ func (b *Builder) Build(rootPath string, functions []graph.Node) ([]Feature, []g
 		return nil, nil, err
 	}
 
+	// Extract and sort domain names for deterministic processing order
+	domainNames := make([]string, 0, len(domains))
+	for name := range domains {
+		domainNames = append(domainNames, name)
+	}
+	sort.Strings(domainNames)
+
+	if b.OnPhaseStart != nil {
+		b.OnPhaseStart("Processing Domains", len(domainNames))
+	}
+
 	var rootFeatures []Feature
 	var allEdges []graph.Edge
 
-	for name, pathPrefix := range domains {
+	for _, name := range domainNames {
+		if b.OnStepStart != nil {
+			b.OnStepStart(name)
+		}
+
+		pathPrefix := domains[name]
+
 		domainFeature := Feature{
 			ID:        "domain-" + name,
 			Name:      name,
@@ -43,7 +66,9 @@ func (b *Builder) Build(rootPath string, functions []graph.Node) ([]Feature, []g
 		// Filter functions for this domain
 		var domainFuncs []graph.Node
 		for _, fn := range functions {
+			// Check if function path starts with domain path prefix
 			if p, ok := fn.Properties["file"].(string); ok {
+				// Use HasPrefix for correct path matching, or Contains if prefix is loose
 				if strings.Contains(p, pathPrefix) {
 					domainFuncs = append(domainFuncs, fn)
 				}
@@ -60,16 +85,21 @@ func (b *Builder) Build(rootPath string, functions []graph.Node) ([]Feature, []g
 		}
 
 		rootFeatures = append(rootFeatures, domainFeature)
+
+		if b.OnStepEnd != nil {
+			b.OnStepEnd(name)
+		}
 	}
 
 	return rootFeatures, allEdges, nil
 }
 
 func (b *Builder) buildTwoLevel(domain *Feature, funcs []graph.Node, name, pathPrefix string, allEdges []graph.Edge) []graph.Edge {
+	// Use domain ID as the key for clustering if name is not unique globally, but here we use name as per interface
 	clusters, _ := b.Clusterer.Cluster(funcs, name)
 	for clusterName, nodes := range clusters {
 		child := &Feature{
-			ID:              "feat-" + clusterName,
+			ID:              "feat-" + clusterName, // Simple ID generation
 			Name:            clusterName,
 			ScopePath:       pathPrefix,
 			MemberFunctions: nodes,

@@ -261,8 +261,29 @@ func handleEnrichFeatures(args []string) {
 		Clusterer: clusterer,
 	}
 
+	var clusterPb *ui.ProgressBar
+	builder.OnPhaseStart = func(phaseName string, total int) {
+		if total > 0 {
+			clusterPb = ui.NewProgressBar(int64(total), phaseName)
+			clusterPb.Add(0) // Render initial state
+		}
+	}
+	builder.OnStepStart = func(stepName string) {
+		if clusterPb != nil {
+			clusterPb.UpdateDescription(fmt.Sprintf("Clustering %s", stepName))
+		}
+	}
+	builder.OnStepEnd = func(stepName string) {
+		if clusterPb != nil {
+			clusterPb.Add(1)
+		}
+	}
+
 	// 4. Build Feature Hierarchy
 	features, edges, err := builder.Build(*dirPtr, functions)
+	if clusterPb != nil {
+		clusterPb.Finish()
+	}
 	if err != nil {
 		log.Fatalf("Failed to build features: %v", err)
 	}

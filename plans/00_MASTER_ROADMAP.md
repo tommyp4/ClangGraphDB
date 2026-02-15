@@ -18,7 +18,7 @@
 - [x] Standardized JSONL output format via `Storage/Emitter` interface.
 
 ### Campaign 2: The Graph Query Engine (Full Query Parity)
-**Goal:** Implement the "Read" side of the platform in Go, mirroring the "Write" side (Ingestor). This enables the Go binary to answer queries directly, preparing for the Spanner migration.
+**Goal:** Implement the \"Read\" side of the platform in Go, mirroring the \"Write\" side (Ingestor). This enables the Go binary to answer queries directly, preparing for the Spanner migration.
 **Status:** Completed
 **Key Deliverables:**
 - [x] `GraphProvider` Interface (FindNode, Traverse, SearchFeatures).
@@ -51,7 +51,7 @@
 **Key Deliverables:**
 - [x] **Bug Fixes:** Corrected `IMPLEMENTS` edge direction (Function -> Feature), fixed enrichment to cover all features with domain-scoped functions, populated `ScopePath` on child features, removed dead code.
 - [x] **Feature Embeddings:** `Enricher` now generates embeddings for all Feature nodes via `Embedder` integration.
-- [x] **Atomic Feature Extraction:** New `FeatureExtractor` interface and `LLMFeatureExtractor` -- extracts Verb-Object descriptors per function (e.g., "validate email", "hash password").
+- [x] **Atomic Feature Extraction:** New `FeatureExtractor` interface and `LLMFeatureExtractor` -- extracts Verb-Object descriptors per function (e.g., \"validate email\", \"hash password\").
 - [x] **Semantic Clustering:** New `EmbeddingClusterer` with K-Means++ on atomic feature embeddings, replacing file-based grouping. Available via `--cluster-mode=semantic` flag.
 - [x] **3-Level Hierarchy:** `Builder` supports optional `CategoryClusterer` for Domain -> Category -> Feature hierarchy (per research).
 - [x] **Enrichment Improvements:** Increased truncation to 3000 chars, atomic features included as summarization context.
@@ -67,7 +67,7 @@
 - [x] **Optimization:** Efficient batching using `UNWIND` cypher queries.
 
 ### Campaign 4.2: Import Performance Remediation
-**Goal:** Resolve the critical "O(N^2)" performance bottleneck in the Neo4j edge importer by implementing a generic indexing strategy (`:CodeElement` label).
+**Goal:** Resolve the critical \"O(N^2)\" performance bottleneck in the Neo4j edge importer by implementing a generic indexing strategy (`:CodeElement` label).
 **Status:** In Progress
 **Key Deliverables:**
 - [ ] **Optimization:** Refactor `internal/loader` to use `MATCH (n:CodeElement)` for O(1) edge lookups.
@@ -102,14 +102,23 @@
 - [x] **Parity Harness:** Use this generic traverser to implement existing named queries (e.g., `impact` becomes a specific configuration of `traverse`), proving the engine's flexibility.
 - [x] **Plan:** Ref: `plans/feat_parametric_traversal.md`.
 
-### Campaign 5: Structural Integrity (The "Linking" Fix)
-**Goal:** Remediation of the "File-Local" linking bug found in all parsers (Java, C#, C++, TS). Currently, parsers assume dependencies exist in the caller's file, breaking the graph. We must implement Import Parsing and Symbol Resolution to enable cross-file edges.
+### Campaign 5: Structural Integrity (The \"Linking\" Fix)
+**Goal:** Remediation of the \"File-Local\" linking bug found in all parsers (Java, C#, C++, TS). Currently, parsers assume dependencies exist in the caller's file, breaking the graph. We must implement Import Parsing and Symbol Resolution to enable cross-file edges.
 **Status:** **Completed**
 **Key Deliverables:**
 - [x] **Java:** Import parsing & Type Resolution.
 - [x] **Systemic:** Apply resolution logic to C#, C++, TypeScript.
 - [x] **Plan:** Ref: `plans/feat_systemic_dependency_resolution.md`.
-- [x] **Validation:** Verify "Impact Analysis" actually traverses files.
+- [x] **Validation:** Verify \"Impact Analysis\" actually traverses files.
+
+### Campaign 5.1: UX - Semantic Clustering Progress
+**Goal:** Implement a domain-level progress bar for the long-running semantic clustering phase to prevent the \"stuck\" appearance during `enrich-features`.
+**Status:** Completed
+**Key Deliverables:**
+- [x] **Instrumentation:** Add progress callbacks to `rpg.Builder`.
+- [x] **UI Integration:** Hook `ui.ProgressBar` into the clustering loop.
+- [x] **Determinism:** Sort domains for consistent processing order.
+- [x] **Plan:** Ref: `plans/feat_semantic_clustering_progress.md`.
 
 ### Campaign 6: The Spanner Backend (Storage Swap)
 **Goal:** Establish the multi-tenant, immutable storage layer using Google Spanner Graph by swapping the storage implementation.
@@ -130,9 +139,9 @@
 - [ ] Automated integration tests.
 
 ### Campaign 8: The MCP Server (The Interface)
-**Goal:** Expose the platform to Agents via the Model Context Protocol (MCP), enabling "Dual-View" reasoning. **(Scheduled Last)**
+**Goal:** Expose the platform to Agents via the Model Context Protocol (MCP), enabling \"Dual-View\" reasoning. **(Scheduled Last)**
 **Status:** Pending
 **Key Deliverables:**
 - [ ] MCP Protocol implementation (Stdio transport).
-- [ ] "RAM Overlay" logic (Local Diff vs. Cloud Base).
+- [ ] \"RAM Overlay\" logic (Local Diff vs. Cloud Base).
 - [ ] Tool implementations (`search_features`, `traverse_deps`).

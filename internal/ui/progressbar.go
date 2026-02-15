@@ -89,6 +89,16 @@ func (pb *ProgressBar) spin() {
 	}
 }
 
+// UpdateDescription updates the description text of the progress bar.
+func (pb *ProgressBar) UpdateDescription(text string) {
+	pb.mu.Lock()
+	defer pb.mu.Unlock()
+	pb.description = text
+	if !pb.isSpinner {
+		pb.render()
+	}
+}
+
 // Add increments the progress.
 func (pb *ProgressBar) Add(n int64) {
 	pb.mu.Lock()
