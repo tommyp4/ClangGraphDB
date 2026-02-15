@@ -28,12 +28,13 @@ func NewProgressBar(total int64, description string) *ProgressBar {
 	return &ProgressBar{
 		total:       total,
 		description: description,
-		width:       40,
+		width:       20,
 		start:       time.Now(),
 		writer:      os.Stderr,
-		Format: FormatCountFn,
+		Format:      FormatCountFn,
 	}
 }
+
 
 // FormatCountFn formats integers with commas for readability.
 func FormatCountFn(current, total int64) string {
@@ -82,7 +83,11 @@ func (pb *ProgressBar) spin() {
 		case <-ticker.C:
 			pb.mu.Lock()
 			// Use \r to overwrite the line
-			fmt.Fprintf(pb.writer, "\r%s %c %d items processed (%s)   ", pb.description, chars[i%len(chars)], pb.current, time.Since(pb.start).Round(time.Second))
+			desc := pb.description
+			if len(desc) > 30 {
+				desc = desc[:27] + "..."
+			}
+			fmt.Fprintf(pb.writer, "\r%-30s %c %d items processed (%s)   ", desc, chars[i%len(chars)], pb.current, time.Since(pb.start).Round(time.Second))
 			pb.mu.Unlock()
 			i++
 		}
@@ -135,7 +140,13 @@ func (pb *ProgressBar) render() {
 
 	// Use \r to overwrite the line
 	progressStr := pb.Format(pb.current, pb.total)
-	fmt.Fprintf(pb.writer, "\r%s [%s] %.1f%% (%s)   ", pb.description, bar, percent*100, progressStr)
+	
+	desc := pb.description
+	if len(desc) > 30 {
+		desc = desc[:27] + "..."
+	}
+	
+	fmt.Fprintf(pb.writer, "\r%-30s [%s] %.1f%% (%s)   ", desc, bar, percent*100, progressStr)
 }
 
 // Finish completes the progress bar.
