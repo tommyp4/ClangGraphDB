@@ -91,16 +91,7 @@ func (l *Neo4jLoader) ApplyConstraints(ctx context.Context) error {
 	session := l.Driver.NewSession(ctx, neo4j.SessionConfig{DatabaseName: l.DBName})
 	defer session.Close(ctx)
 	
-	constraints := []string{
-		"CREATE CONSTRAINT IF NOT EXISTS FOR (n:File) REQUIRE n.id IS UNIQUE",
-		"CREATE CONSTRAINT IF NOT EXISTS FOR (n:Function) REQUIRE n.id IS UNIQUE",
-		"CREATE CONSTRAINT IF NOT EXISTS FOR (n:Class) REQUIRE n.id IS UNIQUE",
-		"CREATE CONSTRAINT IF NOT EXISTS FOR (n:CodeElement) REQUIRE n.id IS UNIQUE",
-		"CREATE INDEX IF NOT EXISTS FOR (n:Function) ON (n.name)",
-		"CREATE INDEX IF NOT EXISTS FOR (n:File) ON (n.file)",
-	}
-
-	for _, query := range constraints {
+	for _, query := range getConstraints() {
 		_, err := session.ExecuteWrite(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
 			return tx.Run(ctx, query, nil)
 		})
@@ -187,6 +178,30 @@ func buildGraphStateQuery() string {
 		MERGE (s:GraphState)
 		SET s.commit = $commit, s.updatedAt = datetime()
 	`
+}
+
+func getConstraints() []string {
+	return []string{
+		"CREATE CONSTRAINT IF NOT EXISTS FOR (n:File) REQUIRE n.id IS UNIQUE",
+		"CREATE CONSTRAINT IF NOT EXISTS FOR (n:Function) REQUIRE n.id IS UNIQUE",
+		"CREATE CONSTRAINT IF NOT EXISTS FOR (n:Class) REQUIRE n.id IS UNIQUE",
+		"CREATE CONSTRAINT IF NOT EXISTS FOR (n:CodeElement) REQUIRE n.id IS UNIQUE",
+		"CREATE INDEX IF NOT EXISTS FOR (n:Function) ON (n.name)",
+		"CREATE INDEX IF NOT EXISTS FOR (n:File) ON (n.file)",
+		// Vector Indexes (restored from Node.js implementation)
+		`CREATE VECTOR INDEX feature_embeddings IF NOT EXISTS
+		FOR (n:Feature) ON (n.embedding)
+		OPTIONS {indexConfig: {
+			` + "`vector.dimensions`" + `: 768,
+			` + "`vector.similarity_function`" + `: 'cosine'
+		}}`,
+		`CREATE VECTOR INDEX function_embeddings IF NOT EXISTS
+		FOR (n:Function) ON (n.embedding)
+		OPTIONS {indexConfig: {
+			` + "`vector.dimensions`" + `: 768,
+			` + "`vector.similarity_function`" + `: 'cosine'
+		}}`,
+	}
 }
 
 func sanitizeLabel(label string) string {

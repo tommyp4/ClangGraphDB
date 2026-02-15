@@ -90,7 +90,7 @@
 **Status:** Completed
 **Key Deliverables:**
 - [x] **Optimization:** Refactor `internal/loader` to use `MATCH (n:CodeElement)` for O(1) edge lookups.
-- [x] **Schema Update:** `ApplyConstraints` to enforce `CodeElement` uniqueness.
+- [x] **Schema Update:** `ApplyConstraints` to enforce `CodeElement` uniqueness and **vector indexes for RPG**.
 - [x] **Verification:** Verify import speed on large graphs.
 
 ### Campaign 4.5: Gemini CLI Skill Integration (The Agent Bridge)

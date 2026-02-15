@@ -71,3 +71,34 @@ func TestBuildGraphStateQuery(t *testing.T) {
 	}
 }
 
+func TestGetConstraints(t *testing.T) {
+	constraints := getConstraints()
+	
+	hasFeatureVectorIndex := false
+	hasFunctionVectorIndex := false
+	
+	for _, q := range constraints {
+		if strings.Contains(q, "CREATE VECTOR INDEX feature_embeddings") {
+			hasFeatureVectorIndex = true
+			if !strings.Contains(q, "FOR (n:Feature) ON (n.embedding)") {
+				t.Error("feature_embeddings index has wrong target")
+			}
+			if !strings.Contains(q, "768") {
+				t.Error("feature_embeddings index has wrong dimensions")
+			}
+		}
+		if strings.Contains(q, "CREATE VECTOR INDEX function_embeddings") {
+			hasFunctionVectorIndex = true
+			if !strings.Contains(q, "FOR (n:Function) ON (n.embedding)") {
+				t.Error("function_embeddings index has wrong target")
+			}
+		}
+	}
+	
+	if !hasFeatureVectorIndex {
+		t.Error("Missing feature_embeddings vector index")
+	}
+	if !hasFunctionVectorIndex {
+		t.Error("Missing function_embeddings vector index")
+	}
+}

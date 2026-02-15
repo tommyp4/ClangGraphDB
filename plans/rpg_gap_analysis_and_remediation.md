@@ -77,7 +77,7 @@ Each claim below includes the exact file and line numbers where it was verified.
 | m1 | Enricher truncates to 1000 chars, samples max 10 functions | `enrich.go:28-35` |
 | m2 | Dead code: `SimpleDomainDiscoverer`, `SimpleClusterer` defined but never used | `main.go:51-64` (grep confirms no instantiation anywhere) |
 | m3 | `ScopePath` only set on domain features, not children | `builder.go:54-57` (child Feature has no ScopePath) |
-| m4 | `search-features` query assumes `feature_embeddings` vector index but features have no embeddings (blocked by C2) | `neo4j.go:106-147` |
+| m4 | `search-features` query assumes `feature_embeddings` vector index but features have no embeddings (blocked by C2) | `neo4j.go:106-147` | **Fixed:** Added `CREATE VECTOR INDEX` to `neo4j_loader.go` |
 | m5 | Research status doc is stale -- describes pre-3.5 state | `plans/research/rpg_implementation_status.md` |
 
 ---
