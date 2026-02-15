@@ -14,6 +14,7 @@ type EmbeddingClusterer struct {
 	Embedder              embedding.Embedder
 	MaxIterations         int // K-Means iterations; 0 defaults to 50
 	PrecomputedEmbeddings map[string][]float32
+	KStrategy             func(n int) int // Optional custom K calculation
 }
 
 func (c *EmbeddingClusterer) Cluster(nodes []graph.Node, domain string) (map[string][]graph.Node, error) {
@@ -63,8 +64,15 @@ func (c *EmbeddingClusterer) Cluster(nodes []graph.Node, domain string) (map[str
 		}
 	}
 
-	// 3. Determine K: target 3-8 functions per cluster
-	k := len(nodes) / 5
+	// 3. Determine K
+	var k int
+	if c.KStrategy != nil {
+		k = c.KStrategy(len(nodes))
+	} else {
+		// Default: target 3-8 functions per cluster
+		k = len(nodes) / 5
+	}
+	
 	if k < 2 {
 		k = 2
 	}

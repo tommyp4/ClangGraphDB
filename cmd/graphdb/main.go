@@ -15,6 +15,7 @@ import (
 	"graphdb/internal/storage"
 	"graphdb/internal/ui"
 	"log"
+	"math"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -327,13 +328,31 @@ func handleEnrichFeatures(args []string) {
 		Embedder:              embedder,
 		PrecomputedEmbeddings: precomputed,
 	}
-	log.Println("Using semantic clustering (embedding-based)")
+
+	// Create Global Clusterer for initial domain discovery
+	globalClusterer := &rpg.EmbeddingClusterer{
+		Embedder:              embedder,
+		PrecomputedEmbeddings: precomputed,
+		KStrategy: func(n int) int {
+			if n == 0 {
+				return 0
+			}
+			// Rule of thumb: sqrt(N/10)
+			k := int(math.Sqrt(float64(n) / 10.0))
+			if k < 2 {
+				return 2
+			}
+			return k
+		},
+	}
+	log.Println("Using Global Discovery Mode (semantic clustering)")
 
 	builder := &rpg.Builder{
 		Discoverer: &rpg.DirectoryDomainDiscoverer{
 			BaseDirs: []string{"."},
 		},
-		Clusterer: clusterer,
+		Clusterer:       clusterer,
+		GlobalClusterer: globalClusterer,
 	}
 
 	var clusterPb *ui.ProgressBar

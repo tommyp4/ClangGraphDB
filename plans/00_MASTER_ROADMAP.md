@@ -68,13 +68,13 @@
 
 ### Campaign 3.7: RPG Remediation (Global Semantic Topology)
 **Goal:** Address the "Directory-Bound" violation identified in `plans/RPG_GAP_ANALYSIS.md`. Invert the control flow to perform **Global Semantic Clustering** first, establishing latent functional domains across the entire codebase (e.g., SQL + Python + JS), and *then* ground them to physical directories using LCA (Lowest Common Ancestor).
-**Status:** Planned
+**Status:** Completed
 **Key Deliverables:**
-- [ ] **Global Pooling:** Refactor `Builder` to accept a global node list and skip directory pre-filtering.
-- [ ] **Latent Domain Discovery:** Implement K-Means on the global pool to identify high-level functional centroids (Domains) independent of file paths.
-- [ ] **LCA Grounding:** Implement "Lowest Common Ancestor" logic to calculate the physical `ScopePath` for a cluster *after* it is formed.
-- [ ] **Semantic Labeling:** Integrate LLM or centroid-term-based labeling for discovering Domain names (e.g., "Cluster-1" -> "Authentication").
-- [ ] **Refactor:** Deprecate `DirectoryDomainDiscoverer` and remove path-prefix constraints in `builder.go`.
+- [x] **Global Pooling:** Refactor `Builder` to accept a global node list and skip directory pre-filtering.
+- [x] **Latent Domain Discovery:** Implement K-Means on the global pool to identify high-level functional centroids (Domains) independent of file paths.
+- [x] **LCA Grounding:** Implement "Lowest Common Ancestor" logic to calculate the physical `ScopePath` for a cluster *after* it is formed.
+- [x] **Semantic Labeling:** Integrate LLM or centroid-term-based labeling for discovering Domain names (e.g., "Cluster-1" -> "Authentication").
+- [x] **Refactor:** Deprecate `DirectoryDomainDiscoverer` and remove path-prefix constraints in `builder.go`.
 
 ### Campaign 4: The Go Import Loader (Dependency Removal)
 **Goal:** Port the Neo4j bulk loading logic (`import_to_neo4j.js`) to Go, eliminating the Node.js runtime dependency for standard workflows.

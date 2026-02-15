@@ -8,6 +8,8 @@ import (
 	"github.com/monochromegane/go-gitignore"
 )
 
+// DirectoryDomainDiscoverer scans directories to identify domains based on folder structure.
+// Deprecated: Use Global Discovery Mode (GlobalClusterer) instead.
 type DirectoryDomainDiscoverer struct {
 	BaseDirs []string
 }
