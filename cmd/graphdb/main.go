@@ -313,6 +313,7 @@ func handleEnrichFeatures(args []string) {
 
 	// 3. Setup Builder & Clusterer
 	embedder := setupEmbedder(cfg.GoogleCloudProject, loc, model, cfg.GeminiEmbeddingDimensions)
+	summarizer := setupSummarizer(cfg.GoogleCloudProject, loc) // Initialize summarizer early
 
 	// PRE-CALCULATION STEP
 	log.Println("Pre-calculating embeddings for clustering...")
@@ -353,7 +354,8 @@ func handleEnrichFeatures(args []string) {
 	}
 
 	// Create Global Clusterer for initial domain discovery
-	globalClusterer := &rpg.EmbeddingClusterer{
+	// 1. Inner clusterer performs K-Means
+	innerGlobalClusterer := &rpg.EmbeddingClusterer{
 		Embedder:              embedder,
 		PrecomputedEmbeddings: precomputed,
 		KStrategy: func(n int) int {
@@ -368,12 +370,18 @@ func handleEnrichFeatures(args []string) {
 			return k
 		},
 	}
+	
+	// 2. Global wrapper adds semantic naming (Latent Domains)
+	globalClusterer := &rpg.GlobalEmbeddingClusterer{
+		Inner:                 innerGlobalClusterer,
+		Summarizer:            summarizer,
+		Loader:                snippet.SliceFile,
+		PrecomputedEmbeddings: precomputed,
+	}
+
 	log.Println("Using Global Discovery Mode (semantic clustering)")
 
 	builder := &rpg.Builder{
-		Discoverer: &rpg.DirectoryDomainDiscoverer{
-			BaseDirs: []string{"."},
-		},
 		Clusterer:       clusterer,
 		GlobalClusterer: globalClusterer,
 	}
@@ -406,7 +414,6 @@ func handleEnrichFeatures(args []string) {
 	}
 
 	// 5. Setup Enricher
-	summarizer := setupSummarizer(cfg.GoogleCloudProject, loc)
 	enricher := &rpg.Enricher{
 		Client:   summarizer,
 		Embedder: embedder,

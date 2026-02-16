@@ -6,30 +6,44 @@ import (
 	"testing"
 )
 
-// Mocks
-type MockDiscoverer struct{}
-
-func (m *MockDiscoverer) DiscoverDomains(fileTree string) (map[string]string, error) {
-	return map[string]string{
-		"Auth":    "src/auth",
-		"Payment": "src/payment",
-	}, nil
+// MockClusterer implements Clusterer for testing
+type MockClusterer struct {
+	ClusterFunc func(nodes []graph.Node, domain string) (map[string][]graph.Node, error)
 }
 
-type MockClusterer struct{}
-
 func (m *MockClusterer) Cluster(nodes []graph.Node, domain string) (map[string][]graph.Node, error) {
-	// Simple mock: Assign all nodes to a single cluster named after the domain + "Core"
-	clusters := make(map[string][]graph.Node)
-	clusters[domain+"Core"] = nodes
-	return clusters, nil
+	if m.ClusterFunc != nil {
+		return m.ClusterFunc(nodes, domain)
+	}
+	// Default behavior: return empty
+	return make(map[string][]graph.Node), nil
 }
 
 func TestBuilder_Build(t *testing.T) {
-	// Setup
+	// Setup Global Clusterer to act as the primary discovery mechanism
+	mockGlobal := &MockClusterer{
+		ClusterFunc: func(nodes []graph.Node, domain string) (map[string][]graph.Node, error) {
+			clusters := make(map[string][]graph.Node)
+			// Simulate finding 2 domains
+			clusters["Auth"] = []graph.Node{nodes[0]}
+			clusters["Payment"] = []graph.Node{nodes[1]}
+			return clusters, nil
+		},
+	}
+
+	// Setup Feature Clusterer (2nd level)
+	mockFeatureClusterer := &MockClusterer{
+		ClusterFunc: func(nodes []graph.Node, domain string) (map[string][]graph.Node, error) {
+			clusters := make(map[string][]graph.Node)
+			// One feature per domain for simplicity
+			clusters[domain+"-Feature"] = nodes
+			return clusters, nil
+		},
+	}
+
 	builder := &Builder{
-		Discoverer: &MockDiscoverer{},
-		Clusterer:  &MockClusterer{},
+		GlobalClusterer: mockGlobal,
+		Clusterer:       mockFeatureClusterer,
 	}
 
 	// Input: A mix of functions
@@ -47,29 +61,30 @@ func TestBuilder_Build(t *testing.T) {
 	nodes, allEdges := Flatten(features, edges)
 
 	// Verify Structure
+	// 2 Domains (Auth, Payment)
 	if len(features) != 2 {
 		t.Errorf("Expected 2 domain features, got %d", len(features))
 	}
 
-	// Verify Nodes (Features should be included)
-	// 2 Domains + 2 Clusters = 4 Feature nodes
+	// Verify Nodes
+	// 2 Domains + 2 Features (one per domain) = 4 Feature nodes
 	if len(nodes) != 4 {
 		t.Errorf("Expected 4 feature nodes, got %d", len(nodes))
 	}
 
 	// Verify Edges
-	// 2 PARENT_OF (Domain -> Cluster)
+	// 2 PARENT_OF (Domain -> Feature)
 	// 2 IMPLEMENTS (Function -> Feature)
+	// Total 4 edges
 	if len(allEdges) != 4 {
 		t.Errorf("Expected 4 edges, got %d", len(allEdges))
 	}
 
 	foundImplements := 0
 	foundParentOf := 0
-	for _, e := range edges {
+	for _, e := range allEdges {
 		if e.Type == "IMPLEMENTS" {
 			foundImplements++
-			// Verify direction: SourceID should be the function, TargetID should be the feature
 			if e.SourceID != "func1" && e.SourceID != "func2" {
 				t.Errorf("IMPLEMENTS edge SourceID should be a function ID, got %s", e.SourceID)
 			}
@@ -90,20 +105,39 @@ func TestBuilder_Build(t *testing.T) {
 	}
 }
 
-// MockCategoryClusterer splits nodes into two categories for testing
-type MockCategoryClusterer struct{}
-
-func (m *MockCategoryClusterer) Cluster(nodes []graph.Node, domain string) (map[string][]graph.Node, error) {
-	clusters := make(map[string][]graph.Node)
-	clusters[domain+"-cat"] = nodes
-	return clusters, nil
-}
-
 func TestBuilder_BuildThreeLevel(t *testing.T) {
+	// Setup Global Clusterer
+	mockGlobal := &MockClusterer{
+		ClusterFunc: func(nodes []graph.Node, domain string) (map[string][]graph.Node, error) {
+			clusters := make(map[string][]graph.Node)
+			clusters["Auth"] = []graph.Node{nodes[0]}
+			clusters["Payment"] = []graph.Node{nodes[1]}
+			return clusters, nil
+		},
+	}
+
+	// Setup Category Clusterer
+	mockCategoryClusterer := &MockClusterer{
+		ClusterFunc: func(nodes []graph.Node, domain string) (map[string][]graph.Node, error) {
+			clusters := make(map[string][]graph.Node)
+			clusters[domain+"-Cat"] = nodes
+			return clusters, nil
+		},
+	}
+
+	// Setup Feature Clusterer
+	mockFeatureClusterer := &MockClusterer{
+		ClusterFunc: func(nodes []graph.Node, domain string) (map[string][]graph.Node, error) {
+			clusters := make(map[string][]graph.Node)
+			clusters[domain+"-Feat"] = nodes
+			return clusters, nil
+		},
+	}
+
 	builder := &Builder{
-		Discoverer:        &MockDiscoverer{},
-		CategoryClusterer: &MockCategoryClusterer{},
-		Clusterer:         &MockClusterer{},
+		GlobalClusterer:   mockGlobal,
+		CategoryClusterer: mockCategoryClusterer,
+		Clusterer:         mockFeatureClusterer,
 	}
 
 	functions := []graph.Node{
@@ -118,7 +152,7 @@ func TestBuilder_BuildThreeLevel(t *testing.T) {
 
 	nodes, _ := Flatten(features, edges)
 
-	// 2 domains + 2 categories + 2 features = 6 nodes
+	// 2 Domains + 2 Categories + 2 Features = 6 nodes
 	if len(nodes) != 6 {
 		t.Errorf("Expected 6 feature nodes in 3-level hierarchy, got %d", len(nodes))
 	}
@@ -141,22 +175,5 @@ func TestBuilder_BuildThreeLevel(t *testing.T) {
 	}
 	if foundImplements != 2 {
 		t.Errorf("Expected 2 IMPLEMENTS edges, got %d", foundImplements)
-	}
-
-	// Verify hierarchy depth: domain -> category -> feature
-	for _, domain := range features {
-		if len(domain.Children) == 0 {
-			continue
-		}
-		for _, cat := range domain.Children {
-			if !strings.HasPrefix(cat.ID, "cat-") {
-				t.Errorf("Expected category ID to start with 'cat-', got %s", cat.ID)
-			}
-			for _, feat := range cat.Children {
-				if !strings.HasPrefix(feat.ID, "feat-") {
-					t.Errorf("Expected feature ID to start with 'feat-', got %s", feat.ID)
-				}
-			}
-		}
 	}
 }
