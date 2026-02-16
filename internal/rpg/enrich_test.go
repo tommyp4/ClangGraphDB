@@ -6,9 +6,15 @@ import (
 	"testing"
 )
 
-type MockSummarizer struct{}
+type MockSummarizer struct {
+	SummarizeFunc func(snippets []string) (string, string, error)
+}
 
 func (m *MockSummarizer) Summarize(snippets []string) (string, string, error) {
+	if m.SummarizeFunc != nil {
+		return m.SummarizeFunc(snippets)
+	}
+
 	if len(snippets) == 0 {
 		return "Unknown Feature", "No code snippets provided for analysis.", nil
 	}

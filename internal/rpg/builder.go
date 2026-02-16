@@ -6,21 +6,15 @@ import (
 	"strings"
 )
 
-type DomainDiscoverer interface {
-	// Returns a map of DomainName -> PathPrefix
-	DiscoverDomains(fileTree string) (map[string]string, error)
-}
-
 type Clusterer interface {
 	// Clusters nodes into named groups
 	Cluster(nodes []graph.Node, domain string) (map[string][]graph.Node, error)
 }
 
 type Builder struct {
-	Discoverer DomainDiscoverer
 	Clusterer  Clusterer
 	// GlobalClusterer enables global discovery mode (inverted flow).
-	// If set, it clusters all functions first, then grounds them to domains.
+	// It clusters all functions first, then grounds them to domains.
 	GlobalClusterer Clusterer
 
 	// CategoryClusterer enables 3-level hierarchy: Domain -> Category -> Feature.
@@ -34,73 +28,14 @@ type Builder struct {
 }
 
 func (b *Builder) Build(rootPath string, functions []graph.Node) ([]Feature, []graph.Edge, error) {
-	if b.GlobalClusterer != nil {
-		return b.buildGlobal(rootPath, functions)
+	if b.GlobalClusterer == nil {
+		// Fallback or Error? 
+		// Since we removed Directory Discovery, GlobalClusterer is mandatory.
+		// However, for backward compatibility or testing, we might want a default?
+		// But we don't have a default discovery anymore.
+		return nil, nil, nil
 	}
-
-	domains, err := b.Discoverer.DiscoverDomains(rootPath)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Extract and sort domain names for deterministic processing order
-	domainNames := make([]string, 0, len(domains))
-	for name := range domains {
-		domainNames = append(domainNames, name)
-	}
-	sort.Strings(domainNames)
-
-	if b.OnPhaseStart != nil {
-		b.OnPhaseStart("Processing Domains", len(domainNames))
-	}
-
-	var rootFeatures []Feature
-	var allEdges []graph.Edge
-
-	for _, name := range domainNames {
-		if b.OnStepStart != nil {
-			b.OnStepStart(name)
-		}
-
-		pathPrefix := domains[name]
-
-		domainFeature := Feature{
-			ID:        "domain-" + name,
-			Name:      name,
-			ScopePath: pathPrefix,
-			Children:  make([]*Feature, 0),
-		}
-
-		// Filter functions for this domain
-		var domainFuncs []graph.Node
-		for _, fn := range functions {
-			// Check if function path starts with domain path prefix
-			if p, ok := fn.Properties["file"].(string); ok {
-				// Strict prefix matching to avoid "auth" matching "authentication"
-				// Match exact directory or subdirectory
-				if pathPrefix == "" || p == pathPrefix || strings.HasPrefix(p, pathPrefix+"/") {
-					domainFuncs = append(domainFuncs, fn)
-				}
-			}
-		}
-		domainFeature.MemberFunctions = domainFuncs
-
-		if b.CategoryClusterer != nil {
-			// 3-level hierarchy: Domain -> Category -> Feature
-			allEdges = b.buildThreeLevel(&domainFeature, domainFuncs, name, pathPrefix, allEdges)
-		} else {
-			// 2-level hierarchy: Domain -> Feature
-			allEdges = b.buildTwoLevel(&domainFeature, domainFuncs, name, pathPrefix, allEdges)
-		}
-
-		rootFeatures = append(rootFeatures, domainFeature)
-
-		if b.OnStepEnd != nil {
-			b.OnStepEnd(name)
-		}
-	}
-
-	return rootFeatures, allEdges, nil
+	return b.buildGlobal(rootPath, functions)
 }
 
 func (b *Builder) buildGlobal(rootPath string, functions []graph.Node) ([]Feature, []graph.Edge, error) {
@@ -144,21 +79,34 @@ func (b *Builder) buildGlobal(rootPath string, functions []graph.Node) ([]Featur
 		if lca == "" {
 			lca = rootPath
 		}
-		// Clean the LCA relative to rootPath if possible, or just keep it as is.
-		// The existing code expects ScopePath.
-
+		
 		// 3. Identification
-		// Generate a semantic name
-		domainName := GenerateDomainName(lca, nodes)
-		// Ensure unique ID
-		domainID := domainName
+		// Prioritize semantic name from GlobalClusterer unless it's a raw cluster ID
+		var domainName string
+		if strings.HasPrefix(originalKey, "root-cluster-") {
+			domainName = GenerateDomainName(lca, nodes)
+		} else {
+			domainName = originalKey
+		}
+
+		// Ensure unique and safe ID
+		domainID := strings.ToLower(domainName)
+		domainID = strings.ReplaceAll(domainID, " ", "-")
+		// Remove unsafe chars
+		domainID = strings.Map(func(r rune) rune {
+			if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
+				return r
+			}
+			return -1
+		}, domainID)
+
 		if !strings.HasPrefix(domainID, "domain-") {
 			domainID = "domain-" + domainID
 		}
 
 		domainFeature := Feature{
 			ID:        domainID,
-			Name:      domainName, // Use the generated semantic name
+			Name:      domainName, // Use the semantic name (e.g., "Authentication System")
 			ScopePath: lca,
 			Children:  make([]*Feature, 0),
 		}
