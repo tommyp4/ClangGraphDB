@@ -77,14 +77,14 @@
 
 ### Campaign 3.8: RPG Realization II (Global Semantic Topology)
 **Goal:** Truly implement the "Latent Architecture Recovery" from the RPG papers. (Note: Previous attempts at Global Topology were partial). This campaign replaces directory-based discovery with global embedding clustering.
-**Status:** Active
+**Status:** Completed
 **Key Deliverables:**
-- [ ] **GlobalClusterer:** Implement `GlobalEmbeddingClusterer` (K-Means on all repository functions).
-- [ ] **LCA Grounding:** Implement robust Lowest Common Ancestor logic to ground latent domains to the file system.
-- [ ] **Architecture Switch:** Update `Builder` to use `GlobalClusterer` by default.
-- [ ] **Naming:** Semantic labeling of latent clusters.
-- [ ] **Legacy Cleanup:** Remove `DirectoryDomainDiscoverer` and associated tests.
-- [ ] **Plan:** Ref: `plans/3.8_implementation_tasks.md`.
+- [x] **GlobalClusterer:** Implement `GlobalEmbeddingClusterer` (K-Means on all repository functions).
+- [x] **LCA Grounding:** Implement robust Lowest Common Ancestor logic to ground latent domains to the file system.
+- [x] **Architecture Switch:** Update `Builder` to use `GlobalClusterer` by default.
+- [x] **Naming:** Semantic labeling of latent clusters.
+- [x] **Legacy Cleanup:** Remove `DirectoryDomainDiscoverer` and associated tests.
+- [x] **Plan:** Ref: `plans/3.8_implementation_tasks.md`.
 
 ### Campaign 4: The Go Import Loader (Dependency Removal)
 **Goal:** Port the Neo4j bulk loading logic (`import_to_neo4j.js`) to Go, eliminating the Node.js runtime dependency for standard workflows.
