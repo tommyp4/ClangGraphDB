@@ -123,7 +123,8 @@ void main() {
 	// 1. Check Inheritance
 	hasInheritance := false
 	for _, e := range edges {
-		if strings.HasSuffix(e.SourceID, ":Derived") && strings.HasSuffix(e.TargetID, ":Base") && e.Type == "INHERITS" {
+		// IDs are FQN now: Derived, Base
+		if e.SourceID == "Derived" && e.TargetID == "Base" && e.Type == "INHERITS" {
 			hasInheritance = true
 			break
 		}
@@ -173,23 +174,23 @@ void main() {
 	}
 
 	// 5. Check Include Resolution (Math::Add -> math.h)
-	// We expect Math::Add to resolve to something related to math.h
-	// TargetID should contain "math.h"
+	// We expect Math::Add to resolve to "Math::Add" (unqualified) because it matches math.h base name
 	hasIncludeRes := false
 	for _, e := range edges {
-		// Searching for the call to Math::Add
-		// The Source is doWork
-		if strings.HasSuffix(e.SourceID, ":doWork") {
-			// Check if TargetID points to math.h
-			// The heuristic might map "Math" to "math.h"
-			if strings.Contains(e.TargetID, "math.h") && strings.Contains(e.TargetID, "Math") {
+		// Source is Derived::doWork
+		if strings.HasSuffix(e.SourceID, "Derived::doWork") {
+			if e.TargetID == "Math::Add" {
 				hasIncludeRes = true
 				break
 			}
 		}
 	}
 	if !hasIncludeRes {
-		t.Errorf("Expected resolution of Math::Add to math.h, but didn't find edge")
+		t.Logf("Edges found:")
+		for _, e := range edges {
+			t.Logf("  %s -> %s (%s)", e.SourceID, e.TargetID, e.Type)
+		}
+		t.Errorf("Expected resolution of Math::Add to Math::Add (found via math.h logic)")
 	}
 }
 
@@ -232,15 +233,14 @@ namespace MyApp {
 		}
 	}
 
-	// Expected specific IDs (Qualified with namespace and class)
-	// C++ convention: Namespace::Class::Method
+	// Expected specific IDs (Qualified with namespace and class, NO file path)
 	expectedIDs := []string{
-		absPath + ":MyApp::User",
-		absPath + ":MyApp::User::User", // Constructor
-		absPath + ":MyApp::User::save",
-		absPath + ":MyApp::Order",
-		absPath + ":MyApp::Order::Order", // Constructor
-		absPath + ":MyApp::Order::save",
+		"MyApp::User",
+		"MyApp::User::User", // Constructor
+		"MyApp::User::save",
+		"MyApp::Order",
+		"MyApp::Order::Order", // Constructor
+		"MyApp::Order::save",
 	}
 
 	for _, expected := range expectedIDs {

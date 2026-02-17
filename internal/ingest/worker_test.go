@@ -51,10 +51,11 @@ func TestWorkerPool_ContinuesOnEmbeddingFailure(t *testing.T) {
 	
 	// 2. Submit a file that we know has functions (so it triggers embedding)
 	wd, _ := os.Getwd()
+	repoRoot := filepath.Dir(filepath.Dir(wd))
 	// internal/ingest -> root is ../..
 	fixturePath := filepath.Join(wd, "../../test/fixtures/typescript/sample.ts")
 	
-	workerPool.Submit(fixturePath)
+	workerPool.Submit(repoRoot, fixturePath)
 	
 	// 3. Stop and wait
 	workerPool.Stop()
@@ -78,8 +79,9 @@ func TestWorkerPool_EmitsFileAndDefinedInEdges(t *testing.T) {
 	
 	// 2. Submit a file
 	wd, _ := os.Getwd()
+	repoRoot := filepath.Dir(filepath.Dir(wd))
 	fixturePath := filepath.Join(wd, "../../test/fixtures/typescript/sample.ts")
-	workerPool.Submit(fixturePath)
+	workerPool.Submit(repoRoot, fixturePath)
 	
 	// 3. Stop and wait
 	workerPool.Stop()

@@ -63,6 +63,11 @@ func (p *JavaParser) Parse(filePath string, content []byte) ([]*graph.Node, []*g
 		
 		(method_declaration name: (identifier) @function.name)
 		(constructor_declaration name: (identifier) @function.name)
+
+        (formal_parameter 
+            type: (_) @param.type
+            name: (identifier) @param.name
+        )
 	`
 
 	qDef, err := sitter.NewQuery([]byte(defQueryStr), java.GetLanguage())
@@ -82,9 +87,23 @@ func (p *JavaParser) Parse(filePath string, content []byte) ([]*graph.Node, []*g
 			return fq
 		}
 		// Default to package prefix if not imported (heuristic)
-		// Or return simple name if we can't be sure
 		return typeName
 	}
+    
+    // Helper to extract types from generics
+    extractTypes := func(typeStr string) []string {
+        f := func(c rune) bool {
+            return c == '<' || c == '>' || c == ',' || c == ' '
+        }
+        parts := strings.FieldsFunc(typeStr, f)
+        var result []string
+        for _, s := range parts {
+            if s != "" {
+                result = append(result, s)
+            }
+        }
+        return result
+    }
 
 	for {
 		m, ok := qcDef.NextMatch()
@@ -100,22 +119,12 @@ func (p *JavaParser) Parse(filePath string, content []byte) ([]*graph.Node, []*g
 			case "package.name":
 				packageName = nodeContent
 			case "import.name":
-				// nodeContent is like "java.util.List"
-				// Alias is "List"
 				parts := strings.Split(nodeContent, ".")
 				if len(parts) > 0 {
 					alias := parts[len(parts)-1]
 					imports[alias] = nodeContent
 				}
 			case "class.name":
-				// Handle Class/Interface/Enum
-				// Construct ID: package.ClassName
-				// But we need to handle inner classes? For now assume top level or unique names.
-				// NOTE: nodeContent is just the class Name.
-				
-				// We need to know which capture group this belongs to (Class, Interface, etc)
-				// But here we are iterating captures.
-				// We can check the node type of the parent to determine Label.
 				parentType := c.Node.Parent().Type()
 				label := "Class"
 				if parentType == "interface_declaration" {
@@ -124,7 +133,6 @@ func (p *JavaParser) Parse(filePath string, content []byte) ([]*graph.Node, []*g
 					label = "Enum"
 				}
 
-				// Fully Qualified ID if possible
 				id := nodeContent
 				if packageName != "" {
 					id = fmt.Sprintf("%s.%s", packageName, nodeContent)
@@ -142,9 +150,6 @@ func (p *JavaParser) Parse(filePath string, content []byte) ([]*graph.Node, []*g
 				})
 
 			case "class.extends", "class.implements":
-				// This capture is the Type Identifier of the superclass/interface
-				// e.g. "Base" or "Worker"
-				// We need to find the Source Class (the one being defined).
 				sourceClass := findEnclosingClass(c.Node, content)
 				if sourceClass != "" {
 					sourceID := sourceClass
@@ -153,9 +158,6 @@ func (p *JavaParser) Parse(filePath string, content []byte) ([]*graph.Node, []*g
 					}
 					
 					targetType := resolveType(nodeContent)
-					// If resolved type doesn't have dots, and package exists, assume same package?
-					// Or keep as is.
-					
 					edgeType := "EXTENDS"
 					if captureName == "class.implements" {
 						edgeType = "IMPLEMENTS"
@@ -167,16 +169,7 @@ func (p *JavaParser) Parse(filePath string, content []byte) ([]*graph.Node, []*g
 						Type:     edgeType,
 					})
 				}
-
-			case "field.name":
-				// Capture field definition
-				// We need the type. The query captures type separately as @field.type.
-				// But we process captures linearly.
-				// We need to find the sibling @field.type in the same match?
-				// Matches contain all captures for the pattern.
-				// Let's iterate captures in the match to find pairs.
 			case "function.name":
-				// Method definition
 				parentClass := findEnclosingClass(c.Node, content)
 				if parentClass != "" {
 					classID := parentClass
@@ -185,10 +178,14 @@ func (p *JavaParser) Parse(filePath string, content []byte) ([]*graph.Node, []*g
 					}
 					
 					methodID := fmt.Sprintf("%s:%s", classID, nodeContent)
+					label := "Function"
+                    if c.Node.Parent().Type() == "constructor_declaration" {
+                        label = "Constructor"
+                    }
 					
 					nodes = append(nodes, &graph.Node{
 						ID:    methodID,
-						Label: "Function",
+						Label: label,
 						Properties: map[string]interface{}{
 							"name": nodeContent,
 							"file": filePath,
@@ -206,9 +203,12 @@ func (p *JavaParser) Parse(filePath string, content []byte) ([]*graph.Node, []*g
 			}
 		}
 
-		// Handle Fields specifically within the match to pair name and type
+		// Handle Fields and Params
 		var fieldName, fieldType string
 		var fieldNode *sitter.Node
+		var paramName, paramType string
+        var paramNode *sitter.Node
+		
 		for _, c := range m.Captures {
 			name := qDef.CaptureNameForId(c.Index)
 			if name == "field.name" {
@@ -217,20 +217,26 @@ func (p *JavaParser) Parse(filePath string, content []byte) ([]*graph.Node, []*g
 			}
 			if name == "field.type" {
 				fieldType = c.Node.Content(content)
-				// Clean up generics: List<String> -> List
-				if idx := strings.Index(fieldType, "<"); idx != -1 {
-					fieldType = fieldType[:idx]
-				}
+			}
+			if name == "param.name" {
+				paramName = c.Node.Content(content)
+                paramNode = c.Node
+			}
+			if name == "param.type" {
+				paramType = c.Node.Content(content)
 			}
 		}
+
+		// Processing Field
 		if fieldName != "" && fieldType != "" {
-			parentClass := findEnclosingClass(m.Captures[0].Node, content) // Approximate location
+			parentClass := findEnclosingClass(m.Captures[0].Node, content)
 			if parentClass != "" {
-				// Initialize map
 				if classFields[parentClass] == nil {
 					classFields[parentClass] = make(map[string]string)
 				}
-				resolvedType := resolveType(fieldType)
+				
+                simpleBaseType := strings.Split(fieldType, "<")[0]
+				resolvedType := resolveType(simpleBaseType)
 				classFields[parentClass][fieldName] = resolvedType
 				
 				classID := parentClass
@@ -257,11 +263,63 @@ func (p *JavaParser) Parse(filePath string, content []byte) ([]*graph.Node, []*g
 					TargetID: fieldID,
 					Type:     "DEFINES",
 				})
+
+                // Create DEPENDS_ON edges
+                types := extractTypes(fieldType)
+                for _, tName := range types {
+                    resolved := resolveType(tName)
+                    edges = append(edges, &graph.Edge{
+                        SourceID: classID,
+                        TargetID: resolved,
+                        Type:     "DEPENDS_ON",
+                    })
+                }
 			}
 		}
+		
+		// Processing Constructor Parameter
+		if paramName != "" && paramType != "" {
+            // Check if it belongs to a constructor
+            // param -> formal_parameters -> constructor_declaration
+            // parent of param is formal_parameter? No, paramNode is the identifier.
+            // paramNode parent is formal_parameter.
+            // formal_parameter parent is formal_parameters.
+            // formal_parameters parent is constructor_declaration.
+            
+            // Wait, paramNode is 'identifier'.
+            // c.Node for param.name is identifier.
+            // identifier -> formal_parameter -> formal_parameters -> constructor_declaration
+            
+            p1 := paramNode.Parent() // formal_parameter
+            if p1 != nil {
+                p2 := p1.Parent() // formal_parameters (or method if single? no java always has parens)
+                if p2 != nil {
+                    p3 := p2.Parent() // constructor_declaration or method_declaration
+                    if p3 != nil && p3.Type() == "constructor_declaration" {
+                        parentClass := findEnclosingClass(p3, content)
+                        if parentClass != "" {
+                            classID := parentClass
+                            if packageName != "" {
+                                classID = fmt.Sprintf("%s.%s", packageName, parentClass)
+                            }
+                            
+                            types := extractTypes(paramType)
+                            for _, tName := range types {
+                                resolved := resolveType(tName)
+                                edges = append(edges, &graph.Edge{
+                                    SourceID: classID,
+                                    TargetID: resolved,
+                                    Type:     "DEPENDS_ON",
+                                })
+                            }
+                        }
+                    }
+                }
+            }
+        }
 	}
 
-	// 2. Reference/Call Query
+	// 2. Reference/Call Query (Unchanged mostly)
 	refQueryStr := `
 		(method_invocation
 			object: (identifier)? @call.scope
@@ -318,7 +376,7 @@ func (p *JavaParser) Parse(filePath string, content []byte) ([]*graph.Node, []*g
 				}
 				sourceID := fmt.Sprintf("%s:%s", classID, sourceFunc)
 				
-				// 1. Constructor Calls (new Type())
+				// 1. Constructor Calls
 				if callNode.Type() == "object_creation_expression" && targetName != "" {
 					resolvedType := resolveType(targetName)
 					edges = append(edges, &graph.Edge{
@@ -328,15 +386,10 @@ func (p *JavaParser) Parse(filePath string, content []byte) ([]*graph.Node, []*g
 					})
 				}
 
-				// 2. Method Calls (scope.method() or method())
+				// 2. Method Calls
 				if callNode.Type() == "method_invocation" {
 					if scopeName != "" {
-						// e.g. helper.doWork()
-						// Check if scopeName is a known field in the current class
 						if typeName, ok := classFields[sourceClass][scopeName]; ok {
-							// Link to Type:Method
-							// If typeName is fully qualified "com.example.Worker"
-							// TargetID = "com.example.Worker:doWork" (heuristic)
 							targetID := fmt.Sprintf("%s:%s", typeName, targetName)
 							edges = append(edges, &graph.Edge{
 								SourceID: sourceID,
@@ -344,9 +397,6 @@ func (p *JavaParser) Parse(filePath string, content []byte) ([]*graph.Node, []*g
 								Type:     "CALLS",
 							})
 						} else {
-							// Scope not found in fields (maybe local var or static class)
-							// Fallback: Link to scopeName:targetName (Ghost Node potentially, but better than nothing)
-							// Or try to resolve scopeName as a Class (Static call)
 							resolvedScope := resolveType(scopeName)
 							targetID := fmt.Sprintf("%s:%s", resolvedScope, targetName)
 							edges = append(edges, &graph.Edge{
@@ -356,8 +406,6 @@ func (p *JavaParser) Parse(filePath string, content []byte) ([]*graph.Node, []*g
 							})
 						}
 					} else {
-						// Implicit scope (this.method() or static import)
-						// Assume internal call to current class
 						targetID := fmt.Sprintf("%s:%s", classID, targetName)
 						edges = append(edges, &graph.Edge{
 							SourceID: sourceID,
@@ -377,7 +425,6 @@ func findEnclosingJavaFunction(n *sitter.Node, content []byte) string {
 	curr := n.Parent()
 	for curr != nil {
 		t := curr.Type()
-		// method_declaration, constructor_declaration
 		if t == "method_declaration" || t == "constructor_declaration" {
 			nameNode := curr.ChildByFieldName("name")
 			if nameNode != nil {

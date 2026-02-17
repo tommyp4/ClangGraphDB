@@ -243,7 +243,7 @@ func handleIngest(args []string) {
 		for scanner.Scan() {
 			path := scanner.Text()
 			if path != "" {
-				walker.WorkerPool.Submit(path)
+				walker.WorkerPool.Submit(*dirPtr, path)
 			}
 		}
 		walker.WorkerPool.Stop()

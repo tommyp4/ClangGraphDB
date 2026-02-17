@@ -164,6 +164,15 @@
 - [x] **Implementation:** Create `handleBuildAll` in `main.go`.
 - [x] **Workflow:** Update `SKILL.md` to reflect the streamlined process.
 
+### Campaign 5.4: Node ID Standardization (Refactor)
+**Goal:** Switch from brittle absolute file paths to Project-Relative paths for all nodes, and enforce Fully Qualified Names (FQN) for C# nodes. This improves portability and graph quality (merging partial classes, fixing cross-file edges).
+**Status:** Pending
+**Key Deliverables:**
+- [ ] **Infrastructure:** `Walker` and `Worker` use relative paths.
+- [ ] **C# Parser:** Remove path prefixes, use FQN.
+- [ ] **Verification:** Clean IDs and connected graph.
+- [ ] **Plan:** Ref: `plans/refactor_node_ids.md`.
+
 ### Campaign 6: The Spanner Backend (Storage Swap)
 **Goal:** Establish the multi-tenant, immutable storage layer using Google Spanner Graph by swapping the storage implementation.
 **Status:** Pending

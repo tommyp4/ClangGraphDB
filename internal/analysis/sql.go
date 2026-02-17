@@ -27,15 +27,10 @@ func (p *SqlParser) Parse(filePath string, content []byte) ([]*graph.Node, []*gr
 	defer tree.Close()
 
 	// 1. Definition Query
+	// Capture the entire function definition to manually inspect name
 	defQueryStr := `
-		(create_function
-			(object_reference
-				(identifier) @function.name
-			)
-		) @function.def
+		(create_function) @function.def
 	`
-    // Note: create_procedure caused invalid node type error, so it's not in the grammar or named differently.
-    // We will inspect if we can support it later or if we need to rely on ERROR recovery.
 
 	qDef, err := sitter.NewQuery([]byte(defQueryStr), sql.GetLanguage())
 	if err != nil {
@@ -57,16 +52,26 @@ func (p *SqlParser) Parse(filePath string, content []byte) ([]*graph.Node, []*gr
 		}
 
 		for _, c := range m.Captures {
-			captureName := qDef.CaptureNameForId(c.Index)
-
-			if captureName != "function.name" {
-				continue
+			// Iterate children to find name (object_reference or identifier)
+			var nodeName string
+			count := int(c.Node.ChildCount())
+			for i := 0; i < count; i++ {
+				child := c.Node.Child(i)
+				if child.Type() == "object_reference" || child.Type() == "identifier" {
+					nodeName = child.Content(content)
+					break
+				}
 			}
 
-			nodeName := c.Node.Content(content)
+			if nodeName == "" {
+				continue
+			}
+			
+			// Use FQN (schema.name) as ID. No file path.
+			id := nodeName
 
 			n := &graph.Node{
-				ID:    fmt.Sprintf("%s:%s", filePath, nodeName),
+				ID:    id,
 				Label: "Function",
 				Properties: map[string]interface{}{
 					"name": nodeName,
@@ -80,13 +85,11 @@ func (p *SqlParser) Parse(filePath string, content []byte) ([]*graph.Node, []*gr
 	}
 
 	// 2. Reference/Call Query
-	// Matches `SELECT CalculateTotal()` which parses as (invocation (object_reference (identifier)))
+	// Manual inspection for calls too? 
+	// No, calls are usually `invocation -> object_reference`.
+    // Try to capture `invocation` and inspect?
 	refQueryStr := `
-		(invocation
-			(object_reference
-				(identifier) @call.target
-			)
-		) @call.site
+		(invocation) @call.site
 	`
 
 	qRef, err := sitter.NewQuery([]byte(refQueryStr), sql.GetLanguage())
@@ -112,21 +115,24 @@ func (p *SqlParser) Parse(filePath string, content []byte) ([]*graph.Node, []*gr
 		var callNode *sitter.Node
 
 		for _, c := range m.Captures {
-			name := qRef.CaptureNameForId(c.Index)
-			if name == "call.target" {
-				targetName = c.Node.Content(content)
-			}
-			if name == "call.site" {
-				callNode = c.Node
-			}
+            // Find target inside invocation
+            count := int(c.Node.ChildCount())
+            for i := 0; i < count; i++ {
+                child := c.Node.Child(i)
+                if child.Type() == "object_reference" || child.Type() == "identifier" {
+                    targetName = child.Content(content)
+                    break
+                }
+            }
+            callNode = c.Node
 		}
 
 		if targetName != "" && callNode != nil {
 			sourceFunc := findEnclosingSqlFunction(callNode, content)
 			if sourceFunc != "" {
 				edges = append(edges, &graph.Edge{
-					SourceID: fmt.Sprintf("%s:%s", filePath, sourceFunc),
-					TargetID: fmt.Sprintf("%s:%s", filePath, targetName),
+					SourceID: sourceFunc,
+					TargetID: targetName,
 					Type:     "CALLS",
 				})
 			}
@@ -141,15 +147,12 @@ func findEnclosingSqlFunction(n *sitter.Node, content []byte) string {
 	for curr != nil {
 		t := curr.Type()
 		if t == "create_function" {
-            // Find the object_reference child, then its identifier
+            // Find child that is object_reference OR identifier
             count := int(curr.ChildCount())
             for i := 0; i < count; i++ {
                 child := curr.Child(i)
-                if child.Type() == "object_reference" {
-                     if child.ChildCount() > 0 {
-                         // Assuming the first child is the identifier
-                         return child.Child(0).Content(content)
-                     }
+                if child.Type() == "object_reference" || child.Type() == "identifier" {
+                     return child.Content(content)
                 }
             }
 		}

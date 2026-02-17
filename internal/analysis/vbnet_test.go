@@ -3,7 +3,6 @@ package analysis_test
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"graphdb/internal/analysis"
@@ -49,15 +48,25 @@ func TestParseVBNet(t *testing.T) {
 
 		if n.Label == "Class" && name == "Greeter" {
 			foundGreeter = true
+            // ID should be "Greeter" (no path prefix)
+            if n.ID != "Greeter" {
+                t.Errorf("Expected Class ID 'Greeter', got '%s'", n.ID)
+            }
 		}
 		if n.Label == "Function" && name == "Greet" {
 			foundGreet = true
+            if n.ID != "Greeter.Greet" {
+                t.Errorf("Expected Function ID 'Greeter.Greet', got '%s'", n.ID)
+            }
 			if _, ok := n.Properties["end_line"]; !ok {
 				t.Errorf("Function 'Greet' missing end_line")
 			}
 		}
 		if n.Label == "Function" && name == "Calculate" {
 			foundCalculate = true
+             if n.ID != "Greeter.Calculate" {
+                t.Errorf("Expected Function ID 'Greeter.Calculate', got '%s'", n.ID)
+            }
 			if _, ok := n.Properties["end_line"]; !ok {
 				t.Errorf("Function 'Calculate' missing end_line")
 			}
@@ -77,13 +86,18 @@ func TestParseVBNet(t *testing.T) {
 	// 5. Check Call Edge
 	foundCall := false
 	for _, e := range edges {
-		// Source: ...:Greet, Target: ...:Calculate
-		if strings.HasSuffix(e.SourceID, ":Greet") && strings.HasSuffix(e.TargetID, ":Calculate") {
+		// Source: Greeter.Greet
+        // Target: Calculate (simple name resolution)
+		if e.SourceID == "Greeter.Greet" && e.TargetID == "Calculate" {
 			foundCall = true
 			break
 		}
 	}
 	if !foundCall {
-		t.Errorf("Expected Call Edge from Greet to Calculate not found")
+        t.Log("Edges found:")
+        for _, e := range edges {
+            t.Logf("  %s -> %s", e.SourceID, e.TargetID)
+        }
+		t.Errorf("Expected Call Edge from Greeter.Greet to Calculate not found")
 	}
 }

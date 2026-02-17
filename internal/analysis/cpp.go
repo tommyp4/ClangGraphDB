@@ -35,12 +35,24 @@ func (p *CppParser) Parse(filePath string, content []byte) ([]*graph.Node, []*gr
 	var nodes []*graph.Node
 	var edges []*graph.Edge
 
-	// Local definitions map: Name -> ID
-	// Note: With scoped IDs, this map needs to handle scope?
-	// For now, we might just map strict names or last-segment names?
-	// If we have strict IDs, we might need a better resolution strategy for edges.
 	localDefs := make(map[string]string)
 	includes := []string{}
+
+	// Helper to extract types
+    extractTypes := func(typeStr string) []string {
+        f := func(c rune) bool {
+            return c == '<' || c == '>' || c == ',' || c == ' '
+        }
+        parts := strings.FieldsFunc(typeStr, f)
+        var result []string
+        for _, s := range parts {
+            s = strings.TrimSpace(s)
+            if s != "" && s != "std" && s != "vector" && s != "shared_ptr" && s != "unique_ptr" {
+                result = append(result, s)
+            }
+        }
+        return result
+    }
 
 	// 1. Structure Query
 	structureQueryStr := `
@@ -73,9 +85,9 @@ func (p *CppParser) Parse(filePath string, content []byte) ([]*graph.Node, []*gr
 			)
 		)
 
-		(field_declaration
-			declarator: (field_identifier) @field.name
-		)
+		(field_declaration) @field.decl
+		
+		(parameter_declaration) @param.decl
 
 		(class_specifier
 			name: (type_identifier) @class.name
@@ -117,6 +129,115 @@ func (p *CppParser) Parse(filePath string, content []byte) ([]*graph.Node, []*gr
 				continue
 			}
 
+            // Handle Field Declarations
+            if name == "field.decl" {
+                // Extract Type
+                typeNode := c.Node.ChildByFieldName("type")
+                if typeNode != nil {
+                    typeStr := typeNode.Content(content)
+                    // Extract Name (Declarator)
+                    declNames := extractCppDeclarators(c.Node, content)
+                    
+                    if len(declNames) > 0 {
+                        // For fields, we assume they belong to the enclosing class
+                        searchNode := c.Node
+                        if p := c.Node.Parent(); p != nil {
+                            searchNode = p
+                        }
+                        enclosingClass := findEnclosingCppClass(searchNode, content)
+                        
+                        if enclosingClass != "" {
+                            // Create Field Nodes and Dependencies
+                            for _, fieldName := range declNames {
+                                // Create Field Node
+                                // FQN: Class::Field
+                                fieldID := strings.Join([]string{enclosingClass, fieldName}, "::")
+                                nodes = append(nodes, &graph.Node{
+                                    ID:    fieldID,
+                                    Label: "Field",
+                                    Properties: map[string]interface{}{
+                                        "name": fieldName,
+                                        "type": typeStr,
+                                        "file": filePath,
+                                        "line": int(c.Node.StartPoint().Row + 1),
+                                    },
+                                })
+                                
+                                sourceID := enclosingClass
+                                edges = append(edges, &graph.Edge{
+                                    SourceID: sourceID,
+                                    TargetID: fieldID,
+                                    Type:     "DEFINES",
+                                })
+                                
+                                // Create DEPENDS_ON edges
+                                types := extractTypes(typeStr)
+                                for _, tName := range types {
+                                    // Resolve Type
+                                    targetID := localDefs[tName]
+                                    if targetID == "" {
+                                        targetID = resolveCppInclude(tName, includes, filePath)
+                                    }
+                                    
+                                    edges = append(edges, &graph.Edge{
+                                        SourceID: sourceID,
+                                        TargetID: targetID,
+                                        Type:     "DEPENDS_ON",
+                                    })
+                                }
+                            }
+                        }
+                    }
+                }
+                continue
+            }
+            
+            // Handle Parameter Declarations
+            if name == "param.decl" {
+                typeNode := c.Node.ChildByFieldName("type")
+                if typeNode != nil {
+                    typeStr := typeNode.Content(content)
+                    
+                    // Check if inside Constructor
+                    funcDef := findEnclosingCppFunctionNode(c.Node)
+                    if funcDef != nil {
+                        funcName := extractCppFunctionName(funcDef, content)
+                        cls := findEnclosingCppClass(funcDef, content)
+                        
+                        // Constructor check: funcName == className (last part)
+                        clsName := cls
+                        if idx := strings.LastIndex(cls, "::"); idx != -1 {
+                            clsName = cls[idx+2:]
+                        }
+                        
+                        // Also handle qualified func name "Class::Class"
+                        simpleFuncName := funcName
+                        if idx := strings.LastIndex(funcName, "::"); idx != -1 {
+                            simpleFuncName = funcName[idx+2:]
+                        }
+                        
+                        if clsName != "" && simpleFuncName == clsName {
+                            // Constructor found
+                             sourceID := cls // Link to Class, not constructor function
+                             
+                             types := extractTypes(typeStr)
+                             for _, tName := range types {
+                                targetID := localDefs[tName]
+                                if targetID == "" {
+                                    targetID = resolveCppInclude(tName, includes, filePath)
+                                }
+                                edges = append(edges, &graph.Edge{
+                                    SourceID: sourceID,
+                                    TargetID: targetID,
+                                    Type:     "DEPENDS_ON",
+                                })
+                             }
+                        }
+                    }
+                }
+                continue
+            }
+
 			var label string
 			var nodeType string
 			if name == "function.name" {
@@ -125,9 +246,6 @@ func (p *CppParser) Parse(filePath string, content []byte) ([]*graph.Node, []*gr
 			} else if name == "global.name" {
 				label = "Global"
 				nodeType = "global"
-			} else if name == "field.name" {
-				label = "Field"
-				nodeType = "field"
 			} else if name == "class.name" {
 				label = "Class"
 				nodeType = "class"
@@ -157,7 +275,8 @@ func (p *CppParser) Parse(filePath string, content []byte) ([]*graph.Node, []*gr
 			parts = append(parts, nodeContent)
 			
 			qualifiedName := strings.Join(parts, "::")
-			nodeID := fmt.Sprintf("%s:%s", filePath, qualifiedName)
+            // REMOVED filePath prefix
+			nodeID := qualifiedName
 
 			nodes = append(nodes, &graph.Node{
 				ID:    nodeID,
@@ -171,10 +290,6 @@ func (p *CppParser) Parse(filePath string, content []byte) ([]*graph.Node, []*gr
 				},
 			})
 			
-			// Store mapping for resolution (nodeContent -> ID)
-			// Warning: Collisions in key (nodeContent) might happen if multiple items have same name in different scopes.
-			// This `localDefs` is used for simplistic resolution.
-			// We might want to store more context or rely on qualified names in usage.
 			localDefs[nodeContent] = nodeID
 		}
 	}
@@ -228,13 +343,7 @@ func (p *CppParser) Parse(filePath string, content []byte) ([]*graph.Node, []*gr
 			}
 		}
 		if src != "" && dst != "" {
-			// Construct Source ID properly
 			ns := findEnclosingCppNamespace(srcNode, content)
-			// Class is srcNode, so enclosing class of DEFINITION is parent of parent...
-			// Wait, srcNode is 'name' identifier. Parent is class_specifier.
-			// findEnclosingCppClass(class_specifier) -> returns outer class.
-			// Logic matches above.
-			
 			searchNode := srcNode
 			if p := srcNode.Parent(); p != nil {
 				searchNode = p
@@ -246,7 +355,8 @@ func (p *CppParser) Parse(filePath string, content []byte) ([]*graph.Node, []*gr
 			if cls != "" { parts = append(parts, cls) }
 			parts = append(parts, src)
 			
-			sourceID := fmt.Sprintf("%s:%s", filePath, strings.Join(parts, "::"))
+            // REMOVED filePath prefix
+			sourceID := strings.Join(parts, "::")
 
 			targetID := localDefs[dst]
 			if targetID == "" {
@@ -320,19 +430,11 @@ func (p *CppParser) Parse(filePath string, content []byte) ([]*graph.Node, []*gr
 			}
 		}
 		
-		// Debug logging
-		// fmt.Printf("Usage Capture: %s, Target: %s\n", edgeType, targetName)
-
 		if targetName != "" && siteNode != nil {
 			sourceFuncNode := findEnclosingCppFunctionNode(siteNode)
 			if sourceFuncNode != nil {
-				// Reconstruct Source ID
 				ns := findEnclosingCppNamespace(sourceFuncNode, content)
 				cls := findEnclosingCppClass(sourceFuncNode, content)
-				
-				// Extract function name
-				// This is tricky because findEnclosingCppFunctionNode returns the definition node
-				// We need to extract the name from it.
 				funcName := extractCppFunctionName(sourceFuncNode, content)
 				
 				if funcName != "" {
@@ -341,7 +443,8 @@ func (p *CppParser) Parse(filePath string, content []byte) ([]*graph.Node, []*gr
 					if cls != "" { parts = append(parts, cls) }
 					parts = append(parts, funcName)
 					
-					sourceID := fmt.Sprintf("%s:%s", filePath, strings.Join(parts, "::"))
+                    // REMOVED filePath prefix
+					sourceID := strings.Join(parts, "::")
 
 					targetID := localDefs[targetName]
 					if targetID == "" {
@@ -361,6 +464,35 @@ func (p *CppParser) Parse(filePath string, content []byte) ([]*graph.Node, []*gr
 	return nodes, edges, nil
 }
 
+func extractCppDeclarators(n *sitter.Node, content []byte) []string {
+    var names []string
+    count := n.NamedChildCount()
+    for i := 0; i < int(count); i++ {
+        child := n.NamedChild(i)
+        // Check if child is a declarator (or pointer_declarator, etc)
+        if n.FieldNameForChild(i) == "declarator" {
+            // Traverse down to find identifier
+            names = append(names, extractCppIdentifier(child, content))
+        }
+    }
+    return names
+}
+
+func extractCppIdentifier(n *sitter.Node, content []byte) string {
+    // Recursive decent to find identifier
+    if n.Type() == "identifier" || n.Type() == "field_identifier" {
+        return n.Content(content)
+    }
+    count := n.NamedChildCount()
+    for i := 0; i < int(count); i++ {
+        res := extractCppIdentifier(n.NamedChild(i), content)
+        if res != "" {
+            return res
+        }
+    }
+    return ""
+}
+
 func resolveCppInclude(symbol string, includes []string, currentFile string) string {
 	symbolBase := symbol
 	if idx := strings.Index(symbol, "::"); idx != -1 {
@@ -373,9 +505,10 @@ func resolveCppInclude(symbol string, includes []string, currentFile string) str
 		name := strings.TrimSuffix(base, ext)
 		
 		if strings.EqualFold(name, symbolBase) {
-			dir := filepath.Dir(currentFile)
-			resolvedPath := filepath.Join(dir, inc) 
-			return fmt.Sprintf("%s:%s", resolvedPath, symbol)
+            // Found matching include file.
+            // Return symbol name without path, assuming uniqueness.
+            // (e.g. "MyClass")
+			return symbol
 		}
 	}
 	return fmt.Sprintf("UNKNOWN:%s", symbol)
@@ -425,15 +558,7 @@ func findEnclosingCppFunctionNode(n *sitter.Node) *sitter.Node {
 func extractCppFunctionName(n *sitter.Node, content []byte) string {
 	decl := n.ChildByFieldName("declarator")
 	if decl != nil {
-		innerDecl := decl.ChildByFieldName("declarator")
-		if innerDecl != nil {
-			if innerDecl.Type() == "identifier" || innerDecl.Type() == "field_identifier" {
-				return innerDecl.Content(content)
-			}
-			if innerDecl.Type() == "qualified_identifier" {
-				return innerDecl.Content(content)
-			}
-		}
+        return extractCppIdentifier(decl, content)
 	}
 	return ""
 }

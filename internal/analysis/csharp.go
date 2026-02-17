@@ -42,6 +42,12 @@ func (p *CSharpParser) Parse(filePath string, content []byte) ([]*graph.Node, []
 
 		(using_directive (qualified_name) @using.namespace)
 		(using_directive (identifier) @using.namespace)
+
+		(constructor_declaration
+			parameters: (parameter_list
+				(parameter type: (_) @param.type)
+			)
+		)
 	`
 
 	qDef, err := sitter.NewQuery([]byte(defQueryStr), csharp.GetLanguage())
@@ -56,7 +62,7 @@ func (p *CSharpParser) Parse(filePath string, content []byte) ([]*graph.Node, []
 	qcDef.Exec(qDef, tree.RootNode())
 
 	var nodes []*graph.Node
-	var extraEdges []*graph.Edge // Store inheritance edges here
+	var extraEdges []*graph.Edge // Store inheritance and dependency edges here
 	var usings []string
 
 	// Pre-scan for file-scoped namespace
@@ -76,6 +82,42 @@ func (p *CSharpParser) Parse(filePath string, content []byte) ([]*graph.Node, []
 				continue
 			}
 
+			if captureName == "param.type" {
+				typeName := extractBaseType(c.Node, content)
+				
+				// Find Enclosing Class
+				enclosingClass := findEnclosingCSharpClass(c.Node, content)
+				if enclosingClass == "" {
+					continue
+				}
+				
+				// Determine Namespace
+				namespace := findEnclosingCSharpNamespace(c.Node, content)
+				if namespace == "" {
+					namespace = fileScopedNamespace
+				}
+				
+				// Source ID: The Class
+				var parts []string
+				if namespace != "" {
+					parts = append(parts, namespace)
+				}
+				parts = append(parts, enclosingClass)
+				sourceID := strings.Join(parts, ".")
+				
+				// Resolve Target Candidates
+				candidates := resolveCSharpCandidates(typeName, usings, namespace)
+				
+				for _, cand := range candidates {
+					extraEdges = append(extraEdges, &graph.Edge{
+						SourceID: sourceID,
+						TargetID: cand,
+						Type:     "DEPENDS_ON",
+					})
+				}
+				continue
+			}
+
 			// Capture name extraction
 			var nodeNames []string
 			var nodeType string // "class", "function", "field"
@@ -91,6 +133,82 @@ func (p *CSharpParser) Parse(filePath string, content []byte) ([]*graph.Node, []
 				}
 			} else if captureName == "field.declarator" {
 				nodeType = "field"
+
+				// --- Field Dependency Extraction ---
+				// Try to find type node
+				var typeNode *sitter.Node
+				typeNode = c.Node.ChildByFieldName("type") // Try standard field name
+
+				if typeNode == nil {
+					// Fallback: iterate children to find type-like nodes
+					count := c.Node.ChildCount()
+					for i := 0; i < int(count); i++ {
+						child := c.Node.Child(i)
+						t := child.Type()
+						
+						// If we find a variable_declaration, check inside it
+						if t == "variable_declaration" {
+							typeNode = child.ChildByFieldName("type")
+							if typeNode != nil {
+								break
+							}
+							// Iterate children of variable_declaration if type field not found
+							vCount := child.ChildCount()
+							for k := 0; k < int(vCount); k++ {
+								vChild := child.Child(k)
+								vt := vChild.Type()
+								if vt == "identifier" || vt == "generic_name" || vt == "qualified_name" || vt == "predefined_type" {
+									// Assume this is the type if we haven't found one
+									// But be careful not to pick variable name (which is in variable_declarator usually)
+									typeNode = vChild
+									break
+								}
+							}
+							if typeNode != nil { break }
+						}
+
+						// If we find direct type types
+						if t == "generic_name" || t == "qualified_name" || t == "predefined_type" {
+							typeNode = child
+							break
+						}
+						
+						// Identifier is tricky, could be type or something else.
+						// But in field_declaration, the name is in variable_declarator.
+						// So an identifier sibling to variable_declarator is likely the type.
+						if t == "identifier" {
+							// Check if next sibling is variable_declarator?
+							// For now, assume it is type.
+							typeNode = child
+							break
+						}
+					}
+				}
+
+				if typeNode != nil {
+					typeName := extractBaseType(typeNode, content)
+					enclosingClass := findEnclosingCSharpClass(c.Node, content)
+					if enclosingClass != "" {
+						namespace := findEnclosingCSharpNamespace(c.Node, content)
+						if namespace == "" { namespace = fileScopedNamespace }
+						
+						var parts []string
+						if namespace != "" { parts = append(parts, namespace) }
+						parts = append(parts, enclosingClass)
+						sourceID := strings.Join(parts, ".")
+						
+						candidates := resolveCSharpCandidates(typeName, usings, namespace)
+						for _, cand := range candidates {
+							extraEdges = append(extraEdges, &graph.Edge{
+								SourceID: sourceID,
+								TargetID: cand,
+								Type:     "DEPENDS_ON",
+							})
+						}
+					}
+				}
+				// -----------------------------------
+
 				// c.Node is field_declaration
 				count := c.Node.ChildCount()
 				for i := 0; i < int(count); i++ {
@@ -149,7 +267,7 @@ func (p *CSharpParser) Parse(filePath string, content []byte) ([]*graph.Node, []
 				parts = append(parts, nodeName)
 				
 				qualifiedName := strings.Join(parts, ".")
-				fullID = fmt.Sprintf("%s:%s", filePath, qualifiedName)
+				fullID = qualifiedName
 
 				var properties = map[string]interface{}{
 					"name": nodeName,
@@ -190,12 +308,14 @@ func (p *CSharpParser) Parse(filePath string, content []byte) ([]*graph.Node, []
 								// Ideally we resolve this too, but for now we guess
 								// It might be in the same namespace or imported.
 								// We leave it as simple name or qualified if provided.
-								targetID := fmt.Sprintf("%s:%s", filePath, baseName) 
-								extraEdges = append(extraEdges, &graph.Edge{
-									SourceID: fullID,
-									TargetID: targetID,
-									Type:     "INHERITS",
-								})
+								candidates := resolveCSharpCandidates(baseName, usings, namespace)
+								for _, cand := range candidates {
+									extraEdges = append(extraEdges, &graph.Edge{
+										SourceID: fullID,
+										TargetID: cand,
+										Type:     "INHERITS",
+									})
+								}
 							}
 						}
 					}
@@ -290,7 +410,7 @@ func (p *CSharpParser) Parse(filePath string, content []byte) ([]*graph.Node, []
 					if cls != "" { parts = append(parts, cls) }
 					parts = append(parts, funcName)
 					
-					sourceID := fmt.Sprintf("%s:%s", filePath, strings.Join(parts, "."))
+					sourceID := strings.Join(parts, ".")
 
 					candidates := resolveCSharpCandidates(targetName, usings, ns)
 					for _, cand := range candidates {
@@ -320,6 +440,24 @@ func extractCSharpNameFromDeclarator(n *sitter.Node, content []byte) string {
 		}
 	}
 	return ""
+}
+
+func extractBaseType(n *sitter.Node, content []byte) string {
+	if n.Type() == "generic_name" {
+		child := n.ChildByFieldName("name")
+		if child != nil {
+			return child.Content(content)
+		}
+		// Fallback: First child that is identifier
+		count := n.ChildCount()
+		for i := 0; i < int(count); i++ {
+			c := n.Child(i)
+			if c.Type() == "identifier" {
+				return c.Content(content)
+			}
+		}
+	}
+	return n.Content(content)
 }
 
 func resolveCSharpCandidates(name string, usings []string, currentNamespace string) []string {

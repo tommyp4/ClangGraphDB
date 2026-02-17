@@ -28,7 +28,7 @@ func (w *Walker) Run(ctx context.Context, dirPath string) error {
 
 	return w.Walk(ctx, dirPath, func(path string, d fs.DirEntry) error {
 		if !d.IsDir() {
-			w.WorkerPool.Submit(path)
+			w.WorkerPool.Submit(dirPath, path)
 		}
 		return nil
 	})

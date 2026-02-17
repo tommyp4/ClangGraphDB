@@ -1,6 +1,7 @@
 package analysis_test
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -118,17 +119,78 @@ public class Order {
 
 	// Expected specific IDs (Qualified with namespace and class)
 	expectedIDs := []string{
-		absPath + ":MyApp.Core.User",
-		absPath + ":MyApp.Core.User.User", // Constructor
-		absPath + ":MyApp.Core.User.Save",
-		absPath + ":MyApp.Core.Order",
-		absPath + ":MyApp.Core.Order.Order", // Constructor
-		absPath + ":MyApp.Core.Order.Save",
+		"MyApp.Core.User",
+		"MyApp.Core.User.User", // Constructor
+		"MyApp.Core.User.Save",
+		"MyApp.Core.Order",
+		"MyApp.Core.Order.Order", // Constructor
+		"MyApp.Core.Order.Save",
 	}
 
 	for _, expected := range expectedIDs {
 		if _, exists := ids[expected]; !exists {
 			t.Errorf("Expected ID not found: %s", expected)
 		}
+	}
+}
+
+func TestParseCSharp_DependencyInjection(t *testing.T) {
+	parser, ok := analysis.GetParser(".cs")
+	if !ok {
+		t.Fatalf("CSharp parser not registered")
+	}
+
+	relPath := "../../test/fixtures/csharp/di_sample.cs"
+	absPath, err := filepath.Abs(relPath)
+	if err != nil {
+		t.Fatalf("Failed to get absolute path: %v", err)
+	}
+
+	content, err := os.ReadFile(absPath)
+	if err != nil {
+		t.Fatalf("Failed to read fixture file: %v", err)
+	}
+
+	nodes, edges, err := parser.Parse(absPath, content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	// Verify PaymentProcessor depends on IPaymentRepository
+	foundRepo := false
+	foundLogger := false
+
+	for _, e := range edges {
+		if e.Type == "DEPENDS_ON" {
+			t.Logf("Found DEPENDS_ON Edge: %s -> %s", e.SourceID, e.TargetID)
+			// Source: ...:Trucks.Processor.PaymentProcessor
+			// Target: Trucks.Common.IPaymentRepository (or similar)
+			if strings.Contains(e.SourceID, "PaymentProcessor") && strings.Contains(e.TargetID, "IPaymentRepository") {
+				foundRepo = true
+			}
+			// Verify generic handling: ILogger<T> -> ILogger
+			if strings.Contains(e.SourceID, "PaymentProcessor") && strings.Contains(e.TargetID, "ILogger") {
+				foundLogger = true
+			}
+		}
+	}
+
+	if !foundRepo {
+		t.Errorf("Expected DEPENDS_ON edge from PaymentProcessor to IPaymentRepository not found")
+	}
+	if !foundLogger {
+		t.Errorf("Expected DEPENDS_ON edge from PaymentProcessor to ILogger not found")
+	}
+	
+	// Check if we captured nodes correctly
+	foundClass := false
+	for _, n := range nodes {
+		if strings.HasSuffix(n.ID, "PaymentProcessor") && n.Label == "Class" {
+			foundClass = true
+		}
+	}
+	
+	if !foundClass {
+		t.Errorf("Expected Class PaymentProcessor not found")
 	}
 }

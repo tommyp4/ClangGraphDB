@@ -1,9 +1,7 @@
 package analysis_test
 
 import (
-	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"graphdb/internal/analysis"
@@ -16,10 +14,19 @@ func TestParseSQL(t *testing.T) {
 		t.Fatalf("Failed to get absolute path: %v", err)
 	}
 
-	content, err := os.ReadFile(absPath)
-	if err != nil {
-		t.Fatalf("Failed to read fixture: %v", err)
-	}
+	content := []byte(`
+CREATE FUNCTION CalculateTotal() RETURNS INT AS $$
+BEGIN
+    RETURN 100;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE FUNCTION ProcessOrder() RETURNS VOID AS $$
+BEGIN
+    SELECT CalculateTotal();
+END;
+$$ LANGUAGE plpgsql;
+`)
 
 	// 2. Get Parser
 	parser, ok := analysis.GetParser(".sql")
@@ -69,8 +76,8 @@ func TestParseSQL(t *testing.T) {
 	// Helper to find edge
 	hasEdge := func(srcName, tgtName string) bool {
 		for _, e := range edges {
-			// Source and Target IDs are typically "filepath:name"
-			if strings.HasSuffix(e.SourceID, ":"+srcName) && strings.HasSuffix(e.TargetID, ":"+tgtName) {
+			// IDs are now FQN (or just name), no path prefix
+			if e.SourceID == srcName && e.TargetID == tgtName {
 				return true
 			}
 		}
@@ -78,6 +85,11 @@ func TestParseSQL(t *testing.T) {
 	}
 
 	if !hasEdge("ProcessOrder", "CalculateTotal") {
+        // Debug
+        t.Log("Edges found:")
+        for _, e := range edges {
+            t.Logf("  %s -> %s", e.SourceID, e.TargetID)
+        }
 		t.Errorf("Expected Call Edge ProcessOrder -> CalculateTotal not found")
 	}
 }

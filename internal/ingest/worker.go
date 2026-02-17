@@ -12,11 +12,16 @@ import (
 	"sync"
 )
 
+type Job struct {
+	Root string
+	Path string
+}
+
 type WorkerPool struct {
 	workers    int
 	embedder   embedding.Embedder
 	emitter    storage.Emitter
-	jobChan    chan string
+	jobChan    chan Job
 	wg         sync.WaitGroup
 	OnProgress func()
 }
@@ -26,7 +31,7 @@ func NewWorkerPool(workers int, embedder embedding.Embedder, emitter storage.Emi
 		workers:  workers,
 		embedder: embedder,
 		emitter:  emitter,
-		jobChan:  make(chan string, 100),
+		jobChan:  make(chan Job, 100),
 	}
 }
 
@@ -39,9 +44,9 @@ func (wp *WorkerPool) Start() {
 
 func (wp *WorkerPool) worker() {
 	defer wp.wg.Done()
-	for path := range wp.jobChan {
-		if err := wp.processFile(path); err != nil {
-			log.Printf("Error processing file %s: %v", path, err)
+	for job := range wp.jobChan {
+		if err := wp.processFile(job); err != nil {
+			log.Printf("Error processing file %s: %v", job.Path, err)
 		}
 		if wp.OnProgress != nil {
 			wp.OnProgress()
@@ -49,7 +54,8 @@ func (wp *WorkerPool) worker() {
 	}
 }
 
-func (wp *WorkerPool) processFile(path string) error {
+func (wp *WorkerPool) processFile(job Job) error {
+	path := job.Path
 	ext := filepath.Ext(path)
 	parser, ok := analysis.GetParser(ext)
 	if !ok {
@@ -61,18 +67,25 @@ func (wp *WorkerPool) processFile(path string) error {
 		return fmt.Errorf("failed to read file: %w", err)
 	}
 
-	nodes, edges, err := parser.Parse(path, content)
+	relPath, err := filepath.Rel(job.Root, path)
+	if err != nil {
+		// Fallback to absolute path if relative path calculation fails
+		relPath = path
+	}
+	relPath = filepath.ToSlash(relPath)
+
+	nodes, edges, err := parser.Parse(relPath, content)
 	if err != nil {
 		return fmt.Errorf("failed to parse file: %w", err)
 	}
 
 	// Create File Node
 	fileNode := &graph.Node{
-		ID:    path,
+		ID:    relPath,
 		Label: "File",
 		Properties: map[string]interface{}{
-			"file": path,
-			"name": path,
+			"file": relPath,
+			"name": relPath,
 		},
 	}
 
@@ -137,8 +150,8 @@ func (wp *WorkerPool) processFile(path string) error {
 	return nil
 }
 
-func (wp *WorkerPool) Submit(filePath string) {
-	wp.jobChan <- filePath
+func (wp *WorkerPool) Submit(root string, filePath string) {
+	wp.jobChan <- Job{Root: root, Path: filePath}
 }
 
 func (wp *WorkerPool) Stop() {

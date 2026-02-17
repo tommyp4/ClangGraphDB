@@ -19,16 +19,20 @@ func (p *VBNetParser) Parse(filePath string, content []byte) ([]*graph.Node, []*
 	edges := []*graph.Edge{}
 
 	// Regex patterns
-	// Note: These are simplified and might not cover all VB.NET syntax edge cases.
-	classRegex := regexp.MustCompile(`(?i)(?:Class|Module)\s+(\w+)`)
-	funcRegex := regexp.MustCompile(`(?i)(?:Sub|Function)\s+(\w+)`)
-	endFuncRegex := regexp.MustCompile(`(?i)End\s+(?:Sub|Function)`)
+	namespaceRegex := regexp.MustCompile(`(?i)^\s*Namespace\s+([\w\.]+)`)
+	endNamespaceRegex := regexp.MustCompile(`(?i)^\s*End\s+Namespace`)
+	
+	classRegex := regexp.MustCompile(`(?i)^\s*(?:Public|Private|Friend|Protected|Partial)?\s*(?:Class|Module|Structure|Interface)\s+(\w+)`)
+	endClassRegex := regexp.MustCompile(`(?i)^\s*End\s+(?:Class|Module|Structure|Interface)`)
+	
+	funcRegex := regexp.MustCompile(`(?i)^\s*(?:Public|Private|Friend|Protected|Overrides|Shared)?\s*(?:Sub|Function)\s+(\w+)`)
+	endFuncRegex := regexp.MustCompile(`(?i)^\s*End\s+(?:Sub|Function)`)
+	
 	callRegex := regexp.MustCompile(`(\w+)\(`)
 
 	lines := strings.Split(string(content), "\n")
 	
 	// Create File Node
-	// Removed "content" property to reduce memory usage
 	fileNode := &graph.Node{
 		ID:    filePath,
 		Label: "File",
@@ -45,18 +49,39 @@ func (p *VBNetParser) Parse(filePath string, content []byte) ([]*graph.Node, []*
 		Signature string
 	}
 	var currentFunc *pendingFunc
+	
+	var namespaceStack []string
+	var classStack []string
 
 	for i, line := range lines {
 		lineNumber := i + 1
 		trimmed := strings.TrimSpace(line)
 		
-		// 1. Check for Class/Module Definition
+		// 0. Namespace Handling
+		if matches := namespaceRegex.FindStringSubmatch(trimmed); matches != nil {
+			namespaceStack = append(namespaceStack, matches[1])
+			continue
+		}
+		if endNamespaceRegex.MatchString(trimmed) {
+			if len(namespaceStack) > 0 {
+				namespaceStack = namespaceStack[:len(namespaceStack)-1]
+			}
+			continue
+		}
+
+		// 1. Class/Module Definition
 		if matches := classRegex.FindStringSubmatch(trimmed); matches != nil {
 			className := matches[1]
+			classStack = append(classStack, className)
 			
-			classID := fmt.Sprintf("%s:%s", filePath, className)
+			// Construct FQN
+			var parts []string
+			parts = append(parts, namespaceStack...)
+			parts = append(parts, classStack...)
+			fqn := strings.Join(parts, ".")
+			
 			classNode := &graph.Node{
-				ID:    classID,
+				ID:    fqn,
 				Label: "Class",
 				Properties: map[string]interface{}{
 					"name": className,
@@ -65,6 +90,15 @@ func (p *VBNetParser) Parse(filePath string, content []byte) ([]*graph.Node, []*
 				},
 			}
 			nodes = append(nodes, classNode)
+			continue
+		}
+		
+		// End Class
+		if endClassRegex.MatchString(trimmed) {
+			if len(classStack) > 0 {
+				classStack = classStack[:len(classStack)-1]
+			}
+			continue
 		}
 
 		// 2. Check for Function/Sub Definition
@@ -77,21 +111,53 @@ func (p *VBNetParser) Parse(filePath string, content []byte) ([]*graph.Node, []*
 				Signature: trimmed,
 			}
 
-			// Edge: DEFINED_IN File
-			funcID := fmt.Sprintf("%s:%s", filePath, funcName)
-			edges = append(edges, &graph.Edge{
-				SourceID: funcID,
-				TargetID: filePath,
-				Type:     "DEFINED_IN",
-			})
-			continue // Skip checking for calls on the definition line itself
+			// Construct FQN for Function (Container + Method)
+			var parts []string
+			parts = append(parts, namespaceStack...)
+			parts = append(parts, classStack...)
+			// If we are not inside a class (top level module or script), just append funcName
+			
+			fqnPrefix := strings.Join(parts, ".")
+			var funcID string
+			if fqnPrefix != "" {
+				funcID = fmt.Sprintf("%s.%s", fqnPrefix, funcName)
+			} else {
+				funcID = funcName
+			}
+
+			// Edge: DEFINED_IN File (Implicitly handled by worker, but we can add edges if needed)
+			// Actually worker adds DEFINED_IN based on nodes list.
+			
+			// If inside class, add HAS_METHOD edge
+			if len(classStack) > 0 {
+				// Parent Class ID
+				classID := strings.Join(parts, ".")
+				edges = append(edges, &graph.Edge{
+					SourceID: classID,
+					TargetID: funcID,
+					Type:     "HAS_METHOD",
+				})
+			}
+
+			continue 
 		}
 
 		// 3. Check for End of Function/Sub
 		if endFuncRegex.MatchString(trimmed) {
 			if currentFunc != nil {
-				// Create the Function Node now that we have the end line
-				funcID := fmt.Sprintf("%s:%s", filePath, currentFunc.Name)
+				// Construct ID again
+				var parts []string
+				parts = append(parts, namespaceStack...)
+				parts = append(parts, classStack...)
+				
+				fqnPrefix := strings.Join(parts, ".")
+				var funcID string
+				if fqnPrefix != "" {
+					funcID = fmt.Sprintf("%s.%s", fqnPrefix, currentFunc.Name)
+				} else {
+					funcID = currentFunc.Name
+				}
+				
 				funcNode := &graph.Node{
 					ID:    funcID,
 					Label: "Function",
@@ -115,15 +181,25 @@ func (p *VBNetParser) Parse(filePath string, content []byte) ([]*graph.Node, []*
 			for _, match := range callMatches {
 				calledFunc := match[1]
 				
-				// Avoid self-references or keywords if possible (basic filtering)
-				if strings.EqualFold(calledFunc, "If") || strings.EqualFold(calledFunc, "While") || strings.EqualFold(calledFunc, "For") {
+				if strings.EqualFold(calledFunc, "If") || strings.EqualFold(calledFunc, "While") || strings.EqualFold(calledFunc, "For") || strings.EqualFold(calledFunc, "Catch") {
 					continue
 				}
 
-				// Construct IDs
-				sourceID := fmt.Sprintf("%s:%s", filePath, currentFunc.Name)
-				// Target ID is tricky without semantic analysis. 
-				targetID := fmt.Sprintf("%s:%s", filePath, calledFunc)
+				// Construct Source ID
+				var parts []string
+				parts = append(parts, namespaceStack...)
+				parts = append(parts, classStack...)
+				fqnPrefix := strings.Join(parts, ".")
+				sourceID := fmt.Sprintf("%s.%s", fqnPrefix, currentFunc.Name)
+
+				// Target ID is tricky. Use simple name if unknown.
+				// Or assume it's in the same class/namespace?
+				// For now, use simple name to avoid assuming wrong namespace.
+				// OR better: Just use the called function name.
+				// If we want FQN target, we need symbol resolution.
+				// User wants "Node ID refactoring".
+				// For Calls, we just emit the edge.
+				targetID := calledFunc 
 
 				edges = append(edges, &graph.Edge{
 					SourceID: sourceID,
@@ -132,23 +208,6 @@ func (p *VBNetParser) Parse(filePath string, content []byte) ([]*graph.Node, []*
 				})
 			}
 		}
-	}
-
-	// Handle case where function is not closed at EOF
-	if currentFunc != nil {
-		funcID := fmt.Sprintf("%s:%s", filePath, currentFunc.Name)
-		funcNode := &graph.Node{
-			ID:    funcID,
-			Label: "Function",
-			Properties: map[string]interface{}{
-				"name":      currentFunc.Name,
-				"signature": currentFunc.Signature,
-				"file":      filePath,
-				"line":      currentFunc.StartLine,
-				"end_line":  len(lines),
-			},
-		}
-		nodes = append(nodes, funcNode)
 	}
 
 	return nodes, edges, nil
