@@ -194,3 +194,47 @@ func TestParseCSharp_DependencyInjection(t *testing.T) {
 		t.Errorf("Expected Class PaymentProcessor not found")
 	}
 }
+
+func TestParseCSharp_DependencyResolution(t *testing.T) {
+	parser, ok := analysis.GetParser(".cs")
+	if !ok {
+		t.Fatalf("CSharp parser not registered")
+	}
+
+	relPath := "../../test/fixtures/csharp/di_resolution.cs"
+	absPath, err := filepath.Abs(relPath)
+	if err != nil {
+		t.Fatalf("Failed to get absolute path: %v", err)
+	}
+
+	content, err := os.ReadFile(absPath)
+	if err != nil {
+		t.Fatalf("Failed to read fixture file: %v", err)
+	}
+
+	_, edges, err := parser.Parse(absPath, content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	// Verify PaymentController.Post -> IPaymentService.ProcessPayment
+	// Expected behavior: Payment.Controllers.IPaymentService.ProcessPayment
+
+	expectedSource := "Payment.Controllers.PaymentController.Post"
+	expectedTarget := "Payment.Controllers.IPaymentService.ProcessPayment"
+
+	foundCall := false
+	for _, e := range edges {
+		if e.Type == "CALLS" && strings.HasSuffix(e.SourceID, "Post") {
+			t.Logf("Found CALLS: %s -> %s", e.SourceID, e.TargetID)
+			if strings.HasSuffix(e.SourceID, expectedSource) && strings.HasSuffix(e.TargetID, expectedTarget) {
+				foundCall = true
+				break
+			}
+		}
+	}
+
+	if !foundCall {
+		t.Errorf("Expected CALLS edge from %s to %s not found", expectedSource, expectedTarget)
+	}
+}

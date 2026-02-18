@@ -18,7 +18,7 @@
 - [x] Standardized JSONL output format via `Storage/Emitter` interface.
 
 ### Campaign 2: The Graph Query Engine (Full Query Parity)
-**Goal:** Implement the \"Read\" side of the platform in Go, mirroring the \"Write\" side (Ingestor). This enables the Go binary to answer queries directly, preparing for the Spanner migration.
+**Goal:** Implement the "Read" side of the platform in Go, mirroring the "Write" side (Ingestor). This enables the Go binary to answer queries directly, preparing for the Spanner migration.
 **Status:** Completed
 **Key Deliverables:**
 - [x] `GraphProvider` Interface (FindNode, Traverse, SearchFeatures).
@@ -51,7 +51,7 @@
 **Key Deliverables:**
 - [x] **Bug Fixes:** Corrected `IMPLEMENTS` edge direction (Function -> Feature), fixed enrichment to cover all features with domain-scoped functions, populated `ScopePath` on child features, removed dead code.
 - [x] **Feature Embeddings:** `Enricher` now generates embeddings for all Feature nodes via `Embedder` integration.
-- [x] **Atomic Feature Extraction:** New `FeatureExtractor` interface and `LLMFeatureExtractor` -- extracts Verb-Object descriptors per function (e.g., \"validate email\", \"hash password\").
+- [x] **Atomic Feature Extraction:** New `FeatureExtractor` interface and `LLMFeatureExtractor` -- extracts Verb-Object descriptors per function (e.g., "validate email", "hash password").
 - [x] **Semantic Clustering:** New `EmbeddingClusterer` with K-Means++ on atomic feature embeddings, replacing file-based grouping.
 - [x] **3-Level Hierarchy:** `Builder` supports optional `CategoryClusterer` for Domain -> Category -> Feature hierarchy (per research).
 - [x] **Enrichment Improvements:** Increased truncation to 3000 chars, atomic features included as summarization context.
@@ -68,12 +68,22 @@
 
 ### Campaign 3.7: Reliability Repair ("Unknown Feature" Fix)
 **Goal:** Resolve the critical "Unknown Feature" bug where nodes lack content for summarization. Enabling on-demand disk reading for the `Enricher` to ensure every node has a description.
-**Status:** Completed
+**Status:** ✅ Completed (Verified 2026-02-18)
 **Key Deliverables:**
 - [x] **Parsers Update:** Extract `end_line` in all language parsers (`.ts`, `.cs`, `.java`, `.cpp`, `.sql`, `.vb`).
 - [x] **Enricher Update:** Inject `SourceLoader` to read function bodies from disk using `start_line`/`end_line`.
 - [x] **Verification:** Ensure `enrich-features` produces named/described nodes via E2E test.
 - [x] **Plan:** Ref: `plans/fix_missing_content_in_nodes.md`.
+
+### Campaign 3.7.5: Robustness & Accuracy (Completed)
+**Goal:** Address critical failures in Graph Construction (Dependency Resolution) and Persistence (Cleanup/Import) identified during `trucks-v2` analysis. Ensure the graph is structurally sound and "Unknown Domains" are eliminated.
+**Status:** **Completed**
+**Key Deliverables:**
+- [x] **Robust Wipe:** Implement `RecreateDatabase` (DROP/CREATE) in `Neo4jLoader` to prevent constraint failures on large graphs.
+- [x] **ID Resolution Fix (C#):** Fix `CALLS` edge generation to include Class Name in target IDs (resolving `PaymentHistoryController` disconnected graph).
+- [x] **ID Resolution Audit:** Verify and fix resolution logic for Java, TS, C++, VB.NET, SQL.
+- [x] **Domain Discovery Fix:** Fix path resolution in `main.go` to prevent "Unknown Domain" errors by correctly grounding relative paths.
+- [x] **Plan:** Ref: `plans/campaign_3_7_fix_recreation_resolution_discovery.md`.
 
 ### Campaign 3.8: RPG Realization II (Global Semantic Topology)
 **Goal:** Truly implement the "Latent Architecture Recovery" from the RPG papers. (Note: Previous attempts at Global Topology were partial). This campaign replaces directory-based discovery with global embedding clustering.
@@ -96,7 +106,7 @@
 - [x] **Optimization:** Efficient batching using `UNWIND` cypher queries.
 
 ### Campaign 4.2: Import Performance Remediation
-**Goal:** Resolve the critical \"O(N^2)\" performance bottleneck in the Neo4j edge importer by implementing a generic indexing strategy (`:CodeElement` label).
+**Goal:** Resolve the critical "O(N^2)" performance bottleneck in the Neo4j edge importer by implementing a generic indexing strategy (`:CodeElement` label).
 **Status:** Completed
 **Key Deliverables:**
 - [x] **Optimization:** Refactor `internal/loader` to use `MATCH (n:CodeElement)` for O(1) edge lookups.
@@ -131,17 +141,17 @@
 - [x] **Parity Harness:** Use this generic traverser to implement existing named queries (e.g., `impact` becomes a specific configuration of `traverse`), proving the engine's flexibility.
 - [x] **Plan:** Ref: `plans/feat_parametric_traversal.md`.
 
-### Campaign 5: Structural Integrity (The \"Linking\" Fix)
-**Goal:** Remediation of the \"File-Local\" linking bug found in all parsers (Java, C#, C++, TS). Currently, parsers assume dependencies exist in the caller's file, breaking the graph. We must implement Import Parsing and Symbol Resolution to enable cross-file edges.
+### Campaign 5: Structural Integrity (The "Linking" Fix)
+**Goal:** Remediation of the "File-Local" linking bug found in all parsers (Java, C#, C++, TS). Currently, parsers assume dependencies exist in the caller's file, breaking the graph. We must implement Import Parsing and Symbol Resolution to enable cross-file edges.
 **Status:** **Completed**
 **Key Deliverables:**
 - [x] **Java:** Import parsing & Type Resolution.
 - [x] **Systemic:** Apply resolution logic to C#, C++, TypeScript.
 - [x] **Plan:** Ref: `plans/feat_systemic_dependency_resolution.md`.
-- [x] **Validation:** Verify \"Impact Analysis\" actually traverses files.
+- [x] **Validation:** Verify "Impact Analysis" actually traverses files.
 
 ### Campaign 5.1: UX - Semantic Clustering Progress
-**Goal:** Implement a domain-level progress bar for the long-running semantic clustering phase to prevent the \"stuck\" appearance during `enrich-features`.
+**Goal:** Implement a domain-level progress bar for the long-running semantic clustering phase to prevent the "stuck" appearance during `enrich-features`.
 **Status:** Completed
 **Key Deliverables:**
 - [x] **Instrumentation:** Add progress callbacks to `rpg.Builder`.
@@ -192,9 +202,9 @@
 - [ ] Automated integration tests.
 
 ### Campaign 8: The MCP Server (The Interface)
-**Goal:** Expose the platform to Agents via the Model Context Protocol (MCP), enabling \"Dual-View\" reasoning. **(Scheduled Last)**
+**Goal:** Expose the platform to Agents via the Model Context Protocol (MCP), enabling "Dual-View" reasoning. **(Scheduled Last)**
 **Status:** Pending
 **Key Deliverables:**
 - [ ] MCP Protocol implementation (Stdio transport).
-- [ ] \"RAM Overlay\" logic (Local Diff vs. Cloud Base).
+- [ ] "RAM Overlay" logic (Local Diff vs. Cloud Base).
 - [ ] Tool implementations (`search_features`, `traverse_deps`).

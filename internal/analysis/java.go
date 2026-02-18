@@ -87,6 +87,15 @@ func (p *JavaParser) Parse(filePath string, content []byte) ([]*graph.Node, []*g
 			return fq
 		}
 		// Default to package prefix if not imported (heuristic)
+        // Assume same package for simple names (skip basic types check for now, can be improved)
+        if !strings.Contains(typeName, ".") && packageName != "" {
+             // Quick check for common java.lang types to avoid bad prefixes
+             switch typeName {
+             case "String", "Integer", "Boolean", "Object", "System", "Exception", "List", "Map", "Set":
+                 return typeName
+             }
+             return fmt.Sprintf("%s.%s", packageName, typeName)
+        }
 		return typeName
 	}
     

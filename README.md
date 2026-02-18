@@ -94,6 +94,7 @@ To analyze a codebase, you must first ingest it into the Graph Database. Run the
     ```
 
 2. **Build RPG Features** (Groups functions into semantic features using LLM):
+    *   *Deep Dive:* [Clustering & Domain Discovery Logic](plans/RPG_CLUSTERING.md)
 
     ```bash
 

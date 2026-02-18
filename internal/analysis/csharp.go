@@ -64,6 +64,9 @@ func (p *CSharpParser) Parse(filePath string, content []byte) ([]*graph.Node, []
 	var nodes []*graph.Node
 	var extraEdges []*graph.Edge // Store inheritance and dependency edges here
 	var usings []string
+	
+	// Map of ClassID -> FieldName -> TypeName
+	fieldMap := make(map[string]map[string]string)
 
 	// Pre-scan for file-scoped namespace
 	fileScopedNamespace := findFileScopedCSharpNamespace(tree.RootNode(), content)
@@ -134,82 +137,8 @@ func (p *CSharpParser) Parse(filePath string, content []byte) ([]*graph.Node, []
 			} else if captureName == "field.declarator" {
 				nodeType = "field"
 
-				// --- Field Dependency Extraction ---
-				// Try to find type node
-				var typeNode *sitter.Node
-				typeNode = c.Node.ChildByFieldName("type") // Try standard field name
-
-				if typeNode == nil {
-					// Fallback: iterate children to find type-like nodes
-					count := c.Node.ChildCount()
-					for i := 0; i < int(count); i++ {
-						child := c.Node.Child(i)
-						t := child.Type()
-						
-						// If we find a variable_declaration, check inside it
-						if t == "variable_declaration" {
-							typeNode = child.ChildByFieldName("type")
-							if typeNode != nil {
-								break
-							}
-							// Iterate children of variable_declaration if type field not found
-							vCount := child.ChildCount()
-							for k := 0; k < int(vCount); k++ {
-								vChild := child.Child(k)
-								vt := vChild.Type()
-								if vt == "identifier" || vt == "generic_name" || vt == "qualified_name" || vt == "predefined_type" {
-									// Assume this is the type if we haven't found one
-									// But be careful not to pick variable name (which is in variable_declarator usually)
-									typeNode = vChild
-									break
-								}
-							}
-							if typeNode != nil { break }
-						}
-
-						// If we find direct type types
-						if t == "generic_name" || t == "qualified_name" || t == "predefined_type" {
-							typeNode = child
-							break
-						}
-						
-						// Identifier is tricky, could be type or something else.
-						// But in field_declaration, the name is in variable_declarator.
-						// So an identifier sibling to variable_declarator is likely the type.
-						if t == "identifier" {
-							// Check if next sibling is variable_declarator?
-							// For now, assume it is type.
-							typeNode = child
-							break
-						}
-					}
-				}
-
-				if typeNode != nil {
-					typeName := extractBaseType(typeNode, content)
-					enclosingClass := findEnclosingCSharpClass(c.Node, content)
-					if enclosingClass != "" {
-						namespace := findEnclosingCSharpNamespace(c.Node, content)
-						if namespace == "" { namespace = fileScopedNamespace }
-						
-						var parts []string
-						if namespace != "" { parts = append(parts, namespace) }
-						parts = append(parts, enclosingClass)
-						sourceID := strings.Join(parts, ".")
-						
-						candidates := resolveCSharpCandidates(typeName, usings, namespace)
-						for _, cand := range candidates {
-							extraEdges = append(extraEdges, &graph.Edge{
-								SourceID: sourceID,
-								TargetID: cand,
-								Type:     "DEPENDS_ON",
-							})
-						}
-					}
-				}
-				// -----------------------------------
-
-				// c.Node is field_declaration
+				// --- Field Processing ---
+				// 1. Extract Names
 				count := c.Node.ChildCount()
 				for i := 0; i < int(count); i++ {
 					child := c.Node.Child(i)
@@ -227,6 +156,70 @@ func (p *CSharpParser) Parse(filePath string, content []byte) ([]*graph.Node, []
 								if name != "" {
 									nodeNames = append(nodeNames, name)
 								}
+							}
+						}
+					}
+				}
+
+				// 2. Extract Type and Generate Edges/Map
+				if len(nodeNames) > 0 {
+					var typeNode *sitter.Node
+					typeNode = c.Node.ChildByFieldName("type") // Try standard field name
+
+					if typeNode == nil {
+						// Fallback logic
+						for i := 0; i < int(count); i++ {
+							child := c.Node.Child(i)
+							t := child.Type()
+							if t == "variable_declaration" {
+								typeNode = child.ChildByFieldName("type")
+								if typeNode != nil { break }
+								vCount := child.ChildCount()
+								for k := 0; k < int(vCount); k++ {
+									vChild := child.Child(k)
+									vt := vChild.Type()
+									if vt == "identifier" || vt == "generic_name" || vt == "qualified_name" || vt == "predefined_type" {
+										typeNode = vChild
+										break
+									}
+								}
+								if typeNode != nil { break }
+							}
+							if t == "generic_name" || t == "qualified_name" || t == "predefined_type" || t == "identifier" {
+								typeNode = child
+								break
+							}
+						}
+					}
+
+					if typeNode != nil {
+						typeName := extractBaseType(typeNode, content)
+						enclosingClass := findEnclosingCSharpClass(c.Node, content)
+						if enclosingClass != "" {
+							namespace := findEnclosingCSharpNamespace(c.Node, content)
+							if namespace == "" { namespace = fileScopedNamespace }
+							
+							var parts []string
+							if namespace != "" { parts = append(parts, namespace) }
+							parts = append(parts, enclosingClass)
+							sourceID := strings.Join(parts, ".")
+							
+							// Generate DEPENDS_ON edges
+							candidates := resolveCSharpCandidates(typeName, usings, namespace)
+							for _, cand := range candidates {
+								extraEdges = append(extraEdges, &graph.Edge{
+									SourceID: sourceID,
+									TargetID: cand,
+									Type:     "DEPENDS_ON",
+								})
+							}
+
+							// Populate Map
+							if fieldMap[sourceID] == nil {
+								fieldMap[sourceID] = make(map[string]string)
+							}
+							for _, name := range nodeNames {
+								fieldMap[sourceID][name] = typeName
 							}
 						}
 					}
@@ -345,7 +338,10 @@ func (p *CSharpParser) Parse(filePath string, content []byte) ([]*graph.Node, []
 		) @call.site
 
 		(invocation_expression
-			function: (member_access_expression name: (identifier) @call.target)
+			function: (member_access_expression 
+				expression: (_) @call.object
+				name: (identifier) @call.target
+			)
 		) @call.site
 
 		(object_creation_expression
@@ -378,11 +374,15 @@ func (p *CSharpParser) Parse(filePath string, content []byte) ([]*graph.Node, []
 
 		var targetName string
 		var callNode *sitter.Node
+		var objectName string
 
 		for _, c := range m.Captures {
 			name := qRef.CaptureNameForId(c.Index)
 			if name == "call.target" {
 				targetName = c.Node.Content(content)
+			}
+			if name == "call.object" {
+				objectName = c.Node.Content(content)
 			}
 			if name == "call.site" {
 				callNode = c.Node
@@ -412,7 +412,31 @@ func (p *CSharpParser) Parse(filePath string, content []byte) ([]*graph.Node, []
 					
 					sourceID := strings.Join(parts, ".")
 
-					candidates := resolveCSharpCandidates(targetName, usings, ns)
+					// --- Resolution Fix ---
+					var candidates []string
+					if objectName != "" && cls != "" {
+						// Look up field type
+						var clsParts []string
+						if ns != "" { clsParts = append(clsParts, ns) }
+						clsParts = append(clsParts, cls)
+						classID := strings.Join(clsParts, ".")
+						
+						if fieldType, ok := fieldMap[classID][objectName]; ok {
+							// fieldType is e.g. "IPaymentService"
+							// We need to resolve fieldType to possible fully qualified types.
+							typeCandidates := resolveCSharpCandidates(fieldType, usings, ns)
+							
+							for _, typeCand := range typeCandidates {
+								candidates = append(candidates, fmt.Sprintf("%s.%s", typeCand, targetName))
+							}
+						}
+					}
+
+					if len(candidates) == 0 {
+						candidates = resolveCSharpCandidates(targetName, usings, ns)
+					}
+					// ----------------------
+
 					for _, cand := range candidates {
 						edges = append(edges, &graph.Edge{
 							SourceID: sourceID,

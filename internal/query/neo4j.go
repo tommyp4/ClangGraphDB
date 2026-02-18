@@ -174,13 +174,15 @@ func (p *Neo4jProvider) SearchSimilarFunctions(embedding []float32, limit int) (
 			continue
 		}
 		score, _, _ := neo4j.GetRecordValue[float64](record, "score")
-		
 		props, _, _ := neo4j.GetRecordValue[map[string]any](record, "props")
+		propsMap := sanitizeProperties(props)
+		id, _ := propsMap["id"].(string)
 
 		// Reconstruct node
 		node := &graph.Node{
+			ID:         id,
 			Label:      label,
-			Properties: sanitizeProperties(props),
+			Properties: propsMap,
 		}
 
 		features = append(features, &FeatureResult{
