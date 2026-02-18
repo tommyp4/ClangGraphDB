@@ -97,7 +97,7 @@ type VertexSummarizer struct {
 	Model  string
 }
 
-func NewVertexSummarizer(ctx context.Context, projectID, location string) (*VertexSummarizer, error) {
+func NewVertexSummarizer(ctx context.Context, projectID, location, model string) (*VertexSummarizer, error) {
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
 		Project:  projectID,
 		Location: location,
@@ -109,7 +109,7 @@ func NewVertexSummarizer(ctx context.Context, projectID, location string) (*Vert
 
 	return &VertexSummarizer{
 		Client: client,
-		Model:  "gemini-1.5-flash-002",
+		Model:  model,
 	}, nil
 }
 

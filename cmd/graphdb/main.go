@@ -280,6 +280,17 @@ func handleEnrichFeatures(args []string) {
 		model = "gemini-embedding-001"
 	}
 
+	genModel := cfg.GeminiGenerativeModel
+	if genModel == "" {
+		log.Fatal("GEMINI_GENERATIVE_MODEL is not set. Please set it in your .env file or environment.\n" +
+			"Example: export GEMINI_GENERATIVE_MODEL=gemini-3-flash-preview")
+	}
+
+	if cfg.GoogleCloudProject == "" {
+		log.Fatal("GOOGLE_CLOUD_PROJECT is not set. Please set it in your .env file or environment.\n" +
+			"Example: export GOOGLE_CLOUD_PROJECT=my-project-id")
+	}
+
 	log.Println("Starting feature enrichment...")
 
 	// 1. Load Functions from graph.jsonl
@@ -290,7 +301,7 @@ func handleEnrichFeatures(args []string) {
 	log.Printf("Loaded %d functions from %s", len(functions), *inputPtr)
 
 	// 2. Extract atomic features per function
-	extractor := setupExtractor(cfg.GoogleCloudProject, loc)
+	extractor := setupExtractor(cfg.GoogleCloudProject, loc, genModel)
 	log.Printf("Extracting atomic features (batch size: %d)...", *batchSizePtr)
 
 	pb := ui.NewProgressBar(int64(len(functions)), "Extracting features")
@@ -313,7 +324,7 @@ func handleEnrichFeatures(args []string) {
 
 	// 3. Setup Builder & Clusterer
 	embedder := setupEmbedder(cfg.GoogleCloudProject, loc, model, cfg.GeminiEmbeddingDimensions)
-	summarizer := setupSummarizer(cfg.GoogleCloudProject, loc) // Initialize summarizer early
+	summarizer := setupSummarizer(cfg.GoogleCloudProject, loc, genModel) // Initialize summarizer early
 
 	// PRE-CALCULATION STEP
 	log.Println("Pre-calculating embeddings for clustering...")
@@ -438,7 +449,7 @@ func handleEnrichFeatures(args []string) {
 	var enrichAll func(f *rpg.Feature)
 	enrichAll = func(f *rpg.Feature) {
 		if err := enricher.Enrich(f, f.MemberFunctions); err != nil {
-			// Skip logging to keep PB clean
+			log.Printf("Warning: enrichment failed for %s: %v", f.Name, err)
 		}
 		pb.Add(1)
 		for _, child := range f.Children {

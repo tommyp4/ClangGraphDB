@@ -17,6 +17,7 @@ type Config struct {
 	GoogleCloudLocation       string
 	GeminiEmbeddingModel      string
 	GeminiEmbeddingDimensions int
+	GeminiGenerativeModel     string
 }
 
 // LoadConfig loads the configuration from environment variables.
@@ -35,6 +36,7 @@ func LoadConfig() Config {
 		GoogleCloudLocation:       os.Getenv("GOOGLE_CLOUD_LOCATION"),
 		GeminiEmbeddingModel:      os.Getenv("GEMINI_EMBEDDING_MODEL"),
 		GeminiEmbeddingDimensions: dims,
+		GeminiGenerativeModel:     os.Getenv("GEMINI_GENERATIVE_MODEL"),
 	}
 }
 

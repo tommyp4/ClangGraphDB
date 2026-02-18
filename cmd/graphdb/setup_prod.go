@@ -18,18 +18,18 @@ func setupEmbedder(project, location, modelName string, dimensions int) embeddin
 	return embedder
 }
 
-func setupSummarizer(project, location string) rpg.Summarizer {
+func setupSummarizer(project, location, model string) rpg.Summarizer {
 	ctx := context.Background()
-	summarizer, err := rpg.NewVertexSummarizer(ctx, project, location)
+	summarizer, err := rpg.NewVertexSummarizer(ctx, project, location, model)
 	if err != nil {
 		log.Fatalf("Failed to initialize Vertex Summarizer: %v", err)
 	}
 	return summarizer
 }
 
-func setupExtractor(project, location string) rpg.FeatureExtractor {
+func setupExtractor(project, location, model string) rpg.FeatureExtractor {
 	ctx := context.Background()
-	extractor, err := rpg.NewLLMFeatureExtractor(ctx, project, location)
+	extractor, err := rpg.NewLLMFeatureExtractor(ctx, project, location, model)
 	if err != nil {
 		log.Fatalf("Failed to initialize Vertex Feature Extractor: %v", err)
 	}

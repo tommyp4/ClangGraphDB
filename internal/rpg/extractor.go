@@ -23,7 +23,7 @@ type LLMFeatureExtractor struct {
 }
 
 // NewLLMFeatureExtractor creates an LLMFeatureExtractor with defaults.
-func NewLLMFeatureExtractor(ctx context.Context, projectID, location string) (*LLMFeatureExtractor, error) {
+func NewLLMFeatureExtractor(ctx context.Context, projectID, location, model string) (*LLMFeatureExtractor, error) {
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
 		Project:  projectID,
 		Location: location,
@@ -35,7 +35,7 @@ func NewLLMFeatureExtractor(ctx context.Context, projectID, location string) (*L
 
 	return &LLMFeatureExtractor{
 		Client: client,
-		Model:  "gemini-1.5-flash-002",
+		Model:  model,
 	}, nil
 }
 

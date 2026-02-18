@@ -3,6 +3,7 @@ package rpg
 import (
 	"fmt"
 	"graphdb/internal/graph"
+	"log"
 	"sort"
 	"strings"
 )
@@ -45,6 +46,7 @@ func (c *GlobalEmbeddingClusterer) Cluster(nodes []graph.Node, domain string) (m
 		// Generate Name
 		name, _, err := c.Summarizer.Summarize(snippets)
 		if err != nil {
+			log.Printf("Warning: domain summarization failed: %v", err)
 			// Fallback if summarization fails
 			// Use the first node's name or a generic label
 			name = "Unknown Domain"
