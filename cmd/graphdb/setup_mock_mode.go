@@ -4,12 +4,13 @@ package main
 
 import (
 	"context"
+	"graphdb/internal/config"
 	"graphdb/internal/embedding"
+	"graphdb/internal/query"
 	"graphdb/internal/rpg"
 	"log"
 	"os"
 )
-
 func setupEmbedder(project, location, modelName string, dimensions int) embedding.Embedder {
 	if os.Getenv("GRAPHDB_MOCK_ENABLED") == "true" {
 		log.Println("Using Mock Embedder (test_mocks build)")
@@ -50,4 +51,12 @@ func setupExtractor(project, location, model string) rpg.FeatureExtractor {
 		log.Fatalf("Failed to initialize Vertex Feature Extractor: %v", err)
 	}
 	return extractor
+}
+
+func setupProvider(cfg config.Config) (query.GraphProvider, error) {
+	if os.Getenv("GRAPHDB_MOCK_ENABLED") == "true" {
+		log.Println("Using Mock Provider (test_mocks build)")
+		return &MockProvider{}, nil
+	}
+	return query.NewNeo4jProvider(cfg)
 }

@@ -176,23 +176,25 @@
 
 ### Campaign 5.4: Node ID Standardization (Refactor)
 **Goal:** Switch from brittle absolute file paths to Project-Relative paths for all nodes, and enforce Fully Qualified Names (FQN) for C# nodes. This improves portability and graph quality (merging partial classes, fixing cross-file edges).
-**Status:** Pending
+**Status:** Completed
 **Key Deliverables:**
-- [ ] **Infrastructure:** `Walker` and `Worker` use relative paths.
-- [ ] **C# Parser:** Remove path prefixes, use FQN.
-- [ ] **Verification:** Clean IDs and connected graph.
-- [ ] **Plan:** Ref: `plans/refactor_node_ids.md`.
+- [x] **Infrastructure:** `Walker` and `Worker` use relative paths.
+- [x] **C# Parser:** Remove path prefixes, use FQN.
+- [x] **TypeScript Parser:** Use relative paths and normalize separators.
+- [x] **C++/VB.NET/SQL Parsers:** Use FQNs and remove file path prefixes from IDs.
+- [x] **Verification:** Clean IDs and connected graph.
+- [x] **Plan:** Ref: `plans/refactor_node_ids.md`.
 
 ### Campaign 6: The Streaming Pipeline (GraphProvider-Centric OOM Resolution)
 **Goal:** Resolve Out of Memory (OOM) exceptions on massive codebases by transitioning from an in-memory batch architecture to an out-of-core streaming architecture. The pipeline will use the `GraphProvider` interface as the active working memory for intermediate states, enforcing the "Pointer to Blob Storage" pattern.
-**Status:** Pending
+**Status:** Completed
 **Key Deliverables:**
-- [ ] **GraphDB Interface Updates:** Add batch read/write methods to `GraphProvider` interface.
-- [ ] **Resumable Extraction:** Refactor atomic feature extraction to process in database-backed chunks.
-- [ ] **Resumable Embedding:** Refactor embedding generation to stream through the database.
-- [ ] **Out-of-Core Clustering:** Refactor K-Means to load only vectors and IDs from the database.
-- [ ] **Resumable Summarization:** Refactor LLM summarization to operate in database-backed chunks.
-- [ ] **Plan:** Ref: `plans/07_CAMPAIGN_7_STREAMING_PIPELINE.md`.
+- [x] **GraphDB Interface Updates:** Add batch read/write methods to `GraphProvider` interface.
+- [x] **Resumable Extraction:** Refactor atomic feature extraction to process in database-backed chunks.
+- [x] **Resumable Embedding:** Refactor embedding generation to stream through the database.
+- [x] **Out-of-Core Clustering:** Refactor K-Means to load only vectors and IDs from the database.
+- [x] **Resumable Summarization:** Refactor LLM summarization to operate in database-backed chunks.
+- [x] **Plan:** Ref: `plans/07_CAMPAIGN_7_STREAMING_PIPELINE.md`.
 
 ### Campaign 7: The Spanner Backend (Storage Swap)
 **Goal:** Establish the multi-tenant, immutable storage layer using Google Spanner Graph by swapping the storage implementation.

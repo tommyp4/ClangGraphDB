@@ -41,9 +41,6 @@ func TestCLI_NoProjectFlag(t *testing.T) {
 
 func TestCLI_EnrichFeatures_NoProjectFlag(t *testing.T) {
 	cliPath := filepath.Join(os.TempDir(), "graphdb_test_cli")
-	// Note: We assume the CLI is already built or we can rebuild it. 
-	// To be safe, we rebuild it here or rely on the previous test if we ran them sequentially, 
-	// but parallel execution is better.
 	
 	buildCmd := exec.Command("go", "build", "-tags", "test_mocks", "-o", cliPath, "../../cmd/graphdb")
 	if out, err := buildCmd.CombinedOutput(); err != nil {
@@ -51,14 +48,8 @@ func TestCLI_EnrichFeatures_NoProjectFlag(t *testing.T) {
 	}
 	defer os.Remove(cliPath)
 
-	// Need a dummy graph.jsonl input for enrich-features.
-	// We can use a small one.
-	inputPath := filepath.Join(os.TempDir(), "graph_dummy.jsonl")
-	os.WriteFile(inputPath, []byte(`{"id": "1", "type": "Function", "name": "foo", "content": "func foo() {}"}`), 0644)
-	defer os.Remove(inputPath)
-
-	cmd := exec.Command(cliPath, "enrich-features", "-input", inputPath, "-output", os.DevNull)
-	cmd.Env = append(os.Environ(), "GRAPHDB_MOCK_ENABLED=true")
+	cmd := exec.Command(cliPath, "enrich-features")
+	cmd.Env = append(os.Environ(), "GRAPHDB_MOCK_ENABLED=true", "NEO4J_URI=bolt://localhost:7687", "NEO4J_USER=neo4j", "NEO4J_PASSWORD=password")
 	
 	output, err := cmd.CombinedOutput()
 	if err != nil {

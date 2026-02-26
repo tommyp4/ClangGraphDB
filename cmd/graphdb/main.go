@@ -271,7 +271,7 @@ func handleEnrichFeatures(args []string) {
         }
 
         log.Println("Connecting to Graph Database...")
-        provider, err := query.NewNeo4jProvider(cfg)
+        provider, err := setupProvider(cfg)
         if err != nil {
                 log.Fatalf("Failed to connect to Neo4j: %v", err)
         }

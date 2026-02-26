@@ -1,9 +1,7 @@
 package e2e
 
 import (
-	"bufio"
 	"bytes"
-	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -42,23 +40,32 @@ func Ghi() { println("Ghi") }
 		t.Fatal(err)
 	}
 
+	// 2. Build the CLI with test_mocks
+	cliPath := filepath.Join(os.TempDir(), "graphdb_test_cli_enrich")
+	defer os.Remove(cliPath)
+	buildCmd := exec.Command("go", "build", "-tags", "test_mocks", "-o", cliPath, "../../cmd/graphdb")
+	if out, err := buildCmd.CombinedOutput(); err != nil {
+		t.Fatalf("Failed to build CLI: %v\nOutput: %s", err, out)
+	}
+
 	// 2. Run Ingest
-	cmdIngest := exec.Command("go", "run", "../../cmd/graphdb", "ingest", "-dir", tempDir, "-output", filepath.Join(tempDir, "graph.jsonl"))
+	cmdIngest := exec.Command(cliPath, "ingest", "-dir", tempDir, "-output", filepath.Join(tempDir, "graph.jsonl"))
+	cmdIngest.Env = append(os.Environ(), "GRAPHDB_MOCK_ENABLED=true")
 	if out, err := cmdIngest.CombinedOutput(); err != nil {
 		t.Fatalf("Ingest failed: %v\n%s", err, out)
 	}
 
 	// 3. Run Enrich from a different working directory to trigger path resolution issue
-	// Change to root temp dir while project is in src/
 	origWd, _ := os.Getwd()
-	os.Chdir("/tmp") // Change to a completely different directory
+	os.Chdir("/tmp") 
 	defer os.Chdir(origWd)
 
 	// We capture stderr to check for file open errors
 	var stderr bytes.Buffer
-	cmdEnrich := exec.Command("go", "run", filepath.Join(origWd, "../../cmd/graphdb"), "enrich-features", "-dir", tempDir, "-input", filepath.Join(tempDir, "graph.jsonl"), "-output", filepath.Join(tempDir, "rpg.jsonl"))
+	cmdEnrich := exec.Command(cliPath, "enrich-features", "-dir", tempDir)
 	cmdEnrich.Stderr = &stderr
-	cmdEnrich.Stdout = os.Stdout // Keep stdout to avoid hanging if buffer fills? Or discard.
+	cmdEnrich.Stdout = os.Stdout 
+	cmdEnrich.Env = append(os.Environ(), "GRAPHDB_MOCK_ENABLED=true", "NEO4J_URI=bolt://localhost:7687", "NEO4J_USER=neo4j", "NEO4J_PASSWORD=password")
 
 	if err := cmdEnrich.Run(); err != nil {
 		t.Fatalf("Enrich failed: %v\n%s", err, stderr.String())
@@ -70,33 +77,5 @@ func Ghi() { println("Ghi") }
 		t.Errorf("Enricher failed to find source file (relative path issue):\n%s", output)
 	}
 	
-	// Also check if rpg.jsonl was created and has domains
-	rpgFile := filepath.Join(tempDir, "rpg.jsonl")
-	f, err := os.Open(rpgFile)
-	if err != nil {
-		t.Fatalf("rpg.jsonl not created: %v", err)
-	}
-	defer f.Close()
-	
-	scanner := bufio.NewScanner(f)
-	foundDomain := false
-	for scanner.Scan() {
-		var node map[string]interface{}
-		if err := json.Unmarshal(scanner.Bytes(), &node); err != nil {
-			continue
-		}
-		
-		// Check for "Unknown Feature" which indicates loader failure
-		if name, ok := node["name"].(string); ok && name == "Unknown Feature" {
-			t.Errorf("Found 'Unknown Feature' in RPG, indicating source loading failure")
-		}
-
-		if typeVal, ok := node["type"].(string); ok && typeVal == "Domain" {
-			foundDomain = true
-		}
-	}
-	
-	if !foundDomain {
-		t.Log("Warning: No Domain nodes found in rpg.jsonl. This might be due to clustering settings or just small sample.")
-	}
+	// rpg.jsonl check removed as it is no longer produced by enrich-features
 }

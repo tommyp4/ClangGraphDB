@@ -35,7 +35,7 @@ The tool automatically inherits the following environment variables. Assume they
 ## Workflows
 
 ### 1. The "One-Shot" Build (Recommended)
-To rebuild the entire graph from scratch (Ingest -> Enrich -> Import), use the `build-all` command. This handles all phases sequentially.
+To rebuild the entire graph from scratch (Ingest -> Import -> Enrich), use the `build-all` command. This handles all phases sequentially and ensures the database is synchronized with the latest code state.
 ```bash
 ${graphdb_bin} build-all -dir .
 ```
@@ -51,28 +51,27 @@ If you need granular control over each step, follow this sequence:
 3. **Decision:** If the commit hashes match, you can **skip** the ingestion pipeline and proceed directly to "Analysis & Querying".
 
 **Step 1: Ingest (Parse & Generate Graph):**
-Scans code and generates a graph JSONL file.
+Scans code and generates a structural graph JSONL file.
 ```bash
 ${graphdb_bin} ingest -dir . -output graph.jsonl
 ```
 *   *Options:* `-workers` (concurrency), `-file-list` (specific files).
 
-**Step 2: Enrich (Build Intent Layer):**
-Performs **Global Semantic Clustering** to identify latent functional domains across the entire codebase, independent of directory structure. Grounds these domains using Lowest Common Ancestor (LCA) logic.
+**Step 2: Import (Load Structural Graph to Neo4j):**
+Loads the structural graph into the active Neo4j database. This must be done **before** enrichment in the new streaming pipeline.
 ```bash
-${graphdb_bin} enrich-features -input graph.jsonl -output rpg.jsonl
-```
-*   *Options:*
-    *   `-embed-batch-size`: Batch size for embedding generation (default: 100).
-
-**Step 3: Import (Load to Neo4j):**
-Loads the generated JSONL files into the active Neo4j database.
-```bash
-${graphdb_bin} import -input rpg.jsonl -clean
-# OR Split Files
-${graphdb_bin} import -nodes nodes.jsonl -edges edges.jsonl -clean
+${graphdb_bin} import -input graph.jsonl -clean
 ```
 *   *Options:* `-clean` (wipe DB first), `-batch-size`.
+
+**Step 3: Enrich (Build Intent Layer - In-Database):**
+Performs **Global Semantic Clustering** directly against the live database. Identifies latent functional domains, extracts features, and generates summaries. Memory usage is bounded by batch sizes.
+```bash
+${graphdb_bin} enrich-features -dir .
+```
+*   *Options:*
+    *   `-batch-size`: Number of nodes to process per LLM/Batch request (default: 20).
+    *   `-embed-batch-size`: Batch size for embedding generation (default: 100).
 
 ### 3. Analysis & Querying
 The primary way to interact with the graph is via the `query` command.
