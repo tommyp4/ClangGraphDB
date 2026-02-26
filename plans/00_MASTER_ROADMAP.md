@@ -183,7 +183,18 @@
 - [ ] **Verification:** Clean IDs and connected graph.
 - [ ] **Plan:** Ref: `plans/refactor_node_ids.md`.
 
-### Campaign 6: The Spanner Backend (Storage Swap)
+### Campaign 6: The Streaming Pipeline (GraphProvider-Centric OOM Resolution)
+**Goal:** Resolve Out of Memory (OOM) exceptions on massive codebases by transitioning from an in-memory batch architecture to an out-of-core streaming architecture. The pipeline will use the `GraphProvider` interface as the active working memory for intermediate states, enforcing the "Pointer to Blob Storage" pattern.
+**Status:** Pending
+**Key Deliverables:**
+- [ ] **GraphDB Interface Updates:** Add batch read/write methods to `GraphProvider` interface.
+- [ ] **Resumable Extraction:** Refactor atomic feature extraction to process in database-backed chunks.
+- [ ] **Resumable Embedding:** Refactor embedding generation to stream through the database.
+- [ ] **Out-of-Core Clustering:** Refactor K-Means to load only vectors and IDs from the database.
+- [ ] **Resumable Summarization:** Refactor LLM summarization to operate in database-backed chunks.
+- [ ] **Plan:** Ref: `plans/07_CAMPAIGN_7_STREAMING_PIPELINE.md`.
+
+### Campaign 7: The Spanner Backend (Storage Swap)
 **Goal:** Establish the multi-tenant, immutable storage layer using Google Spanner Graph by swapping the storage implementation.
 **Status:** Pending
 **Key Deliverables:**
@@ -193,7 +204,7 @@
 - [ ] Bulk Loader (JSONL -> Spanner).
 - [ ] Multi-tenancy implementation (Schema Interleaving).
 
-### Campaign 7: Cross-Platform Distribution (The Release)
+### Campaign 8: Cross-Platform Distribution (The Release)
 **Goal:** Ship a single, zero-dependency binary for all major OSs.
 **Status:** Pending
 **Key Deliverables:**
@@ -201,7 +212,7 @@
 - [ ] GitHub Actions release workflow.
 - [ ] Automated integration tests.
 
-### Campaign 8: The MCP Server (The Interface)
+### Campaign 9: The MCP Server (The Interface)
 **Goal:** Expose the platform to Agents via the Model Context Protocol (MCP), enabling "Dual-View" reasoning. **(Scheduled Last)**
 **Status:** Pending
 **Key Deliverables:**

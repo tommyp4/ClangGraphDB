@@ -1,0 +1,272 @@
+package query
+
+import (
+	"fmt"
+	"graphdb/internal/graph"
+
+	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
+)
+
+// GetUnextractedFunctions returns functions that haven't had atomic features extracted yet.
+func (p *Neo4jProvider) GetUnextractedFunctions(limit int) ([]*graph.Node, error) {
+	query := `
+		MATCH (n:Function)
+		WHERE n.atomic_features IS NULL AND n.content IS NOT NULL
+		RETURN n.id as id, n.file as file, n.start_line as start, n.end_line as end
+		LIMIT $limit
+	`
+	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
+		"limit": limit,
+	}, neo4j.EagerResultTransformer)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get unextracted functions: %w", err)
+	}
+
+	nodes := make([]*graph.Node, 0, len(result.Records))
+	for _, record := range result.Records {
+		id, _, _ := neo4j.GetRecordValue[string](record, "id")
+		file, _, _ := neo4j.GetRecordValue[string](record, "file")
+		start, _, _ := neo4j.GetRecordValue[int64](record, "start")
+		end, _, _ := neo4j.GetRecordValue[int64](record, "end")
+
+		nodes = append(nodes, &graph.Node{
+			ID:    id,
+			Label: "Function",
+			Properties: map[string]any{
+				"file":       file,
+				"start_line": start,
+				"end_line":   end,
+			},
+		})
+	}
+	return nodes, nil
+}
+
+// UpdateAtomicFeatures saves the extracted atomic features for a node.
+func (p *Neo4jProvider) UpdateAtomicFeatures(id string, features []string) error {
+	query := `
+		MATCH (n:Function {id: $id})
+		SET n.atomic_features = $features
+	`
+	_, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
+		"id":       id,
+		"features": features,
+	}, neo4j.EagerResultTransformer)
+
+	if err != nil {
+		return fmt.Errorf("failed to update atomic features for %s: %w", id, err)
+	}
+	return nil
+}
+
+// GetUnembeddedNodes returns functions and features that lack an embedding.
+func (p *Neo4jProvider) GetUnembeddedNodes(limit int) ([]*graph.Node, error) {
+	query := `
+		MATCH (n)
+		WHERE (n:Function OR n:Feature) AND n.embedding IS NULL
+		RETURN n.id as id, labels(n)[0] as label, properties(n) as props
+		LIMIT $limit
+	`
+	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
+		"limit": limit,
+	}, neo4j.EagerResultTransformer)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get unembedded nodes: %w", err)
+	}
+
+	nodes := make([]*graph.Node, 0, len(result.Records))
+	for _, record := range result.Records {
+		id, _, _ := neo4j.GetRecordValue[string](record, "id")
+		label, _, _ := neo4j.GetRecordValue[string](record, "label")
+		props, _, _ := neo4j.GetRecordValue[map[string]any](record, "props")
+
+		nodes = append(nodes, &graph.Node{
+			ID:         id,
+			Label:      label,
+			Properties: sanitizeProperties(props),
+		})
+	}
+	return nodes, nil
+}
+
+// UpdateEmbeddings updates the embedding vector for a node.
+func (p *Neo4jProvider) UpdateEmbeddings(id string, embedding []float32) error {
+	query := `
+		MATCH (n {id: $id})
+		SET n.embedding = $embedding
+	`
+	_, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
+		"id":        id,
+		"embedding": embedding,
+	}, neo4j.EagerResultTransformer)
+
+	if err != nil {
+		return fmt.Errorf("failed to update embedding for %s: %w", id, err)
+	}
+	return nil
+}
+
+// GetEmbeddingsOnly returns all IDs and their embeddings from the graph.
+func (p *Neo4jProvider) GetEmbeddingsOnly() (map[string][]float32, error) {
+	query := `
+		MATCH (n)
+		WHERE (n:Function OR n:Feature) AND n.embedding IS NOT NULL
+		RETURN n.id as id, n.embedding as embedding
+	`
+	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, nil, neo4j.EagerResultTransformer)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get embeddings: %w", err)
+	}
+
+	embeddings := make(map[string][]float32, len(result.Records))
+	for _, record := range result.Records {
+		id, _, _ := neo4j.GetRecordValue[string](record, "id")
+		
+		// Neo4j returns float arrays as []any containing float64
+		embeddingRaw, _, _ := neo4j.GetRecordValue[[]any](record, "embedding")
+		
+		emb := make([]float32, len(embeddingRaw))
+		for i, v := range embeddingRaw {
+			if f64, ok := v.(float64); ok {
+				emb[i] = float32(f64)
+			}
+		}
+		
+		embeddings[id] = emb
+	}
+	return embeddings, nil
+}
+
+// GetFunctionMetadata returns all functions with minimal properties (id, file) for clustering.
+func (p *Neo4jProvider) GetFunctionMetadata() ([]*graph.Node, error) {
+	query := `
+		MATCH (n:Function)
+		RETURN n.id as id, n.file as file
+	`
+	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, nil, neo4j.EagerResultTransformer)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get function metadata: %w", err)
+	}
+
+	nodes := make([]*graph.Node, 0, len(result.Records))
+	for _, record := range result.Records {
+		id, _, _ := neo4j.GetRecordValue[string](record, "id")
+		file, _, _ := neo4j.GetRecordValue[string](record, "file")
+
+		nodes = append(nodes, &graph.Node{
+			ID:    id,
+			Label: "Function",
+			Properties: map[string]any{
+				"file": file,
+			},
+		})
+	}
+	return nodes, nil
+}
+
+// GetUnnamedFeatures returns features without a generated name/summary.
+func (p *Neo4jProvider) GetUnnamedFeatures(limit int) ([]*graph.Node, error) {
+	query := `
+		MATCH (n:Feature)
+		WHERE n.name IS NULL OR n.name = ''
+		RETURN n.id as id, properties(n) as props
+		LIMIT $limit
+	`
+	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
+		"limit": limit,
+	}, neo4j.EagerResultTransformer)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get unnamed features: %w", err)
+	}
+
+	nodes := make([]*graph.Node, 0, len(result.Records))
+	for _, record := range result.Records {
+		id, _, _ := neo4j.GetRecordValue[string](record, "id")
+		props, _, _ := neo4j.GetRecordValue[map[string]any](record, "props")
+
+		nodes = append(nodes, &graph.Node{
+			ID:         id,
+			Label:      "Feature",
+			Properties: sanitizeProperties(props),
+		})
+	}
+	return nodes, nil
+}
+
+// UpdateFeatureTopology writes feature nodes and relationships to the graph.
+func (p *Neo4jProvider) UpdateFeatureTopology(nodes []*graph.Node, edges []*graph.Edge) error {
+	session := p.driver.NewSession(p.ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
+	defer session.Close(p.ctx)
+
+	_, err := session.ExecuteWrite(p.ctx, func(tx neo4j.ManagedTransaction) (any, error) {
+		// Insert/Update Nodes
+		for _, n := range nodes {
+			query := `
+				MERGE (f:Feature {id: $id})
+				SET f += $props
+			`
+			props := n.Properties
+			if props == nil {
+				props = map[string]any{}
+			}
+			_, txErr := tx.Run(p.ctx, query, map[string]any{
+				"id":    n.ID,
+				"props": props,
+			})
+			if txErr != nil {
+				return nil, fmt.Errorf("failed to write node %s: %w", n.ID, txErr)
+			}
+		}
+
+		// Insert Relationships
+		for _, e := range edges {
+			var query string
+			
+			// To simplify, we match by id for both source and target
+			query = fmt.Sprintf(`
+				MATCH (source {id: $sourceId})
+				MATCH (target {id: $targetId})
+				MERGE (source)-[r:%s]->(target)
+			`, e.Type)
+			
+			_, txErr := tx.Run(p.ctx, query, map[string]any{
+				"sourceId": e.SourceID,
+				"targetId": e.TargetID,
+			})
+			if txErr != nil {
+				return nil, fmt.Errorf("failed to write edge %s->%s: %w", e.SourceID, e.TargetID, txErr)
+			}
+		}
+
+		return nil, nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to update feature topology: %w", err)
+	}
+
+	return nil
+}
+
+// UpdateFeatureSummary saves the generated name and summary for a feature.
+func (p *Neo4jProvider) UpdateFeatureSummary(id string, name string, summary string) error {
+	query := `
+		MATCH (n:Feature {id: $id})
+		SET n.name = $name, n.summary = $summary
+	`
+	_, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
+		"id":      id,
+		"name":    name,
+		"summary": summary,
+	}, neo4j.EagerResultTransformer)
+
+	if err != nil {
+		return fmt.Errorf("failed to update feature summary for %s: %w", id, err)
+	}
+	return nil
+}

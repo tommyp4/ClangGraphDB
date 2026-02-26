@@ -13,10 +13,8 @@ import (
 	"graphdb/internal/query"
 	"graphdb/internal/rpg"
 	"graphdb/internal/storage"
-	"graphdb/internal/tools/snippet"
 	"graphdb/internal/ui"
 	"log"
-	"math"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -82,54 +80,34 @@ func printUsage() {
 }
 
 func handleBuildAll(args []string) {
-	// Minimal flag parsing for build-all, or just pass through relevant flags?
-	// For now, let's keep it simple: run the standard sequence with default filenames.
-	// Users can still override config via ENV vars.
+        fmt.Println("🚀 Starting GraphDB Build-All Sequence...")
+        fmt.Println("========================================")
 
-	fmt.Println("🚀 Starting GraphDB Build-All Sequence...")
-	fmt.Println("========================================")
+        fs := flag.NewFlagSet("build-all", flag.ExitOnError)
+        dirPtr := fs.String("dir", ".", "Directory to process")
+        cleanPtr := fs.Bool("clean", true, "Clean DB before import")
+        fs.Parse(args)
 
-	// 1. Ingest
-	fmt.Println("\n[Phase 1/3] Ingesting Codebase...")
-	// Default to current dir, standard output
-	ingestArgs := []string{"-dir", ".", "-output", "graph.jsonl"}
-	// Allow user to override dir if they passed it to build-all?
-	// For simplicity, let's assume build-all runs on current dir unless we implement full arg parsing.
-	// Let's at least support -dir if provided.
-	fs := flag.NewFlagSet("build-all", flag.ExitOnError)
-	dirPtr := fs.String("dir", ".", "Directory to process")
-	cleanPtr := fs.Bool("clean", true, "Clean DB before import")
-	fs.Parse(args)
+        // 1. Ingest
+        fmt.Println("\n[Phase 1/3] Ingesting Codebase...")
+        ingestArgs := []string{"-dir", *dirPtr, "-output", "graph.jsonl"}
+        ingestCmd(ingestArgs)
 
-	ingestArgs = []string{"-dir", *dirPtr, "-output", "graph.jsonl"}
-	ingestCmd(ingestArgs)
+        // 2. Import Structural Graph
+        fmt.Println("\n[Phase 2/3] Importing to Neo4j...")
+        importArgs1 := []string{"-input", "graph.jsonl"}
+        if *cleanPtr {
+                importArgs1 = append(importArgs1, "-clean")
+        }
+        importCmd(importArgs1)
 
-	// 2. Enrich
-	fmt.Println("\n[Phase 2/3] Enriching Features...")
-	// Use semantic clustering by default for better quality
-	enrichArgs := []string{"-dir", *dirPtr, "-input", "graph.jsonl", "-output", "rpg.jsonl"}
-	enrichCmd(enrichArgs)
+        // 3. Enrich
+        fmt.Println("\n[Phase 3/3] Enriching Features (in-database)...")
+        enrichArgs := []string{"-dir", *dirPtr}
+        enrichCmd(enrichArgs)
 
-	// 3. Import
-	fmt.Println("\n[Phase 3/3] Importing to Neo4j...")
-
-	// Phase 3.A: Import Structural Graph
-	fmt.Println("Importing Structural Graph (graph.jsonl)...")
-	importArgs1 := []string{"-input", "graph.jsonl"}
-	if *cleanPtr {
-		importArgs1 = append(importArgs1, "-clean")
-	}
-	importCmd(importArgs1)
-
-	// Phase 3.B: Import Semantic Graph
-	fmt.Println("Importing Semantic Graph (rpg.jsonl)...")
-	importArgs2 := []string{"-input", "rpg.jsonl"}
-	// Note: No clean flag here, as we are appending to the graph
-	importCmd(importArgs2)
-
-	fmt.Println("\n✅ Build-All Sequence Complete!")
+        fmt.Println("\n✅ Build-All Sequence Complete!")
 }
-
 func handleIngest(args []string) {
 	flags := flag.NewFlagSet("ingest", flag.ExitOnError)
 	dirPtr := flags.String("dir", ".", "Directory to walk (ignored if -file-list is used)")
@@ -258,235 +236,82 @@ func handleIngest(args []string) {
 }
 
 func handleEnrichFeatures(args []string) {
-	fs := flag.NewFlagSet("enrich-features", flag.ExitOnError)
-	dirPtr := fs.String("dir", ".", "Directory to analyze")
-	inputPtr := fs.String("input", "graph.jsonl", "Input graph file")
-	outputPtr := fs.String("output", "rpg.jsonl", "Output file for RPG nodes and edges")
-	batchSizePtr := fs.Int("batch-size", 20, "Batch size for LLM feature extraction")
-	// Embedding batch size
-	embedBatchSizePtr := fs.Int("embed-batch-size", 100, "Batch size for embedding generation")
+        fs := flag.NewFlagSet("enrich-features", flag.ExitOnError)
+        dirPtr := fs.String("dir", ".", "Directory to analyze")
+        batchSizePtr := fs.Int("batch-size", 20, "Batch size for LLM feature extraction")
+        embedBatchSizePtr := fs.Int("embed-batch-size", 100, "Batch size for embedding generation")
 
-	fs.Parse(args)
+        fs.Parse(args)
 
-	cfg := config.LoadConfig()
+        cfg := config.LoadConfig()
 
-	loc := cfg.GoogleCloudLocation
-	if loc == "" {
-		loc = "us-central1"
-	}
+        loc := cfg.GoogleCloudLocation
+        if loc == "" {
+                loc = "us-central1"
+        }
 
-	model := cfg.GeminiEmbeddingModel
-	if model == "" {
-		model = "gemini-embedding-001"
-	}
+        model := cfg.GeminiEmbeddingModel
+        if model == "" {
+                model = "gemini-embedding-001"
+        }
 
-	genModel := cfg.GeminiGenerativeModel
-	if genModel == "" {
-		log.Fatal("GEMINI_GENERATIVE_MODEL is not set. Please set it in your .env file or environment.\n" +
-			"Example: export GEMINI_GENERATIVE_MODEL=gemini-3-flash-preview")
-	}
+        genModel := cfg.GeminiGenerativeModel
+        if genModel == "" {
+                log.Fatal("GEMINI_GENERATIVE_MODEL is not set. Please set it in your .env file or environment.\n" +
+                        "Example: export GEMINI_GENERATIVE_MODEL=gemini-3-flash-preview")
+        }
 
-	if cfg.GoogleCloudProject == "" {
-		log.Fatal("GOOGLE_CLOUD_PROJECT is not set. Please set it in your .env file or environment.\n" +
-			"Example: export GOOGLE_CLOUD_PROJECT=my-project-id")
-	}
+        if cfg.GoogleCloudProject == "" {
+                log.Fatal("GOOGLE_CLOUD_PROJECT is not set. Please set it in your .env file or environment.\n" +
+                        "Example: export GOOGLE_CLOUD_PROJECT=my-project-id")
+        }
+        
+        if cfg.Neo4jURI == "" {
+                log.Fatal("NEO4J_URI environment variable is not set")
+        }
 
-	log.Println("Starting feature enrichment...")
+        log.Println("Connecting to Graph Database...")
+        provider, err := query.NewNeo4jProvider(cfg)
+        if err != nil {
+                log.Fatalf("Failed to connect to Neo4j: %v", err)
+        }
+        defer provider.Close()
 
-	// 1. Load Functions from graph.jsonl
-	functions, err := loadFunctions(*inputPtr)
-	if err != nil {
-		log.Fatalf("Failed to load functions: %v", err)
-	}
-	log.Printf("Loaded %d functions from %s", len(functions), *inputPtr)
+        extractor := setupExtractor(cfg.GoogleCloudProject, loc, genModel)
+        embedder := setupEmbedder(cfg.GoogleCloudProject, loc, model, cfg.GeminiEmbeddingDimensions)
+        summarizer := setupSummarizer(cfg.GoogleCloudProject, loc, genModel)
 
-	// 2. Extract atomic features per function
-	extractor := setupExtractor(cfg.GoogleCloudProject, loc, genModel)
-	log.Printf("Extracting atomic features (batch size: %d)...", *batchSizePtr)
+        orchestrator := &rpg.Orchestrator{
+                Provider:   provider,
+                Extractor:  extractor,
+                Embedder:   embedder,
+                Summarizer: summarizer,
+        }
 
-	pb := ui.NewProgressBar(int64(len(functions)), "Extracting features")
-
-	for i := range functions {
-		fn := &functions[i]
-		name, _ := fn.Properties["name"].(string)
-		code, _ := fn.Properties["content"].(string)
-
-		descriptors, err := extractor.Extract(code, name)
-		if err != nil {
-			// Skip logging to avoid breaking progress bar
-			continue
-		}
-		fn.Properties["atomic_features"] = descriptors
-		pb.Add(1)
-	}
-	pb.Finish()
-	log.Printf("Extracted atomic features for %d functions", len(functions))
-
-	// 3. Setup Builder & Clusterer
-	embedder := setupEmbedder(cfg.GoogleCloudProject, loc, model, cfg.GeminiEmbeddingDimensions)
-	summarizer := setupSummarizer(cfg.GoogleCloudProject, loc, genModel) // Initialize summarizer early
-
-	// PRE-CALCULATION STEP
-	log.Println("Pre-calculating embeddings for clustering...")
-	precomputed := make(map[string][]float32)
-
-	// Batch process functions for embedding
-	embedPb := ui.NewProgressBar(int64(len(functions)), "Generating Embeddings")
-	batchSize := *embedBatchSizePtr
-
-	var batchTexts []string
-	var batchIDs []string
-
-	for i, fn := range functions {
-		text := rpg.NodeToText(fn)
-		batchTexts = append(batchTexts, text)
-		batchIDs = append(batchIDs, fn.ID)
-
-		if len(batchTexts) >= batchSize || i == len(functions)-1 {
-			embeddings, err := embedder.EmbedBatch(batchTexts)
-			if err != nil {
-				log.Printf("Warning: Failed to embed batch: %v", err)
-			} else {
-				for j, emb := range embeddings {
-					precomputed[batchIDs[j]] = emb
-				}
-			}
-			embedPb.Add(int64(len(batchTexts)))
-			batchTexts = batchTexts[:0]
-			batchIDs = batchIDs[:0]
-		}
-	}
-	embedPb.Finish()
-	log.Printf("Generated embeddings for %d functions", len(precomputed))
-
-	clusterer := &rpg.EmbeddingClusterer{
-		Embedder:              embedder,
-		PrecomputedEmbeddings: precomputed,
-	}
-
-	// Create Global Clusterer for initial domain discovery
-	// 1. Inner clusterer performs K-Means
-	innerGlobalClusterer := &rpg.EmbeddingClusterer{
-		Embedder:              embedder,
-		PrecomputedEmbeddings: precomputed,
-		KStrategy: func(n int) int {
-			if n == 0 {
-				return 0
-			}
-			// Rule of thumb: sqrt(N/10)
-			k := int(math.Sqrt(float64(n) / 10.0))
-			if k < 2 {
-				return 2
-			}
-			return k
-		},
-	}
-	
-	// 2. Global wrapper adds semantic naming (Latent Domains)
-	globalClusterer := &rpg.GlobalEmbeddingClusterer{
-		Inner:                 innerGlobalClusterer,
-		Summarizer:            summarizer,
-		Loader:                snippet.SliceFile,
-		PrecomputedEmbeddings: precomputed,
-	}
-
-	log.Println("Using Global Discovery Mode (semantic clustering)")
-
-	builder := &rpg.Builder{
-		Clusterer:       clusterer,
-		GlobalClusterer: globalClusterer,
-	}
-
-	var clusterPb *ui.ProgressBar
-	builder.OnPhaseStart = func(phaseName string, total int) {
-		if total > 0 {
-			clusterPb = ui.NewProgressBar(int64(total), phaseName)
-			clusterPb.Add(0) // Render initial state
-		}
-	}
-	builder.OnStepStart = func(stepName string) {
-		if clusterPb != nil {
-			clusterPb.UpdateDescription(fmt.Sprintf("Clustering %s", stepName))
-		}
-	}
-	builder.OnStepEnd = func(stepName string) {
-		if clusterPb != nil {
-			clusterPb.Add(1)
-		}
-	}
-
-	// 4. Build Feature Hierarchy
-	features, edges, err := builder.Build(*dirPtr, functions)
-	if clusterPb != nil {
-		clusterPb.Finish()
-	}
-	if err != nil {
-		log.Fatalf("Failed to build features: %v", err)
-	}
-
-	// 5. Setup Enricher
-	enricher := &rpg.Enricher{
-		Client:   summarizer,
-		Embedder: embedder,
-		Loader:   snippet.SliceFile,
-	}
-
-	// 6. Enrich Features (recursively, using scoped member functions)
-	var totalFeatures int64
-	var countFeatures func(f *rpg.Feature)
-	countFeatures = func(f *rpg.Feature) {
-		totalFeatures++
-		for _, child := range f.Children {
-			countFeatures(child)
-		}
-	}
-	for i := range features {
-		countFeatures(&features[i])
-	}
-
-	pb = ui.NewProgressBar(totalFeatures, "Enriching features")
-
-	var enrichAll func(f *rpg.Feature)
-	enrichAll = func(f *rpg.Feature) {
-		if err := enricher.Enrich(f, f.MemberFunctions); err != nil {
-			log.Printf("Warning: enrichment failed for %s: %v", f.Name, err)
-		}
-		pb.Add(1)
-		for _, child := range f.Children {
-			enrichAll(child)
-		}
-	}
-	for i := range features {
-		enrichAll(&features[i])
-	}
-	pb.Finish()
-
-	// 7. Flatten for Persistence
-	nodes, allEdges := rpg.Flatten(features, edges)
-
-	// 8. Persistence (Emit to storage)
-	outFile, err := os.Create(*outputPtr)
-	if err != nil {
-		log.Fatalf("Failed to create output file: %v", err)
-	}
-	defer outFile.Close()
-	emitter := storage.NewJSONLEmitter(outFile)
-	defer emitter.Close()
-
-	for i := range nodes {
-		if err := emitter.EmitNode(&nodes[i]); err != nil {
-			log.Printf("Warning: failed to emit node: %v", err)
-		}
-	}
-	for i := range allEdges {
-		if err := emitter.EmitEdge(&allEdges[i]); err != nil {
-			log.Printf("Warning: failed to emit edge: %v", err)
-		}
-	}
-
-	log.Printf("Successfully emitted %d nodes and %d edges to %s", len(nodes), len(allEdges), *outputPtr)
+        log.Println("Starting Database-backed Feature Enrichment...")
+        
+        // 1. Atomic Feature Extraction
+        if err := orchestrator.RunExtraction(*batchSizePtr); err != nil {
+                log.Fatalf("Extraction failed: %v", err)
+        }
+        
+        // 2. Embedding Generation
+        if err := orchestrator.RunEmbedding(*embedBatchSizePtr); err != nil {
+                log.Fatalf("Embedding generation failed: %v", err)
+        }
+        
+        // 3. Out-of-Core Clustering (Topology generation)
+        if err := orchestrator.RunClustering(*dirPtr); err != nil {
+                log.Fatalf("Clustering failed: %v", err)
+        }
+        
+        // 4. Summarization
+        if err := orchestrator.RunSummarization(*batchSizePtr); err != nil {
+                log.Fatalf("Summarization failed: %v", err)
+        }
+        
+        log.Println("Feature enrichment completed successfully.")
 }
-
 func handleImport(args []string) {
 	fs := flag.NewFlagSet("import", flag.ExitOnError)
 	nodesPtr := fs.String("nodes", "", "Path to nodes JSONL file")
@@ -703,35 +528,6 @@ func processBatches(path string, batchSize int, process func([]json.RawMessage) 
 	return scanner.Err()
 }
 
-func loadFunctions(path string) ([]graph.Node, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	var nodes []graph.Node
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		var raw map[string]interface{}
-		if err := json.Unmarshal(scanner.Bytes(), &raw); err != nil {
-			continue
-		}
-
-		// Check if it is a node and a Function
-		if typeVal, ok := raw["type"].(string); ok && typeVal == "Function" {
-			// Reconstruct node
-			id, _ := raw["id"].(string)
-			node := graph.Node{
-				ID:         id,
-				Label:      "Function",
-				Properties: raw,
-			}
-			nodes = append(nodes, node)
-		}
-	}
-	return nodes, scanner.Err()
-}
 
 
 

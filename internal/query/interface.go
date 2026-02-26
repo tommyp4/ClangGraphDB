@@ -81,4 +81,15 @@ type GraphProvider interface {
 	LocateUsage(sourceID string, targetID string) (any, error)
 	ExploreDomain(featureID string) (*DomainExplorationResult, error)
 	GetGraphState() (string, error)
+
+	// Batch/Streaming Operations
+	GetUnextractedFunctions(limit int) ([]*graph.Node, error)
+	UpdateAtomicFeatures(id string, features []string) error
+	GetUnembeddedNodes(limit int) ([]*graph.Node, error)
+	UpdateEmbeddings(id string, embedding []float32) error
+	GetEmbeddingsOnly() (map[string][]float32, error)
+	GetFunctionMetadata() ([]*graph.Node, error)
+	GetUnnamedFeatures(limit int) ([]*graph.Node, error)
+	UpdateFeatureTopology(nodes []*graph.Node, edges []*graph.Edge) error
+	UpdateFeatureSummary(id string, name string, summary string) error
 }
