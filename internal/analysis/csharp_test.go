@@ -67,10 +67,9 @@ public class Greeter {
 	// Verify Call Edge
 	foundCall := false
 	for _, e := range edges {
-		// Source: ...:Greet
+		// Source: Function:...:Greet:(string)
 		// Target: WriteLine OR System.WriteLine (Resolution candidates)
-		// Old behavior was ...:WriteLine. New behavior is logical ID.
-		if strings.HasSuffix(e.SourceID, "Greet") && (strings.HasSuffix(e.TargetID, "WriteLine") || e.TargetID == "WriteLine") {
+		if strings.Contains(e.SourceID, "Greet") && (strings.HasSuffix(e.TargetID, "WriteLine") || e.TargetID == "WriteLine") {
 			foundCall = true
 			break
 		}
@@ -119,12 +118,12 @@ public class Order {
 
 	// Expected specific IDs (Qualified with namespace and class)
 	expectedIDs := []string{
-		"MyApp.Core.User",
-		"MyApp.Core.User.User", // Constructor
-		"MyApp.Core.User.Save",
-		"MyApp.Core.Order",
-		"MyApp.Core.Order.Order", // Constructor
-		"MyApp.Core.Order.Save",
+		"Class:MyApp.Core.User:",
+		"Function:MyApp.Core.User.User:()", // Constructor
+		"Function:MyApp.Core.User.Save:()",
+		"Class:MyApp.Core.Order:",
+		"Function:MyApp.Core.Order.Order:()", // Constructor
+		"Function:MyApp.Core.Order.Save:()",
 	}
 
 	for _, expected := range expectedIDs {
@@ -185,7 +184,7 @@ func TestParseCSharp_DependencyInjection(t *testing.T) {
 	// Check if we captured nodes correctly
 	foundClass := false
 	for _, n := range nodes {
-		if strings.HasSuffix(n.ID, "PaymentProcessor") && n.Label == "Class" {
+		if strings.Contains(n.ID, "PaymentProcessor") && n.Label == "Class" {
 			foundClass = true
 		}
 	}
@@ -225,9 +224,9 @@ func TestParseCSharp_DependencyResolution(t *testing.T) {
 
 	foundCall := false
 	for _, e := range edges {
-		if e.Type == "CALLS" && strings.HasSuffix(e.SourceID, "Post") {
+		if e.Type == "CALLS" && strings.Contains(e.SourceID, "Post") {
 			t.Logf("Found CALLS: %s -> %s", e.SourceID, e.TargetID)
-			if strings.HasSuffix(e.SourceID, expectedSource) && strings.HasSuffix(e.TargetID, expectedTarget) {
+			if strings.Contains(e.SourceID, expectedSource) && strings.Contains(e.TargetID, expectedTarget) {
 				foundCall = true
 				break
 			}
@@ -238,3 +237,41 @@ func TestParseCSharp_DependencyResolution(t *testing.T) {
 		t.Errorf("Expected CALLS edge from %s to %s not found", expectedSource, expectedTarget)
 	}
 }
+
+func TestParseCSharp_IDCollision(t *testing.T) {
+	parser, ok := analysis.GetParser(".cs")
+	if !ok {
+		t.Fatalf("CSharp parser not registered")
+	}
+
+	absPath, err := filepath.Abs("../../test/fixtures/csharp/IDCollisionTest.cs")
+	if err != nil {
+		t.Fatalf("Failed to get absolute path: %v", err)
+	}
+
+	content, err := os.ReadFile(absPath)
+	if err != nil {
+		t.Fatalf("Failed to read fixture file: %v", err)
+	}
+
+	nodes, _, err := parser.Parse(absPath, content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	ids := make(map[string]int)
+	for _, n := range nodes {
+		ids[n.ID]++
+		// Verify fqn property is populated
+		if n.Properties["fqn"] == nil || n.Properties["fqn"] == "" {
+			t.Errorf("Node missing fqn property: %s", n.ID)
+		}
+	}
+
+	for id, count := range ids {
+		if count > 1 {
+			t.Errorf("Duplicate ID found: %s (Count: %d)", id, count)
+		}
+	}
+}
+

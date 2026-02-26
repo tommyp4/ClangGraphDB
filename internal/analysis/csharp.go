@@ -64,7 +64,7 @@ func (p *CSharpParser) Parse(filePath string, content []byte) ([]*graph.Node, []
 	var nodes []*graph.Node
 	var extraEdges []*graph.Edge // Store inheritance and dependency edges here
 	var usings []string
-	
+
 	// Map of ClassID -> FieldName -> TypeName
 	fieldMap := make(map[string]map[string]string)
 
@@ -87,30 +87,31 @@ func (p *CSharpParser) Parse(filePath string, content []byte) ([]*graph.Node, []
 
 			if captureName == "param.type" {
 				typeName := extractBaseType(c.Node, content)
-				
+
 				// Find Enclosing Class
 				enclosingClass := findEnclosingCSharpClass(c.Node, content)
 				if enclosingClass == "" {
 					continue
 				}
-				
+
 				// Determine Namespace
 				namespace := findEnclosingCSharpNamespace(c.Node, content)
 				if namespace == "" {
 					namespace = fileScopedNamespace
 				}
-				
+
 				// Source ID: The Class
 				var parts []string
 				if namespace != "" {
 					parts = append(parts, namespace)
 				}
 				parts = append(parts, enclosingClass)
-				sourceID := strings.Join(parts, ".")
-				
+				fqn := strings.Join(parts, ".")
+				sourceID := GenerateNodeID("Class", fqn, "")
+
 				// Resolve Target Candidates
 				candidates := resolveCSharpCandidates(typeName, usings, namespace)
-				
+
 				for _, cand := range candidates {
 					extraEdges = append(extraEdges, &graph.Edge{
 						SourceID: sourceID,
@@ -120,7 +121,6 @@ func (p *CSharpParser) Parse(filePath string, content []byte) ([]*graph.Node, []
 				}
 				continue
 			}
-
 			// Capture name extraction
 			var nodeNames []string
 			var nodeType string // "class", "function", "field"
@@ -173,7 +173,9 @@ func (p *CSharpParser) Parse(filePath string, content []byte) ([]*graph.Node, []
 							t := child.Type()
 							if t == "variable_declaration" {
 								typeNode = child.ChildByFieldName("type")
-								if typeNode != nil { break }
+								if typeNode != nil {
+									break
+								}
 								vCount := child.ChildCount()
 								for k := 0; k < int(vCount); k++ {
 									vChild := child.Child(k)
@@ -183,7 +185,9 @@ func (p *CSharpParser) Parse(filePath string, content []byte) ([]*graph.Node, []
 										break
 									}
 								}
-								if typeNode != nil { break }
+								if typeNode != nil {
+									break
+								}
 							}
 							if t == "generic_name" || t == "qualified_name" || t == "predefined_type" || t == "identifier" {
 								typeNode = child
@@ -197,13 +201,18 @@ func (p *CSharpParser) Parse(filePath string, content []byte) ([]*graph.Node, []
 						enclosingClass := findEnclosingCSharpClass(c.Node, content)
 						if enclosingClass != "" {
 							namespace := findEnclosingCSharpNamespace(c.Node, content)
-							if namespace == "" { namespace = fileScopedNamespace }
-							
+							if namespace == "" {
+								namespace = fileScopedNamespace
+							}
+
 							var parts []string
-							if namespace != "" { parts = append(parts, namespace) }
+							if namespace != "" {
+								parts = append(parts, namespace)
+							}
 							parts = append(parts, enclosingClass)
-							sourceID := strings.Join(parts, ".")
-							
+							fqn := strings.Join(parts, ".")
+							sourceID := GenerateNodeID("Class", fqn, "")
+
 							// Generate DEPENDS_ON edges
 							candidates := resolveCSharpCandidates(typeName, usings, namespace)
 							for _, cand := range candidates {
@@ -215,11 +224,11 @@ func (p *CSharpParser) Parse(filePath string, content []byte) ([]*graph.Node, []
 							}
 
 							// Populate Map
-							if fieldMap[sourceID] == nil {
-								fieldMap[sourceID] = make(map[string]string)
+							if fieldMap[fqn] == nil {
+								fieldMap[fqn] = make(map[string]string)
 							}
 							for _, name := range nodeNames {
-								fieldMap[sourceID][name] = typeName
+								fieldMap[fqn][name] = typeName
 							}
 						}
 					}
@@ -235,7 +244,7 @@ func (p *CSharpParser) Parse(filePath string, content []byte) ([]*graph.Node, []
 			if namespace == "" {
 				namespace = fileScopedNamespace
 			}
-			
+
 			// If we are defining a class, we want the enclosing class of the definition, not itself.
 			searchNode := c.Node
 			if nodeType == "class" {
@@ -247,8 +256,24 @@ func (p *CSharpParser) Parse(filePath string, content []byte) ([]*graph.Node, []
 
 			for _, nodeName := range nodeNames {
 				var label string
-				var fullID string
-				
+				var signature string
+
+				if nodeType == "class" {
+					label = "Class"
+				} else if nodeType == "function" {
+					label = "Function"
+					funcNode := c.Node.Parent()
+					if funcNode != nil {
+						signature = extractCSharpSignature(funcNode, content)
+					} else {
+						signature = "()"
+					}
+				} else if nodeType == "field" {
+					label = "Field"
+				} else {
+					continue
+				}
+
 				// Build Qualified Name
 				var parts []string
 				if namespace != "" {
@@ -258,14 +283,15 @@ func (p *CSharpParser) Parse(filePath string, content []byte) ([]*graph.Node, []
 					parts = append(parts, enclosingClass)
 				}
 				parts = append(parts, nodeName)
-				
-				qualifiedName := strings.Join(parts, ".")
-				fullID = qualifiedName
+
+				fqn := strings.Join(parts, ".")
+				fullID := GenerateNodeID(label, fqn, signature)
 
 				var properties = map[string]interface{}{
-					"name": nodeName,
-					"file": filePath,
-					"line": c.Node.StartPoint().Row + 1,
+					"name":     nodeName,
+					"fqn":      fqn,
+					"file":     filePath,
+					"line":     c.Node.StartPoint().Row + 1,
 					"end_line": c.Node.EndPoint().Row + 1,
 				}
 				if namespace != "" {
@@ -273,8 +299,6 @@ func (p *CSharpParser) Parse(filePath string, content []byte) ([]*graph.Node, []
 				}
 
 				if nodeType == "class" {
-					label = "Class"
-					
 					// Inheritance Logic
 					parent := c.Node.Parent() // declaration node
 					if parent != nil {
@@ -298,9 +322,6 @@ func (p *CSharpParser) Parse(filePath string, content []byte) ([]*graph.Node, []
 								child := baseList.NamedChild(i)
 								baseName := child.Content(content)
 								// Naive target ID for inheritance
-								// Ideally we resolve this too, but for now we guess
-								// It might be in the same namespace or imported.
-								// We leave it as simple name or qualified if provided.
 								candidates := resolveCSharpCandidates(baseName, usings, namespace)
 								for _, cand := range candidates {
 									extraEdges = append(extraEdges, &graph.Edge{
@@ -313,12 +334,6 @@ func (p *CSharpParser) Parse(filePath string, content []byte) ([]*graph.Node, []
 						}
 					}
 
-				} else if nodeType == "function" {
-					label = "Function"
-				} else if nodeType == "field" {
-					label = "Field"
-				} else {
-					continue
 				}
 
 				n := &graph.Node{
@@ -394,38 +409,47 @@ func (p *CSharpParser) Parse(filePath string, content []byte) ([]*graph.Node, []
 			if sourceFuncNode != nil {
 				// Reconstruct Source ID
 				ns := findEnclosingCSharpNamespace(sourceFuncNode, content)
-				if ns == "" { ns = fileScopedNamespace }
-				
+				if ns == "" {
+					ns = fileScopedNamespace
+				}
+
 				cls := findEnclosingCSharpClass(sourceFuncNode, content)
-				
+
 				funcNameNode := sourceFuncNode.ChildByFieldName("name")
 				var funcName string
 				if funcNameNode != nil {
 					funcName = funcNameNode.Content(content)
 				}
-				
+
 				if funcName != "" {
 					var parts []string
-					if ns != "" { parts = append(parts, ns) }
-					if cls != "" { parts = append(parts, cls) }
+					if ns != "" {
+						parts = append(parts, ns)
+					}
+					if cls != "" {
+						parts = append(parts, cls)
+					}
 					parts = append(parts, funcName)
-					
-					sourceID := strings.Join(parts, ".")
+
+					fqn := strings.Join(parts, ".")
+					signature := extractCSharpSignature(sourceFuncNode, content)
+					sourceID := GenerateNodeID("Function", fqn, signature)
 
 					// --- Resolution Fix ---
 					var candidates []string
 					if objectName != "" && cls != "" {
 						// Look up field type
 						var clsParts []string
-						if ns != "" { clsParts = append(clsParts, ns) }
+						if ns != "" {
+							clsParts = append(clsParts, ns)
+						}
 						clsParts = append(clsParts, cls)
 						classID := strings.Join(clsParts, ".")
-						
-						if fieldType, ok := fieldMap[classID][objectName]; ok {
-							// fieldType is e.g. "IPaymentService"
+
+						if fieldType, ok := fieldMap[classID][objectName]; ok { // fieldType is e.g. "IPaymentService"
 							// We need to resolve fieldType to possible fully qualified types.
 							typeCandidates := resolveCSharpCandidates(fieldType, usings, ns)
-							
+
 							for _, typeCand := range typeCandidates {
 								candidates = append(candidates, fmt.Sprintf("%s.%s", typeCand, targetName))
 							}
@@ -440,7 +464,7 @@ func (p *CSharpParser) Parse(filePath string, content []byte) ([]*graph.Node, []
 					for _, cand := range candidates {
 						edges = append(edges, &graph.Edge{
 							SourceID: sourceID,
-							TargetID: cand, 
+							TargetID: cand,
 							Type:     "CALLS",
 						})
 					}
@@ -559,4 +583,37 @@ func findEnclosingCSharpFunctionNode(n *sitter.Node) *sitter.Node {
 		curr = curr.Parent()
 	}
 	return nil
+}
+
+func extractCSharpSignature(n *sitter.Node, content []byte) string {
+	paramList := n.ChildByFieldName("parameters")
+	if paramList == nil {
+		count := n.ChildCount()
+		for i := 0; i < int(count); i++ {
+			if n.Child(i).Type() == "parameter_list" {
+				paramList = n.Child(i)
+				break
+			}
+		}
+	}
+
+	if paramList == nil {
+		return "()"
+	}
+
+	var types []string
+	count := paramList.NamedChildCount()
+	for i := 0; i < int(count); i++ {
+		paramNode := paramList.NamedChild(i)
+		if paramNode.Type() == "parameter" {
+			typeNode := paramNode.ChildByFieldName("type")
+			if typeNode != nil {
+				types = append(types, typeNode.Content(content))
+			} else {
+				types = append(types, "?")
+			}
+		}
+	}
+
+	return "(" + strings.Join(types, ", ") + ")"
 }

@@ -1,6 +1,9 @@
 package analysis
 
-import "graphdb/internal/graph"
+import (
+	"fmt"
+	"graphdb/internal/graph"
+)
 
 // LanguageParser defines the interface for parsing source code files.
 type LanguageParser interface {
@@ -18,4 +21,12 @@ func RegisterParser(ext string, p LanguageParser) {
 func GetParser(ext string) (LanguageParser, bool) {
 	p, ok := parsers[ext]
 	return p, ok
+}
+
+// GenerateNodeID creates a deterministic unique ID for a code element
+// using the format "Label:FQN:Signature". This prevents cross-label
+// collisions (e.g. Class vs Constructor with same FQN) and overload
+// collisions (e.g. methods with same name but different parameters).
+func GenerateNodeID(label string, fqn string, signature string) string {
+	return fmt.Sprintf("%s:%s:%s", label, fqn, signature)
 }
