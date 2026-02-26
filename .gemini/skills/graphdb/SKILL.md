@@ -27,10 +27,15 @@ The skill relies on a pre-compiled Go binary (`${graphdb_bin}`).
 If it does not exist, build it from the project root: `make build` (Linux/macOS) or use the cross-compilation script for Windows.
 
 ### Environment Variables
-The tool automatically inherits the following environment variables. Assume they are already configured correctly. Do not manually verify, echo, or debug these variables unless the tool explicitly fails with a configuration error.
+The tool automatically inherits the following environment variables. Assume they are already configured correctly via the `.env` file or host system. 
 *   `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD` (Required for `import` and `query`)
 *   `GOOGLE_CLOUD_PROJECT` (Required for Vertex AI embeddings)
 *   `GOOGLE_CLOUD_LOCATION` (Default: `us-central1`)
+
+**CRITICAL RULES FOR CREDENTIALS:**
+1. You must **NEVER** explicitly set, export, or pass environment variables (like `NEO4J_PASSWORD=...`) in your bash commands. 
+2. You must rely purely on the Go binary's internal `.env` loading. 
+3. If a command fails due to an `Unauthorized` or authentication error, **STOP**. Do not try to guess or brute-force the password. Report the failure directly to the user and state that the credentials in their environment or `.env` file appear to be invalid or missing.
 
 ## Workflows
 
@@ -81,12 +86,14 @@ The primary way to interact with the graph is via the `query` command.
 ${graphdb_bin} query -type <type> -target "<search_term>" [options]
 ```
 
-#### Supported Languages
-*   **C# / .NET:** `.cs`, `.vb`, `.asp`, `.aspx`, `.ascx`
-*   **C / C++:** `.c`, `.cpp`, `.cc`, `.h`, `.hpp`
-*   **Java:** `.java`
-*   **TypeScript:** `.ts`
-*   **SQL:** `.sql`
+#### Supported Languages & FQN Formats
+Structural queries require function names in their fully qualified format:
+
+*   **C# / .NET / VB.NET:** `Namespace.Class.Method`
+*   **C / C++:** `Namespace::Class::Method` (or `Class::Method`)
+*   **Java:** `Package.Class.Method`
+*   **TypeScript:** `FilePath:Class.Method` or `FilePath:Function` (e.g., `src/app.ts:MyClass.myMethod`)
+*   **SQL:** `Schema.ObjectName` or `ObjectName` (no file path)
 
 #### Query Types Reference
 
@@ -107,6 +114,7 @@ ${graphdb_bin} query -type <type> -target "<search_term>" [options]
 
 ## Operational Guidelines
 *   **Output Parsing:** The tool returns JSON. Parse it and present a concise summary (bullet points, mermaid diagrams, or tables).
-*   **Exact Names:** Structural queries (`neighbors`, `impact`) require exact function names. Use `search-similar` first if you are unsure of the name.
+*   **Exact Names:** Structural queries (`neighbors`, `impact`) require exact function names in their fully qualified format (e.g., `Namespace.Class.Method`, `src/app.ts:Class.Method`). 
+    *   **CRITICAL RULE:** If you only have a partial or unqualified name from the user, **DO NOT use `grep` or text search** to find the fully qualified name. Instead, you MUST use `search-similar` (semantic search) first to locate the exact node `ID`/`Name` before running structural queries.
 *   **Context:** Always mention the source file and line number when discussing a function.
 *   **Missing Data:** If a query returns empty, verify the spelling of the function/module name or try a semantic search.
