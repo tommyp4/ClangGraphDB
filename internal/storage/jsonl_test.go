@@ -117,3 +117,47 @@ func TestJSONLEmitter_Concurrent(t *testing.T) {
 		t.Errorf("Expected %d lines, got %d", expected, lines)
 	}
 }
+
+
+func TestSplitJSONLEmitter_Concurrent(t *testing.T) {
+        var nodeBuf bytes.Buffer
+        var edgeBuf bytes.Buffer
+        emitter := storage.NewSplitJSONLEmitter(&nodeBuf, &edgeBuf)
+
+        concurrency := 10
+        itemsPerRoutine := 100
+        done := make(chan bool)
+
+        for i := 0; i < concurrency; i++ {
+                go func() {
+                        for j := 0; j < itemsPerRoutine; j++ {
+                                _ = emitter.EmitNode(&graph.Node{
+                                        ID:    "node",
+                                        Label: "test",
+                                })
+                                _ = emitter.EmitEdge(&graph.Edge{
+                                        SourceID: "node",
+                                        TargetID: "node2",
+                                        Type:     "CALLS",
+                                })
+                        }
+                        done <- true
+                }()
+        }
+
+        for i := 0; i < concurrency; i++ {
+                <-done
+        }
+
+        nodeLines := bytes.Count(nodeBuf.Bytes(), []byte("\n"))
+        expectedNodeLines := concurrency * itemsPerRoutine
+        if nodeLines != expectedNodeLines {
+                t.Errorf("Expected %d node lines, got %d", expectedNodeLines, nodeLines)
+        }
+
+        edgeLines := bytes.Count(edgeBuf.Bytes(), []byte("\n"))
+        expectedEdgeLines := concurrency * itemsPerRoutine
+        if edgeLines != expectedEdgeLines {
+                t.Errorf("Expected %d edge lines, got %d", expectedEdgeLines, edgeLines)
+        }
+}

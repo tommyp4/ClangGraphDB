@@ -35,7 +35,7 @@ func buildCLI(t *testing.T) string {
 	os.MkdirAll(filepath.Join(root, "bin"), 0755)
 
 	cmd := exec.Command("go", "build", "-tags", "test_mocks", "-o", outputPath, cmdPath)
-	output, err := cmd.CombinedOutput()
+	output, err := cmd.Output()
 	if err != nil {
 		t.Fatalf("Failed to build CLI: %v\nOutput: %s", err, output)
 	}
@@ -43,38 +43,45 @@ func buildCLI(t *testing.T) string {
 }
 
 func TestCLI_Ingest(t *testing.T) {
-	cliPath := buildCLI(t)
-	root := getRepoRoot(t)
-	// Clean up binary after test, or keep it? Keeping it is fine, gitignore should ignore bin/
-    // actually, let's remove it in a cleanup function if we want to be clean.
-    // defer os.Remove(cliPath) 
+        cliPath := buildCLI(t)
+        root := getRepoRoot(t)
 
-	outFile := filepath.Join(root, "test_graph_cli.jsonl")
-	defer os.Remove(outFile)
+        nodesFile := filepath.Join(root, "test_nodes.jsonl")
+        edgesFile := filepath.Join(root, "test_edges.jsonl")
+        defer os.Remove(nodesFile)
+        defer os.Remove(edgesFile)
 
-	fixturesPath := filepath.Join(root, "test", "fixtures", "typescript")
+        fixturesPath := filepath.Join(root, "test", "fixtures", "typescript")
 
-	// Run ingest
-	cmd := exec.Command(cliPath, "ingest",
-		"-dir", fixturesPath,
-		"-output", outFile,
-	)
-	cmd.Env = append(os.Environ(), "GRAPHDB_MOCK_ENABLED=true")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Ingest command failed: %v\nOutput: %s", err, output)
-	}
+        // Run ingest
+        cmd := exec.Command(cliPath, "ingest",
+                "-dir", fixturesPath,
+                "-nodes", nodesFile,
+                "-edges", edgesFile,
+        )
+            cmd.Env = append(os.Environ(), "GRAPHDB_MOCK_ENABLED=true")
+            output, err := cmd.CombinedOutput()
+            if err != nil {
+                t.Fatalf("Ingest command failed: %v\nOutput: %s", err, output)
+        }
 
-	// Verify output file exists and has content
-	content, err := os.ReadFile(outFile)
-	if err != nil {
-		t.Fatalf("Failed to read output file: %v", err)
-	}
-	if len(content) == 0 {
-		t.Error("Output file is empty")
-	}
+        // Verify output file exists and has content
+        nodeContent, err := os.ReadFile(nodesFile)
+        if err != nil {
+                t.Fatalf("Failed to read nodes file: %v", err)
+        }
+        if len(nodeContent) == 0 {
+                t.Error("Nodes file is empty")
+        }
+
+        edgeContent, err := os.ReadFile(edgesFile)
+        if err != nil {
+                t.Fatalf("Failed to read edges file: %v", err)
+        }
+        if len(edgeContent) == 0 {
+                t.Error("Edges file is empty")
+        }
 }
-
 func TestCLI_Query_Help(t *testing.T) {
 	cliPath := buildCLI(t)
 
@@ -96,12 +103,13 @@ func TestCLI_Query_Seams(t *testing.T) {
 		t.Skip("Skipping query test: NEO4J_URI not set")
 	}
 
-	cliPath := buildCLI(t)
-
-	// Run query
-	cmd := exec.Command(cliPath, "query", "-type", "seams", "-module", ".*")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
+	    cliPath := buildCLI(t)
+	
+	    // Run query
+	    cmd := exec.Command(cliPath, "query", "-type", "seams", "-module", ".*")
+	    cmd.Env = append(os.Environ(), "GRAPHDB_MOCK_ENABLED=true")
+        output, err := cmd.Output()
+        if err != nil {
 		t.Fatalf("Query command failed: %v\nOutput: %s", err, output)
 	}
 
@@ -111,3 +119,5 @@ func TestCLI_Query_Seams(t *testing.T) {
 		t.Errorf("Expected JSON array output, got: %s", outStr)
 	}
 }
+
+

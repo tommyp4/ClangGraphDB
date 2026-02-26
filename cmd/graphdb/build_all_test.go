@@ -38,7 +38,7 @@ func TestHandleBuildAll_ImportsBothGraphs(t *testing.T) {
 	// 3. Assertions
 
 	// Verify Ingest
-	expectedIngest := []string{"-dir", "test_project", "-output", "graph.jsonl"}
+	expectedIngest := []string{"-dir", "test_project", "-nodes", "nodes.jsonl", "-edges", "edges.jsonl"}
 	if !reflect.DeepEqual(ingestCalledWith, expectedIngest) {
 		t.Errorf("Ingest args mismatch.\nGot: %v\nWant: %v", ingestCalledWith, expectedIngest)
 	}
@@ -56,7 +56,7 @@ func TestHandleBuildAll_ImportsBothGraphs(t *testing.T) {
 	}
 
 	// Check Call 1: Structural
-	expectedImport1 := []string{"-input", "graph.jsonl", "-clean"}
+	expectedImport1 := []string{"-nodes", "nodes.jsonl", "-edges", "edges.jsonl", "-clean"}
 	if !reflect.DeepEqual(importCalls[0], expectedImport1) {
 		t.Errorf("First import call mismatch.\nGot: %v\nWant: %v", importCalls[0], expectedImport1)
 	}
@@ -91,7 +91,7 @@ func TestHandleBuildAll_RespectsCleanFlag(t *testing.T) {
 	}
 
 	// Check Call 1: Structural (NO clean flag)
-	expectedImport1 := []string{"-input", "graph.jsonl"}
+	expectedImport1 := []string{"-nodes", "nodes.jsonl", "-edges", "edges.jsonl"}
 	if !reflect.DeepEqual(importCalls[0], expectedImport1) {
 		t.Errorf("First import call mismatch (clean=false).\nGot: %v\nWant: %v", importCalls[0], expectedImport1)
 	}

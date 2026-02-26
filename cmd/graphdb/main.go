@@ -86,16 +86,18 @@ func handleBuildAll(args []string) {
         fs := flag.NewFlagSet("build-all", flag.ExitOnError)
         dirPtr := fs.String("dir", ".", "Directory to process")
         cleanPtr := fs.Bool("clean", true, "Clean DB before import")
+        nodesPtr := fs.String("nodes", "nodes.jsonl", "Intermediate output file for nodes")
+        edgesPtr := fs.String("edges", "edges.jsonl", "Intermediate output file for edges")
         fs.Parse(args)
 
         // 1. Ingest
         fmt.Println("\n[Phase 1/3] Ingesting Codebase...")
-        ingestArgs := []string{"-dir", *dirPtr, "-output", "graph.jsonl"}
+        ingestArgs := []string{"-dir", *dirPtr, "-nodes", *nodesPtr, "-edges", *edgesPtr}
         ingestCmd(ingestArgs)
 
         // 2. Import Structural Graph
         fmt.Println("\n[Phase 2/3] Importing to Neo4j...")
-        importArgs1 := []string{"-input", "graph.jsonl"}
+        importArgs1 := []string{"-nodes", *nodesPtr, "-edges", *edgesPtr}
         if *cleanPtr {
                 importArgs1 = append(importArgs1, "-clean")
         }
@@ -320,14 +322,14 @@ func handleImport(args []string) {
 	batchSizePtr := fs.Int("batch-size", 500, "Batch size for insertion")
 	cleanPtr := fs.Bool("clean", false, "Wipe database before importing")
 
-	fs.Parse(args)
-
-	if *nodesPtr == "" && *edgesPtr == "" && *inputPtr == "" {
-		log.Fatal("Either -input or both -nodes and -edges must be provided")
-	}
-
-	cfg := config.LoadConfig()
-	if cfg.Neo4jURI == "" {
+	    fs.Parse(args)
+	
+	    if *inputPtr == "" && (*nodesPtr == "" || *edgesPtr == "") {
+	            log.Fatal("Either -input or both -nodes and -edges must be provided")
+	    }
+	
+	        cfg := config.LoadConfig()
+	        if cfg.Neo4jURI == "" {
 		log.Fatal("NEO4J_URI environment variable is not set")
 	}
 
@@ -548,25 +550,24 @@ func handleQuery(args []string) {
 
 	fs.Parse(args)
 
-	cfg := config.LoadConfig()
-	model := *modelPtr
-	if model == "" {
-		model = cfg.GeminiEmbeddingModel
-	}
-	if model == "" {
-		model = "gemini-embedding-001"
-	}
-
-	if cfg.Neo4jURI == "" {
-		log.Fatal("NEO4J_URI environment variable is not set")
-	}
-
-	provider, err := query.NewNeo4jProvider(cfg)
-	if err != nil {
-		log.Fatalf("Failed to connect to Neo4j: %v", err)
-	}
-	defer provider.Close()
-
+	    cfg := config.LoadConfig()
+	    model := *modelPtr
+	    if model == "" {
+	            model = cfg.GeminiEmbeddingModel
+	    }
+	    if model == "" {
+	            model = "gemini-embedding-001"
+	    }
+	
+	    if cfg.Neo4jURI == "" {
+	            log.Fatal("NEO4J_URI environment variable is not set")
+	    }
+	
+	    provider, err := setupProvider(cfg)
+	    if err != nil {
+	            log.Fatalf("Failed to connect to Neo4j: %v", err)
+	    }
+	    defer provider.Close()
 	var result any
 
 	switch *typePtr {

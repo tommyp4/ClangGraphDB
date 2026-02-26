@@ -25,12 +25,12 @@ func NewJSONLEmitter(w io.Writer) *JSONLEmitter {
 
 // SplitJSONLEmitter implements Emitter for writing nodes and edges to separate files.
 type SplitJSONLEmitter struct {
-	nodeEncoder *json.Encoder
-	edgeEncoder *json.Encoder
-	nodeCloser  io.Closer
-	edgeCloser  io.Closer
+        nodeEncoder *json.Encoder
+        edgeEncoder *json.Encoder
+        nodeCloser  io.Closer
+        edgeCloser  io.Closer
+        mu          sync.Mutex
 }
-
 // NewSplitJSONLEmitter creates a new SplitJSONLEmitter.
 func NewSplitJSONLEmitter(nodeW, edgeW io.Writer) *SplitJSONLEmitter {
 	s := &SplitJSONLEmitter{
@@ -47,10 +47,12 @@ func NewSplitJSONLEmitter(nodeW, edgeW io.Writer) *SplitJSONLEmitter {
 }
 
 func (e *SplitJSONLEmitter) EmitNode(node *graph.Node) error {
-	out := make(map[string]interface{})
-	if node.Properties != nil {
-		for k, v := range node.Properties {
-			out[k] = v
+        e.mu.Lock()
+        defer e.mu.Unlock()
+
+        out := make(map[string]interface{})
+        if node.Properties != nil {
+                for k, v := range node.Properties {			out[k] = v
 		}
 	}
 	out["id"] = node.ID
@@ -59,10 +61,12 @@ func (e *SplitJSONLEmitter) EmitNode(node *graph.Node) error {
 }
 
 func (e *SplitJSONLEmitter) EmitEdge(edge *graph.Edge) error {
-	out := map[string]string{
-		"source": edge.SourceID,
-		"target": edge.TargetID,
-		"type":   edge.Type,
+        e.mu.Lock()
+        defer e.mu.Unlock()
+
+        out := map[string]string{
+                "source": edge.SourceID,
+                "target": edge.TargetID,		"type":   edge.Type,
 	}
 	return e.edgeEncoder.Encode(out)
 }

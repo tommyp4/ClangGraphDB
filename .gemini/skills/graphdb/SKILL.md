@@ -51,16 +51,16 @@ If you need granular control over each step, follow this sequence:
 3. **Decision:** If the commit hashes match, you can **skip** the ingestion pipeline and proceed directly to "Analysis & Querying".
 
 **Step 1: Ingest (Parse & Generate Graph):**
-Scans code and generates a structural graph JSONL file.
+Scans code and generates structural graph JSONL files. We output nodes and edges separately to avoid double-parsing penalties during the import phase.
 ```bash
-${graphdb_bin} ingest -dir . -output graph.jsonl
+${graphdb_bin} ingest -dir . -nodes nodes.jsonl -edges edges.jsonl
 ```
 *   *Options:* `-workers` (concurrency), `-file-list` (specific files).
 
 **Step 2: Import (Load Structural Graph to Neo4j):**
-Loads the structural graph into the active Neo4j database. This must be done **before** enrichment in the new streaming pipeline.
+Loads the structural graph into the active Neo4j database. This must be done **before** enrichment in the new streaming pipeline. Using separate nodes and edges files prevents a massive CPU penalty from scanning a combined file multiple times.
 ```bash
-${graphdb_bin} import -input graph.jsonl -clean
+${graphdb_bin} import -nodes nodes.jsonl -edges edges.jsonl -clean
 ```
 *   *Options:* `-clean` (wipe DB first), `-batch-size`.
 
