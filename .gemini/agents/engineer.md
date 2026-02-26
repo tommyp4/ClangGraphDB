@@ -9,7 +9,7 @@ tools:
   - replace
   - list_directory
   - glob
-model: gemini-3-pro-preview
+model: gemini-3-flash-preview
 max_turns: 60
 timeout_mins: 30
 ---

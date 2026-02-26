@@ -8,7 +8,7 @@ tools:
   - write_file
   - list_directory
   - glob
-model: gemini-3-pro-preview
+model: gemini-3.1-pro-preview
 max_turns: 20
 timeout_mins: 30
 ---

@@ -10,7 +10,7 @@ tools:
   - glob
   - search_file_content
   - activate_skill
-model: gemini-3-pro-preview
+model: gemini-3.1-pro-preview
 max_turns: 30
 timeout_mins: 10
 ---
