@@ -21,7 +21,7 @@
 **Goal:** Implement the "Read" side of the platform in Go, mirroring the "Write" side (Ingestor). This enables the Go binary to answer queries directly, preparing for the Spanner migration.
 **Status:** Completed
 **Key Deliverables:**
-- [x] `GraphProvider` Interface (FindNode, Traverse, SearchFeatures).
+- [x] `GraphProvider` Interface (Traverse, SearchFeatures). *(Note: `FindNode` was designed but never used -- removed in Campaign 7.)*
 - [x] `Neo4jProvider` implementation (connects to local Neo4j).
 - [x] **Full Query Parity:** Port all critical query types: `hybrid-context`, `test-context`, `impact`, `globals`, `suggest-seams`.
 - [x] Cypher Query Builder/Manager in Go.
@@ -196,7 +196,71 @@
 - [x] **Resumable Summarization:** Refactor LLM summarization to operate in database-backed chunks.
 - [x] **Plan:** Ref: `plans/07_CAMPAIGN_7_STREAMING_PIPELINE.md`.
 
-### Campaign 7: The Spanner Backend (Storage Swap)
+---
+
+## 🔍 Code Review & Legacy Modernization Readiness
+
+**Context:** A comprehensive code review (`plans/08_LEGACY_MODERNIZATION_REVIEW.md`) evaluated the tool's fitness for legacy code modernization using the Strangler Fig pattern and Feathers' *Working Effectively with Legacy Code*. The following campaigns address the findings. Detailed implementation specs are in `plans/09_CAMPAIGNS_7-11_PLAN.md`.
+
+### Campaign 7: Code Hygiene & CLI Decomposition
+**Goal:** Remove dead interface surface area and decompose the monolithic `main.go` (713 lines) into per-command files. Includes Priority 2 quality fixes (deterministic K-Means, batch topology updates, Cypher sanitization, filter fix).
+**Status:** Pending
+**Plan:** Ref: `plans/09_CAMPAIGNS_7-11_PLAN.md` Items 1, 2, 7.
+**Key Deliverables:**
+- [ ] **Dead Code Removal:** Remove unimplemented `FindNode` from `GraphProvider` interface and all mocks (zero callers).
+- [ ] **CLI Decomposition:** Extract `handleIngest`, `handleQuery`, `handleImport`, `handleEnrichFeatures`, `handleBuildAll` into separate files (`cmd_ingest.go`, `cmd_query.go`, etc.). Run `gofmt` to normalize inconsistent indentation.
+- [ ] **Deterministic K-Means:** Add `--seed` flag to `enrich-features` for reproducible graph builds.
+- [ ] **Batch Topology Updates:** Replace per-node Cypher in `UpdateFeatureTopology` with UNWIND-based batching.
+- [ ] **Filter Fix:** Correct `GetUnextractedFunctions` predicate (`n.content IS NOT NULL` -> `n.file IS NOT NULL`).
+- [ ] **Cypher Sanitization:** Expand `sanitizeLabel()` to strip all non-alphanumeric/underscore characters.
+
+### Campaign 8: Seam Detection & Contamination Propagation (Feathers Parity)
+**Goal:** Restore and extend seam identification, which is currently non-functional. The `GetSeams()` query exists but depends on `ui_contaminated` and `risk_score` properties that are never set -- the Node.js scripts (`propagate_contamination.js`, `analyze_git_history.js`) that populated them were not ported during the Go migration. This campaign implements multi-layer contamination propagation and risk scoring directly in the Go binary.
+**Status:** Pending
+**Plan:** Ref: `plans/09_CAMPAIGNS_7-11_PLAN.md` Item 3.
+**Key Deliverables:**
+- [ ] **New CLI Command:** `graphdb enrich-contamination -dir <path> [--rules <rules.json>]`.
+- [ ] **Multi-Layer Contamination:** Seed and propagate `ui_contaminated`, `db_contaminated`, `io_contaminated` flags via BFS over the CALLS graph.
+- [ ] **Default Heuristic Rules:** Built-in detection for UI (Controller/View/Form patterns, MFC/WinForms APIs), Database (SQL keywords, ORM patterns), External I/O (HttpClient, Socket, file system APIs).
+- [ ] **Risk Scoring:** Calculate `risk_score` from fan-in, fan-out, and contamination layer count.
+- [ ] **Broadened `GetSeams()`:** Accept `-layer` flag (ui, db, io, all) to find seams at any contamination boundary, not just UI.
+
+### Campaign 9: Git History Restoration & Incremental Ingestion
+**Goal:** Restore git history analysis (lost during Node.js migration) and add incremental ingestion so large codebases don't require full rebuilds. The v1 pipeline had `analyze_git_history.js` and a `hotspots` query type -- neither was ported to Go.
+**Status:** Pending
+**Plan:** Ref: `plans/09_CAMPAIGNS_7-11_PLAN.md` Item 4.
+**Key Deliverables:**
+- [ ] **New CLI Command:** `graphdb enrich-history -dir <path> [-since <date>]`.
+- [ ] **Git Metrics:** Populate `change_frequency`, `last_changed`, `co_changes` on File nodes via `git log` analysis.
+- [ ] **Restore `hotspots` Query:** Combine `risk_score` + `change_frequency` to surface high-risk code.
+- [ ] **Incremental Ingestion:** `graphdb ingest -dir . --since-commit <hash>` -- writes directly to Neo4j via new `Neo4jEmitter` (no intermediate JSONL files). Auto-detects baseline from `GraphState.commit` if `--since-commit` is omitted.
+- [ ] **Co-Change Detection:** Identify files that frequently change together (pairwise commit analysis).
+
+### Campaign 10: Test Coverage Integration (Feathers Characterization Tests)
+**Goal:** Enable agents to understand which functions have tests and which don't -- critical for Feathers' "characterization test" workflow during legacy modernization.
+**Status:** Pending
+**Plan:** Ref: `plans/09_CAMPAIGNS_7-11_PLAN.md` Item 5.
+**Key Deliverables:**
+- [ ] **Test File Detection:** Identify test files by convention (`*_test.go`, `*Test.java`, `*Tests.cs`, `*.test.ts`, `*.spec.ts`) and tag Function nodes with `is_test: true`.
+- [ ] **Test-to-Production Linkage:** Create `TESTS` edges from test functions to production functions via naming conventions and import analysis.
+- [ ] **Coverage Query:** New `graphdb query -type coverage -target <function>` to check test status.
+
+### Campaign 11: What-If Extraction Analysis (Strangler Fig Planning)
+**Goal:** Enable agents to simulate Strangler Fig extractions before executing them. Answer "If I extract these classes to a new service, what breaks?" without modifying the graph.
+**Status:** Pending
+**Plan:** Ref: `plans/09_CAMPAIGNS_7-11_PLAN.md` Item 6.
+**Key Deliverables:**
+- [ ] **What-If Query:** `graphdb query -type what-if -target "Namespace.Class" [-target2 "Namespace.Class2"]`.
+- [ ] **Severed Edge Analysis:** Identify all incoming edges that would break.
+- [ ] **Orphan Detection:** Find nodes that become unreachable from non-extracted code.
+- [ ] **Cross-Boundary Calls:** Surface calls from remaining code into extracted code (these need an API/interface).
+- [ ] **Shared State Detection:** Flag globals used by both extracted and remaining code.
+
+---
+
+## 🏗️ Platform Infrastructure (Deferred)
+
+### Campaign 12: The Spanner Backend (Storage Swap)
 **Goal:** Establish the multi-tenant, immutable storage layer using Google Spanner Graph by swapping the storage implementation.
 **Status:** Pending
 **Key Deliverables:**
@@ -206,7 +270,7 @@
 - [ ] Bulk Loader (JSONL -> Spanner).
 - [ ] Multi-tenancy implementation (Schema Interleaving).
 
-### Campaign 8: Cross-Platform Distribution (The Release)
+### Campaign 13: Cross-Platform Distribution (The Release)
 **Goal:** Ship a single, zero-dependency binary for all major OSs.
 **Status:** Pending
 **Key Deliverables:**
@@ -214,8 +278,8 @@
 - [ ] GitHub Actions release workflow.
 - [ ] Automated integration tests.
 
-### Campaign 9: The MCP Server (The Interface)
-**Goal:** Expose the platform to Agents via the Model Context Protocol (MCP), enabling "Dual-View" reasoning. **(Scheduled Last)**
+### Campaign 14: The MCP Server (The Interface)
+**Goal:** Expose the platform to Agents via the Model Context Protocol (MCP), enabling "Dual-View" reasoning.
 **Status:** Pending
 **Key Deliverables:**
 - [ ] MCP Protocol implementation (Stdio transport).
