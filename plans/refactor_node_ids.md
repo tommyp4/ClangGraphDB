@@ -5,7 +5,7 @@
 - [x] Update C# Parser to new ID standard and add `fqn` property.
 - [x] Update Java Parser to new ID standard and add `fqn` property.
 - [x] Update TypeScript Parser to new ID standard and add `fqn` property.
-- [ ] Update C++ Parser to new ID standard and add `fqn` property.
+- [x] Update C++ Parser to new ID standard and add `fqn` property.
 - [x] Update SQL Parser to new ID standard and add `fqn` property.
 - [x] Refactor Neo4j Loader (`buildEdgeQuery`) to match edges on `id OR fqn`.
 - [x] Refactor Query Engine (`neo4j.go`) to support querying by `fqn`.
@@ -128,8 +128,8 @@ The `SKILL.md` file must be synchronized with the new architectural standards to
 - Execute a full, dry-run ingestion (`make build && ./bin/graphdb build-all -dir .`) and inspect the generated `nodes.jsonl` output for duplicate `id`s using bash `jq` or `awk`. Verify no `ConstraintValidationFailed` errors occur.
 
 ## 🎯 Success Criteria
-- [ ] Nodes are written to `nodes.jsonl` with mathematically unique IDs across all labels and overloads.
-- [ ] `BatchLoadNodes` completes successfully without Neo4j throwing constraint errors.
-- [ ] All code elements possess a populated `fqn` property.
-- [ ] Edges are correctly established between dependencies even if only the `FQN` is known at the call site.
-- [ ] Agents can successfully execute graph structural queries (neighbors, impact, callers) using `FQN` inputs.
+- [x] Nodes are written to `nodes.jsonl` with mathematically unique IDs across all labels and overloads.
+- [x] `BatchLoadNodes` completes successfully without Neo4j throwing constraint errors.
+- [x] All code elements possess a populated `fqn` property.
+- [x] Edges are correctly established between dependencies even if only the `FQN` is known at the call site.
+- [x] Agents can successfully execute graph structural queries (neighbors, impact, callers) using `FQN` inputs.
