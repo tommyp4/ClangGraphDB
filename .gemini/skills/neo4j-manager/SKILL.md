@@ -1,6 +1,6 @@
 ---
 name: neo4j-manager
-description: Utilities for managing Neo4j Community Edition databases. Allows listing databases and switching the active database (Stop/Start flow).
+description: Utilities for managing Neo4j Community Edition databases. Allows listing databases, switching the active database (Stop/Start flow), and starting the local container.
 ---
 
 # Neo4j Manager Skill
@@ -23,6 +23,14 @@ Switches the active database.
     4.  **Creates** the target database if it doesn't exist.
 
 *   **Command:** `node .gemini/skills/neo4j-manager/scripts/switch_database.js <database_name>`
+
+### 3. Start Neo4j Container
+Bootstraps and starts a local Neo4j instance using Podman. The container (`neo4j-graphdb`) must be running before you can use the database management commands above.
+
+*   **Command:** `bash .gemini/skills/neo4j-manager/scripts/start_neo4j_container.sh`
+*   **Arguments/Usage:** Takes no arguments.
+*   **Prerequisites:** Requires `podman` to be installed and available in the environment.
+*   **Environment:** Starts a Neo4j 5.26.0 container with APOC plugins on ports 7474 (HTTP) and 7687 (Bolt). Credentials are set to `neo4j` / `password`. Data is persisted locally in `.gemini/graph_data/neo4j`.
 
 ## Setup
 
