@@ -27,8 +27,8 @@ func TestBuildEdgeQuery(t *testing.T) {
 	if !strings.Contains(query, "MATCH (source:CodeElement {id: row.sourceId})") {
 		t.Error("Missing MATCH source with :CodeElement label")
 	}
-	if !strings.Contains(query, "MATCH (target:CodeElement {id: row.targetId})") {
-		t.Error("Missing MATCH target with :CodeElement label")
+	if !strings.Contains(query, "MATCH (target:CodeElement) WHERE target.id = row.targetId OR target.fqn = row.targetId") {
+		t.Error("Missing MATCH target with :CodeElement label and polymorphic matching")
 	}
 	if !strings.Contains(query, "MERGE (source)-[r:CALLS]->(target)") {
 		t.Error("Missing MERGE clause with correct type")

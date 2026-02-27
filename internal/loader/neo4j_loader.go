@@ -340,7 +340,7 @@ func buildEdgeQuery(relType string) string {
 	return fmt.Sprintf(`
 			UNWIND $batch AS row
 			MATCH (source:CodeElement {id: row.sourceId})
-			MATCH (target:CodeElement {id: row.targetId})
+			MATCH (target:CodeElement) WHERE target.id = row.targetId OR target.fqn = row.targetId
 			MERGE (source)-[r:%s]->(target)
 		`, sanitizeLabel(relType))
 }
@@ -367,6 +367,7 @@ func (l *Neo4jLoader) getConstraints() []string {
 		"CREATE CONSTRAINT IF NOT EXISTS FOR (n:Function) REQUIRE n.id IS UNIQUE",
 		"CREATE CONSTRAINT IF NOT EXISTS FOR (n:Class) REQUIRE n.id IS UNIQUE",
 		"CREATE CONSTRAINT IF NOT EXISTS FOR (n:CodeElement) REQUIRE n.id IS UNIQUE",
+		"CREATE INDEX IF NOT EXISTS FOR (n:CodeElement) ON (n.fqn)",
 		"CREATE INDEX IF NOT EXISTS FOR (n:Function) ON (n.name)",
 		"CREATE INDEX IF NOT EXISTS FOR (n:File) ON (n.file)",
 		// Vector Indexes (restored from Node.js implementation)

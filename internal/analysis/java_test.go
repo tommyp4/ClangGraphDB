@@ -94,20 +94,78 @@ func TestParseJava(t *testing.T) {
 
     for _, e := range edges {
         if e.Type == "CALLS" {
-            // Check TargetID contains "Worker:doWork" (ignoring full package prefix issues for now, just substring)
-            if strings.Contains(e.TargetID, "Worker:doWork") {
+            // Check TargetID contains "Worker.doWork" (ignoring full package prefix issues for now, just substring)
+            if strings.Contains(e.TargetID, "Worker.doWork") {
                 foundWorkerCall = true
             }
-            if strings.Contains(e.TargetID, "java.util.List:size") {
+            if strings.Contains(e.TargetID, "java.util.List.size") {
                 foundListCall = true
             }
         }
     }
 
     if !foundWorkerCall {
-        t.Errorf("Expected CALLS edge to Worker:doWork not found")
+        t.Errorf("Expected CALLS edge to Worker.doWork not found")
     }
     if !foundListCall {
-        t.Errorf("Expected CALLS edge to java.util.List:size not found")
+        t.Errorf("Expected CALLS edge to java.util.List.size not found")
     }
+}
+
+func TestJavaIDCollision(t *testing.T) {
+	parser, ok := analysis.GetParser(".java")
+	if !ok {
+		t.Skip("Java parser not registered (yet)")
+	}
+
+	absPath, err := filepath.Abs("../../test/fixtures/java/IDCollisionTest.java")
+	if err != nil {
+		t.Fatalf("Failed to get absolute path: %v", err)
+	}
+
+	content, err := os.ReadFile(absPath)
+	if err != nil {
+		t.Fatalf("Failed to read fixture: %v", err)
+	}
+
+	nodes, _, err := parser.Parse(absPath, content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	// 1. Verify IDs are unique
+	ids := make(map[string]bool)
+	for _, n := range nodes {
+		if ids[n.ID] {
+			t.Errorf("Duplicate ID found: %s", n.ID)
+		}
+		ids[n.ID] = true
+	}
+
+	// 2. Verify fqn property exists and is correct
+	for _, n := range nodes {
+		fqn, ok := n.Properties["fqn"].(string)
+		if !ok || fqn == "" {
+			t.Errorf("Node %s missing fqn property", n.ID)
+		}
+		if strings.Contains(fqn, "IDCollisionTest.java") {
+			t.Errorf("FQN should not contain file path: %s", fqn)
+		}
+	}
+
+	// 3. Verify specific node IDs
+	expectedIDs := []string{
+		"Class:com.example.CollisionTest:",
+		"Field:com.example.CollisionTest.process:",
+		"Constructor:com.example.CollisionTest.CollisionTest:()",
+		"Constructor:com.example.CollisionTest.CollisionTest:(int)",
+		"Function:com.example.CollisionTest.process:()",
+		"Function:com.example.CollisionTest.process:(int,String)",
+	}
+
+	for _, expectedID := range expectedIDs {
+		if !ids[expectedID] {
+			t.Errorf("Expected ID not found: %s", expectedID)
+		}
+	}
 }

@@ -1,6 +1,7 @@
 package analysis_test
 
 import (
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -44,46 +45,55 @@ $$ LANGUAGE plpgsql;
 	foundCalculateTotal := false
 	foundProcessOrder := false
 
-	for _, n := range nodes {
-		name, _ := n.Properties["name"].(string)
-		if name == "CalculateTotal" && n.Label == "Function" {
-			foundCalculateTotal = true
-			if _, ok := n.Properties["end_line"]; !ok {
-				t.Errorf("Function 'CalculateTotal' missing end_line")
+			for _, n := range nodes {
+				name, _ := n.Properties["name"].(string)
+				fqn, fqnOk := n.Properties["fqn"].(string)
+				expectedFQN := fmt.Sprintf("%s:%s", absPath, name)
+				
+				if !fqnOk || fqn != expectedFQN {
+					t.Errorf("Expected fqn %s, got %v", expectedFQN, n.Properties["fqn"])
+				}
+	
+				if name == "CalculateTotal" && n.Label == "Function" {
+					foundCalculateTotal = true
+					if _, ok := n.Properties["end_line"]; !ok {
+						t.Errorf("Function 'CalculateTotal' missing end_line")
+					}
+					if _, ok := n.Properties["content"]; ok {
+						t.Errorf("Function 'CalculateTotal' should not have content")
+					}
+				}
+				if name == "ProcessOrder" && n.Label == "Function" { // Procedure treated as Function
+					foundProcessOrder = true
+					if _, ok := n.Properties["end_line"]; !ok {
+						t.Errorf("Function 'ProcessOrder' missing end_line")
+					}
+					if _, ok := n.Properties["content"]; ok {
+						t.Errorf("Function 'ProcessOrder' should not have content")
+					}
+				}
 			}
-			if _, ok := n.Properties["content"]; ok {
-				t.Errorf("Function 'CalculateTotal' should not have content")
+	
+			if !foundCalculateTotal {
+				t.Errorf("Expected Function 'CalculateTotal' not found")
 			}
-		}
-		if name == "ProcessOrder" && n.Label == "Function" { // Procedure treated as Function
-			foundProcessOrder = true
-			if _, ok := n.Properties["end_line"]; !ok {
-				t.Errorf("Function 'ProcessOrder' missing end_line")
+			if !foundProcessOrder {
+				t.Errorf("Expected Function/Procedure 'ProcessOrder' not found")
 			}
-			if _, ok := n.Properties["content"]; ok {
-				t.Errorf("Function 'ProcessOrder' should not have content")
+	
+			// Helper to find edge
+			hasEdge := func(srcName, tgtName string) bool {
+				srcFQN := fmt.Sprintf("%s:%s", absPath, srcName)
+				srcID := analysis.GenerateNodeID("Function", srcFQN, "")
+				tgtFQN := fmt.Sprintf("%s:%s", absPath, tgtName)
+	
+				for _, e := range edges {
+					if e.SourceID == srcID && e.TargetID == tgtFQN {
+						return true
+					}
+				}
+				return false
 			}
-		}
-	}
-
-	if !foundCalculateTotal {
-		t.Errorf("Expected Function 'CalculateTotal' not found")
-	}
-	if !foundProcessOrder {
-		t.Errorf("Expected Function/Procedure 'ProcessOrder' not found")
-	}
-
-	// Helper to find edge
-	hasEdge := func(srcName, tgtName string) bool {
-		for _, e := range edges {
-			// IDs are now FQN (or just name), no path prefix
-			if e.SourceID == srcName && e.TargetID == tgtName {
-				return true
-			}
-		}
-		return false
-	}
-
 	if !hasEdge("ProcessOrder", "CalculateTotal") {
         // Debug
         t.Log("Edges found:")

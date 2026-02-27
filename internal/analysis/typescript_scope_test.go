@@ -28,7 +28,7 @@ func TestParseTypeScript_Scope(t *testing.T) {
 	}
 
 	foundCall := false
-    expectedSource := "test.ts:MyClass.methodA"
+    expectedSource := "Function:test.ts:MyClass.methodA:"
     expectedTarget := "test.ts:MyClass.methodB"
 
 	for _, e := range edges {

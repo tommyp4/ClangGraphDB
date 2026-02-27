@@ -31,28 +31,29 @@ func TestParseTypeScript(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	// Helper to find edge
-	hasEdge := func(srcName, tgtName string) bool {
-		for _, e := range edges {
-			if strings.HasSuffix(e.SourceID, ":"+srcName) && strings.HasSuffix(e.TargetID, ":"+tgtName) {
-				return true
-			}
-		}
-		return false
-	}
+	        // Helper to find edge
+	        hasEdge := func(srcName, tgtName string) bool {
+	                for _, e := range edges {
+	                        srcMatch := strings.HasSuffix(e.SourceID, ":"+srcName+":") || strings.HasSuffix(e.SourceID, ":"+srcName)
+	                        tgtMatch := strings.HasSuffix(e.TargetID, ":"+tgtName+":") || strings.HasSuffix(e.TargetID, ":"+tgtName)
+	                        if srcMatch && tgtMatch {
+	                                return true
+	                        }
+	                }
+	                return false
+	        }
 	
-	// Helper to find specific edge type
-	hasEdgeType := func(srcName, tgtName, edgeType string) bool {
-		for _, e := range edges {
-			if strings.HasSuffix(e.SourceID, ":"+srcName) && 
-			   strings.HasSuffix(e.TargetID, ":"+tgtName) && 
-			   e.Type == edgeType {
-				return true
-			}
-		}
-		return false
-	}
-
+	        // Helper to find specific edge type
+	        hasEdgeType := func(srcName, tgtName, edgeType string) bool {
+	                for _, e := range edges {
+	                        srcMatch := strings.HasSuffix(e.SourceID, ":"+srcName+":") || strings.HasSuffix(e.SourceID, ":"+srcName)
+	                        tgtMatch := strings.HasSuffix(e.TargetID, ":"+tgtName+":") || strings.HasSuffix(e.TargetID, ":"+tgtName)
+	                        if srcMatch && tgtMatch && e.Type == edgeType {
+	                                return true
+	                        }
+	                }
+	                return false
+	        }
 	// Basic checks
 	foundHello := false
 	foundGreeter := false
@@ -90,16 +91,16 @@ func TestParseTypeScript(t *testing.T) {
 		t.Errorf("Expected Call Edge main -> hello not found")
 	}
 	
-	// 1. Check for Import Resolution
-	foundUserUsage := false
-	for _, e := range edges {
-		if strings.HasSuffix(e.SourceID, ":main") && strings.Contains(e.TargetID, "models/User.ts:User") {
-			foundUserUsage = true
-			break
-		}
-	}
-	if !foundUserUsage {
-		t.Errorf("Expected Call Edge main -> models/User.ts:User not found")
+	        // 1. Check for Import Resolution
+	        foundUserUsage := false
+	        for _, e := range edges {
+	                srcMatch := strings.HasSuffix(e.SourceID, ":main:") || strings.HasSuffix(e.SourceID, ":main")
+	                if srcMatch && strings.Contains(e.TargetID, "models/User.ts:User") {
+	                        foundUserUsage = true
+	                        break
+	                }
+	        }
+	        if !foundUserUsage {		t.Errorf("Expected Call Edge main -> models/User.ts:User not found")
 	}
 
 	// 2. Check for Extends
@@ -109,7 +110,8 @@ func TestParseTypeScript(t *testing.T) {
         // But let's be strict:
         foundExtends := false
         for _, e := range edges {
-            if strings.HasSuffix(e.SourceID, ":SuperUser") && 
+            srcMatch := strings.HasSuffix(e.SourceID, ":SuperUser:") || strings.HasSuffix(e.SourceID, ":SuperUser")
+            if srcMatch && 
                strings.Contains(e.TargetID, "models/User.ts:User") && 
                e.Type == "EXTENDS" {
                 foundExtends = true
@@ -190,15 +192,14 @@ export class Order {
 
 	// Expected specific IDs (Qualified with class)
 	// TypeScript convention: Class.Method
-	expectedIDs := []string{
-		absPath + ":User",
-		absPath + ":User.constructor",
-		absPath + ":User.save",
-		absPath + ":Order",
-		absPath + ":Order.constructor",
-		absPath + ":Order.save",
-	}
-
+	        expectedIDs := []string{
+	                "Class:" + absPath + ":User:",
+	                "Function:" + absPath + ":User.constructor:",
+	                "Function:" + absPath + ":User.save:",
+	                "Class:" + absPath + ":Order:",
+	                "Function:" + absPath + ":Order.constructor:",
+	                "Function:" + absPath + ":Order.save:",
+	        }
 	for _, expected := range expectedIDs {
 		if _, exists := ids[expected]; !exists {
 			t.Errorf("Expected ID not found: %s", expected)

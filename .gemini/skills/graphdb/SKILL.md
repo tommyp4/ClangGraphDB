@@ -87,13 +87,13 @@ ${graphdb_bin} query -type <type> -target "<search_term>" [options]
 ```
 
 #### Supported Languages & FQN Formats
-Structural queries require function names in their fully qualified format:
+Structural queries utilize "Fully Qualified Names" (FQN). While the internal database IDs are more complex (including labels and signatures), the query engine is polymorphic and accepts simple FQNs or exact IDs.
 
-*   **C# / .NET / VB.NET:** `Namespace.Class.Method`
-*   **C / C++:** `Namespace::Class::Method` (or `Class::Method`)
-*   **Java:** `Package.Class.Method`
+*   **C# / .NET / VB.NET:** `Namespace.Class.Method` (No file path)
+*   **Java:** `Package.Class.Method` (No file path)
+*   **C / C++:** `FilePath:Namespace::Class::Method` (or `FilePath:Class::Method`)
 *   **TypeScript:** `FilePath:Class.Method` or `FilePath:Function` (e.g., `src/app.ts:MyClass.myMethod`)
-*   **SQL:** `Schema.ObjectName` or `ObjectName` (no file path)
+*   **SQL:** `FilePath:Schema.ObjectName` or `FilePath:ObjectName`
 
 #### Query Types Reference
 
@@ -114,7 +114,8 @@ Structural queries require function names in their fully qualified format:
 
 ## Operational Guidelines
 *   **Output Parsing:** The tool returns JSON. Parse it and present a concise summary (bullet points, mermaid diagrams, or tables).
-*   **Exact Names:** Structural queries (`neighbors`, `impact`) require exact function names in their fully qualified format (e.g., `Namespace.Class.Method`, `src/app.ts:Class.Method`). 
-    *   **CRITICAL RULE:** If you only have a partial or unqualified name from the user, **DO NOT use `grep` or text search** to find the fully qualified name. Instead, you MUST use `search-similar` (semantic search) first to locate the exact node `ID`/`Name` before running structural queries.
+*   **Exact Names:** Structural queries (`neighbors`, `impact`) are **polymorphic**. You can provide the Node `ID` (e.g., `Function:Namespace.Class.Method:()`), the `fqn` (e.g., `Namespace.Class.Method`), or the simple `name` (e.g., `Method`).
+    *   **Recommendation:** Use the `fqn` for the most robust results across overloads and distinct modules.
+    *   **CRITICAL RULE:** If you only have a partial name or an ambiguous symbol from the user, **DO NOT use `grep` or text search** to find the fully qualified name. Instead, you MUST use `search-similar` (semantic search) first to locate the exact node `ID` or `fqn` before running structural queries.
 *   **Context:** Always mention the source file and line number when discussing a function.
 *   **Missing Data:** If a query returns empty, verify the spelling of the function/module name or try a semantic search.

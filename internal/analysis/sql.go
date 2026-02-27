@@ -67,14 +67,17 @@ func (p *SqlParser) Parse(filePath string, content []byte) ([]*graph.Node, []*gr
 				continue
 			}
 			
-			// Use FQN (schema.name) as ID. No file path.
-			id := nodeName
+			// Build fqn = FilePath:Schema.Name
+			fqn := fmt.Sprintf("%s:%s", filePath, nodeName)
+
+			id := GenerateNodeID("Function", fqn, "")
 
 			n := &graph.Node{
 				ID:    id,
 				Label: "Function",
 				Properties: map[string]interface{}{
 					"name": nodeName,
+					"fqn":  fqn,
 					"file": filePath,
 					"line": c.Node.StartPoint().Row + 1,
 					"end_line": c.Node.EndPoint().Row + 1,
@@ -130,9 +133,13 @@ func (p *SqlParser) Parse(filePath string, content []byte) ([]*graph.Node, []*gr
 		if targetName != "" && callNode != nil {
 			sourceFunc := findEnclosingSqlFunction(callNode, content)
 			if sourceFunc != "" {
+				sourceFQN := fmt.Sprintf("%s:%s", filePath, sourceFunc)
+				sourceID := GenerateNodeID("Function", sourceFQN, "")
+				targetFQN := fmt.Sprintf("%s:%s", filePath, targetName)
+
 				edges = append(edges, &graph.Edge{
-					SourceID: sourceFunc,
-					TargetID: targetName,
+					SourceID: sourceID,
+					TargetID: targetFQN,
 					Type:     "CALLS",
 				})
 			}

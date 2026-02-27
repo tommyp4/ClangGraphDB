@@ -36,22 +36,30 @@ $$ LANGUAGE plpgsql;
 		ids[n.ID] = true
 	}
 
-	if !ids["sales.calculate_tax"] {
-		t.Errorf("Expected Function ID sales.calculate_tax not found. Found: %+v", ids)
+	expectedID1 := analysis.GenerateNodeID("Function", "dummy.sql:sales.calculate_tax", "")
+	expectedID2 := analysis.GenerateNodeID("Function", "dummy.sql:finance.process_invoice", "")
+
+	if !ids[expectedID1] {
+		t.Errorf("Expected Function ID %s not found. Found: %+v", expectedID1, ids)
 	}
 
-	if !ids["finance.process_invoice"] {
-		t.Errorf("Expected Function ID finance.process_invoice not found. Found: %+v", ids)
+	if !ids[expectedID2] {
+		t.Errorf("Expected Function ID %s not found. Found: %+v", expectedID2, ids)
 	}
 	
 	foundCall := false
+	expectedTargetFQN := "dummy.sql:sales.calculate_tax"
 	for _, e := range edges {
-		if e.SourceID == "finance.process_invoice" && e.TargetID == "sales.calculate_tax" {
+		if e.SourceID == expectedID2 && e.TargetID == expectedTargetFQN {
 			foundCall = true
 			break
 		}
 	}
 	if !foundCall {
-		t.Errorf("Expected Call Edge finance.process_invoice -> sales.calculate_tax not found")
+        t.Logf("Actual edges:")
+        for _, e := range edges {
+            t.Logf("  %s -> %s (%s)", e.SourceID, e.TargetID, e.Type)
+        }
+		t.Errorf("Expected Call Edge %s -> %s not found", expectedID2, expectedTargetFQN)
 	}
 }

@@ -226,18 +226,21 @@ func (p *TypeScriptParser) Parse(filePath string, content []byte) ([]*graph.Node
                 }
                 enclosingClass := findEnclosingTSClass(searchNode, content)
                 
-                var fullID string
+                var fqn string
                 if enclosingClass != "" {
-                    fullID = fmt.Sprintf("%s:%s.%s", filePath, enclosingClass, nodeContent)
+                    fqn = fmt.Sprintf("%s:%s.%s", filePath, enclosingClass, nodeContent)
                 } else {
-                    fullID = fmt.Sprintf("%s:%s", filePath, nodeContent)
+                    fqn = fmt.Sprintf("%s:%s", filePath, nodeContent)
                 }
+                
+                fullID := GenerateNodeID(label, fqn, "")
                 
                 n := &graph.Node{
                     ID:    fullID,
                     Label: label,
                     Properties: map[string]interface{}{
                         "name": nodeContent,
+                        "fqn":  fqn,
                         "file": filePath,
                         "line": int(c.Node.StartPoint().Row + 1),
                         "end_line": int(c.Node.EndPoint().Row + 1),
@@ -250,7 +253,8 @@ func (p *TypeScriptParser) Parse(filePath string, content []byte) ([]*graph.Node
         if fieldName != "" && fieldType != "" {
             parentClass := findEnclosingTSClass(m.Captures[0].Node, content)
             if parentClass != "" {
-                classID := fmt.Sprintf("%s:%s", filePath, parentClass)
+                classFqn := fmt.Sprintf("%s:%s", filePath, parentClass)
+                classID := GenerateNodeID("Class", classFqn, "")
                 
                 // Store in field map for resolution
                 if classFields[parentClass] == nil {
@@ -262,12 +266,14 @@ func (p *TypeScriptParser) Parse(filePath string, content []byte) ([]*graph.Node
                 }
 
                 // Create Field Node
-                fieldID := fmt.Sprintf("%s:%s.%s", filePath, parentClass, fieldName)
+                fieldFqn := fmt.Sprintf("%s:%s.%s", filePath, parentClass, fieldName)
+                fieldID := GenerateNodeID("Field", fieldFqn, "")
                 nodes = append(nodes, &graph.Node{
                     ID:    fieldID,
                     Label: "Field",
                     Properties: map[string]interface{}{
                         "name": fieldName,
+                        "fqn":  fieldFqn,
                         "type": fieldType,
                         "file": filePath,
                         "line": int(fieldNode.StartPoint().Row + 1),
@@ -282,10 +288,10 @@ func (p *TypeScriptParser) Parse(filePath string, content []byte) ([]*graph.Node
                 })
                 
                 for _, tName := range types {
-                    resolved := resolveTargetID(tName, filePath)
+                    resolvedFqn := resolveTargetID(tName, filePath)
                     edges = append(edges, &graph.Edge{
                         SourceID: classID, // Dependency is from Class or Field? Usually Class depends on Type.
-                        TargetID: resolved,
+                        TargetID: resolvedFqn, // Target is resolved FQN
                         Type:     "DEPENDS_ON",
                     })
                 }
@@ -303,7 +309,8 @@ func (p *TypeScriptParser) Parse(filePath string, content []byte) ([]*graph.Node
                          if nameNode != nil && nameNode.Content(content) == "constructor" {
                              parentClass := findEnclosingTSClass(p3, content)
                              if parentClass != "" {
-                                classID := fmt.Sprintf("%s:%s", filePath, parentClass)
+                                classFqn := fmt.Sprintf("%s:%s", filePath, parentClass)
+                                classID := GenerateNodeID("Class", classFqn, "")
                                 
                                 // Store in field map for resolution (DI pattern)
                                 if classFields[parentClass] == nil {
@@ -315,10 +322,10 @@ func (p *TypeScriptParser) Parse(filePath string, content []byte) ([]*graph.Node
                                 }
 
                                 for _, tName := range types {
-                                    resolved := resolveTargetID(tName, filePath)
+                                    resolvedFqn := resolveTargetID(tName, filePath)
                                     edges = append(edges, &graph.Edge{
                                         SourceID: classID,
-                                        TargetID: resolved,
+                                        TargetID: resolvedFqn,
                                         Type:     "DEPENDS_ON",
                                     })
                                 }
@@ -387,12 +394,13 @@ func (p *TypeScriptParser) Parse(filePath string, content []byte) ([]*graph.Node
             }
             enclosingClass := findEnclosingTSClass(searchNode, content)
             
-            var sourceID string
+            var sourceFqn string
             if enclosingClass != "" {
-                sourceID = fmt.Sprintf("%s:%s.%s", filePath, enclosingClass, className)
+                sourceFqn = fmt.Sprintf("%s:%s.%s", filePath, enclosingClass, className)
             } else {
-                sourceID = fmt.Sprintf("%s:%s", filePath, className)
+                sourceFqn = fmt.Sprintf("%s:%s", filePath, className)
             }
+            sourceID := GenerateNodeID("Class", sourceFqn, "")
             
             if extendsTarget != "" {
                 if idx := strings.Index(extendsTarget, "<"); idx != -1 {
@@ -400,10 +408,10 @@ func (p *TypeScriptParser) Parse(filePath string, content []byte) ([]*graph.Node
                 }
                 extendsTarget = strings.TrimSpace(extendsTarget)
 
-                targetID := resolveTargetID(extendsTarget, filePath)
+                targetFqn := resolveTargetID(extendsTarget, filePath)
                 edges = append(edges, &graph.Edge{
                     SourceID: sourceID,
-                    TargetID: targetID,
+                    TargetID: targetFqn,
                     Type:     "EXTENDS",
                 })
             }
@@ -413,10 +421,10 @@ func (p *TypeScriptParser) Parse(filePath string, content []byte) ([]*graph.Node
                     imp = imp[:idx]
                 }
                 imp = strings.TrimSpace(imp)
-                targetID := resolveTargetID(imp, filePath)
+                targetFqn := resolveTargetID(imp, filePath)
                 edges = append(edges, &graph.Edge{
                     SourceID: sourceID,
-                    TargetID: targetID,
+                    TargetID: targetFqn,
                     Type:     "IMPLEMENTS",
                 })
             }
@@ -473,50 +481,50 @@ func (p *TypeScriptParser) Parse(filePath string, content []byte) ([]*graph.Node
 			}
 		}
 		
-		if targetName != "" && callNode != nil {
-			sourceFuncNode := findEnclosingTSFunctionNode(callNode)
-			if sourceFuncNode != nil {
-				funcName := extractTSFunctionName(sourceFuncNode, content)
-				if funcName != "" {
-					enclosingClass := findEnclosingTSClass(sourceFuncNode, content)
-					var sourceID string
-					if enclosingClass != "" {
-						sourceID = fmt.Sprintf("%s:%s.%s", filePath, enclosingClass, funcName)
-					} else {
-						sourceID = fmt.Sprintf("%s:%s", filePath, funcName)
-					}
-					
-                    var targetID string
-                    if objectName == "this" {
-                        if enclosingClass != "" {
-                            targetID = fmt.Sprintf("%s:%s.%s", filePath, enclosingClass, targetName)
-                        } else {
-                            targetID = resolveTargetID(targetName, filePath)
-                        }
-                    } else if strings.HasPrefix(objectName, "this.") {
-                        field := strings.TrimPrefix(objectName, "this.")
-                        if typeName, ok := classFields[enclosingClass][field]; ok {
-                             resolvedType := resolveTargetID(typeName, filePath)
-                             targetID = fmt.Sprintf("%s.%s", resolvedType, targetName)
-                        } else {
-                             targetID = resolveTargetID(targetName, filePath)
-                        }
-                    } else if typeName, ok := classFields[enclosingClass][objectName]; ok {
-                         resolvedType := resolveTargetID(typeName, filePath)
-                         targetID = fmt.Sprintf("%s.%s", resolvedType, targetName)
-                    } else {
-                        targetID = resolveTargetID(targetName, filePath)
-                    }
-
-					edges = append(edges, &graph.Edge{
-						SourceID: sourceID,
-						TargetID: targetID,
-						Type:     "CALLS",
-					})
-				}
-			}
-		}
-	}
+		                if targetName != "" && callNode != nil {
+		                        sourceFuncNode := findEnclosingTSFunctionNode(callNode)
+		                        if sourceFuncNode != nil {
+		                                funcName := extractTSFunctionName(sourceFuncNode, content)
+		                                if funcName != "" {
+		                                        enclosingClass := findEnclosingTSClass(sourceFuncNode, content)
+		                                        var sourceFqn string
+		                                        if enclosingClass != "" {
+		                                                sourceFqn = fmt.Sprintf("%s:%s.%s", filePath, enclosingClass, funcName)
+		                                        } else {
+		                                                sourceFqn = fmt.Sprintf("%s:%s", filePath, funcName)
+		                                        }
+		                                        sourceID := GenerateNodeID("Function", sourceFqn, "")
+		
+		                    var targetFqn string
+		                    if objectName == "this" {
+		                        if enclosingClass != "" {
+		                            targetFqn = fmt.Sprintf("%s:%s.%s", filePath, enclosingClass, targetName)
+		                        } else {
+		                            targetFqn = resolveTargetID(targetName, filePath)
+		                        }
+		                    } else if strings.HasPrefix(objectName, "this.") {
+		                        field := strings.TrimPrefix(objectName, "this.")
+		                        if typeName, ok := classFields[enclosingClass][field]; ok {
+		                             resolvedTypeFqn := resolveTargetID(typeName, filePath)
+		                             targetFqn = fmt.Sprintf("%s.%s", resolvedTypeFqn, targetName)
+		                        } else {
+		                             targetFqn = resolveTargetID(targetName, filePath)
+		                        }
+		                    } else if typeName, ok := classFields[enclosingClass][objectName]; ok {
+		                         resolvedTypeFqn := resolveTargetID(typeName, filePath)
+		                         targetFqn = fmt.Sprintf("%s.%s", resolvedTypeFqn, targetName)
+		                    } else {
+		                        targetFqn = resolveTargetID(targetName, filePath)
+		                    }
+		
+		                                        edges = append(edges, &graph.Edge{
+		                                                SourceID: sourceID,
+		                                                TargetID: targetFqn,
+		                                                Type:     "CALLS",
+		                                        })
+		                                }
+		                        }
+		                }	}
 
 	return nodes, edges, nil
 }

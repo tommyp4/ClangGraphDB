@@ -68,7 +68,7 @@ public:
 	// Helper to find edge
 	hasEdge := func(srcName, tgtName string) bool {
 		for _, e := range edges {
-			if strings.HasSuffix(e.SourceID, srcName) && strings.HasSuffix(e.TargetID, tgtName) {
+			if strings.Contains(e.SourceID, srcName) && strings.Contains(e.TargetID, tgtName) {
 				return true
 			}
 		}
@@ -124,7 +124,7 @@ void main() {
 	hasInheritance := false
 	for _, e := range edges {
 		// IDs are FQN now: Derived, Base
-		if e.SourceID == "Derived" && e.TargetID == "Base" && e.Type == "INHERITS" {
+		if strings.Contains(e.SourceID, "Derived") && strings.Contains(e.TargetID, "Base") && e.Type == "INHERITS" {
 			hasInheritance = true
 			break
 		}
@@ -160,7 +160,7 @@ void main() {
 	// 4. Check Usage of Global
 	hasGlobalUsage := false
 	for _, e := range edges {
-		if strings.HasSuffix(e.SourceID, "doWork") && strings.HasSuffix(e.TargetID, "global_counter") && e.Type == "USES" {
+		if strings.Contains(e.SourceID, "doWork") && strings.Contains(e.TargetID, "global_counter") && e.Type == "USES" {
 			hasGlobalUsage = true
 			break
 		}
@@ -178,7 +178,7 @@ void main() {
 	hasIncludeRes := false
 	for _, e := range edges {
 		// Source is Derived::doWork
-		if strings.HasSuffix(e.SourceID, "Derived::doWork") {
+		if strings.Contains(e.SourceID, "Derived::doWork") {
 			if e.TargetID == "Math::Add" {
 				hasIncludeRes = true
 				break
@@ -233,19 +233,24 @@ namespace MyApp {
 		}
 	}
 
-	// Expected specific IDs (Qualified with namespace and class, NO file path)
+	// Expected specific IDs (Qualified with namespace and class, WITH file path)
+    relPath := filepath.ToSlash(absPath)
 	expectedIDs := []string{
-		"MyApp::User",
-		"MyApp::User::User", // Constructor
-		"MyApp::User::save",
-		"MyApp::Order",
-		"MyApp::Order::Order", // Constructor
-		"MyApp::Order::save",
+		analysis.GenerateNodeID("Class", relPath+":MyApp::User", ""),
+		analysis.GenerateNodeID("Function", relPath+":MyApp::User::User", "()"), // Constructor
+		analysis.GenerateNodeID("Function", relPath+":MyApp::User::save", "()"),
+		analysis.GenerateNodeID("Class", relPath+":MyApp::Order", ""),
+		analysis.GenerateNodeID("Function", relPath+":MyApp::Order::Order", "()"), // Constructor
+		analysis.GenerateNodeID("Function", relPath+":MyApp::Order::save", "()"),
 	}
 
 	for _, expected := range expectedIDs {
 		if _, exists := ids[expected]; !exists {
-			t.Errorf("Expected ID not found: %s", expected)
+            // Log all IDs to help debugging
+            for id := range ids {
+                t.Logf("Actual ID: %s", id)
+            }
+			t.Fatalf("Expected ID not found: %s", expected)
 		}
 	}
 }

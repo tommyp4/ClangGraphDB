@@ -3,14 +3,14 @@
 ## 📋 Todo Checklist
 - [x] Define global `Label:FQN:Signature` ID standard.
 - [x] Update C# Parser to new ID standard and add `fqn` property.
-- [ ] Update Java Parser to new ID standard and add `fqn` property.
-- [ ] Update TypeScript Parser to new ID standard and add `fqn` property.
+- [x] Update Java Parser to new ID standard and add `fqn` property.
+- [x] Update TypeScript Parser to new ID standard and add `fqn` property.
 - [ ] Update C++ Parser to new ID standard and add `fqn` property.
-- [ ] Update SQL Parser to new ID standard and add `fqn` property.
-- [ ] Refactor Neo4j Loader (`buildEdgeQuery`) to match edges on `id OR fqn`.
-- [ ] Refactor Query Engine (`neo4j.go`) to support querying by `fqn`.
-- [ ] Update `.gemini/skills/graphdb/SKILL.md` to reflect new ID standards and query flexibility.
-- [ ] Final Review and Testing (Verify zero duplicate IDs and successful ingestion).
+- [x] Update SQL Parser to new ID standard and add `fqn` property.
+- [x] Refactor Neo4j Loader (`buildEdgeQuery`) to match edges on `id OR fqn`.
+- [x] Refactor Query Engine (`neo4j.go`) to support querying by `fqn`.
+- [x] Update `.gemini/skills/graphdb/SKILL.md` to reflect new ID standards and query flexibility.
+- [x] Final Review and Testing (Verify zero duplicate IDs and successful ingestion).
 
 ## 🔍 Analysis & Investigation
 The Neo4j ingestion process fails with fatal `ConstraintValidationFailed` errors during `BatchLoadNodes` due to duplicate `id` properties on `CodeElement` nodes. Neo4j enforces a constraint: `CREATE CONSTRAINT IF NOT EXISTS FOR (n:CodeElement) REQUIRE n.id IS UNIQUE`. When two nodes with the identical `id` but different labels are batched, Neo4j attempts to create a second node, violating the constraint.

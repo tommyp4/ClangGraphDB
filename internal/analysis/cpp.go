@@ -151,19 +151,22 @@ func (p *CppParser) Parse(filePath string, content []byte) ([]*graph.Node, []*gr
                             for _, fieldName := range declNames {
                                 // Create Field Node
                                 // FQN: Class::Field
-                                fieldID := strings.Join([]string{enclosingClass, fieldName}, "::")
+                                fieldFqn := fmt.Sprintf("%s:%s::%s", filePath, enclosingClass, fieldName)
+                                fieldID := GenerateNodeID("Field", fieldFqn, "")
                                 nodes = append(nodes, &graph.Node{
                                     ID:    fieldID,
                                     Label: "Field",
                                     Properties: map[string]interface{}{
                                         "name": fieldName,
+                                        "fqn":  fieldFqn,
                                         "type": typeStr,
                                         "file": filePath,
                                         "line": int(c.Node.StartPoint().Row + 1),
                                     },
                                 })
                                 
-                                sourceID := enclosingClass
+                                sourceFqn := fmt.Sprintf("%s:%s", filePath, enclosingClass)
+                                sourceID := GenerateNodeID("Class", sourceFqn, "")
                                 edges = append(edges, &graph.Edge{
                                     SourceID: sourceID,
                                     TargetID: fieldID,
@@ -218,7 +221,8 @@ func (p *CppParser) Parse(filePath string, content []byte) ([]*graph.Node, []*gr
                         
                         if clsName != "" && simpleFuncName == clsName {
                             // Constructor found
-                             sourceID := cls // Link to Class, not constructor function
+                             sourceFqn := fmt.Sprintf("%s:%s", filePath, cls)
+                             sourceID := GenerateNodeID("Class", sourceFqn, "") // Link to Class
                              
                              types := extractTypes(typeStr)
                              for _, tName := range types {
@@ -274,21 +278,28 @@ func (p *CppParser) Parse(filePath string, content []byte) ([]*graph.Node, []*gr
 			}
 			parts = append(parts, nodeContent)
 			
-			qualifiedName := strings.Join(parts, "::")
-            // REMOVED filePath prefix
-			nodeID := qualifiedName
-
-			nodes = append(nodes, &graph.Node{
-				ID:    nodeID,
-				Label: label,
-				Properties: map[string]interface{}{
-					"name": nodeContent,
-					"file": filePath,
-					"line": c.Node.StartPoint().Row + 1,
-					"end_line": c.Node.EndPoint().Row + 1,
-					"namespace": namespace,
-				},
-			})
+                        qualifiedName := strings.Join(parts, "::")
+                        fqn := fmt.Sprintf("%s:%s", filePath, qualifiedName)
+                        signature := ""
+                        if label == "Function" {
+                                signature = extractCppSignature(c.Node, content)
+                        }
+                        nodeID := GenerateNodeID(label, fqn, signature)
+                        props := map[string]interface{}{
+                                "name": nodeContent,
+                                "fqn":  fqn,
+                                "file": filePath,
+                                "line": c.Node.StartPoint().Row + 1,
+                                "end_line": c.Node.EndPoint().Row + 1,
+                        }
+                        if namespace != "" {
+                                props["namespace"] = namespace
+                        }
+                        nodes = append(nodes, &graph.Node{
+                                ID:    nodeID,
+                                Label: label,
+                                Properties: props,
+                        })
 			
 			localDefs[nodeContent] = nodeID
 		}
@@ -355,8 +366,8 @@ func (p *CppParser) Parse(filePath string, content []byte) ([]*graph.Node, []*gr
 			if cls != "" { parts = append(parts, cls) }
 			parts = append(parts, src)
 			
-            // REMOVED filePath prefix
-			sourceID := strings.Join(parts, "::")
+                        sourceFqn := fmt.Sprintf("%s:%s", filePath, strings.Join(parts, "::"))
+                        sourceID := GenerateNodeID("Class", sourceFqn, "")
 
 			targetID := localDefs[dst]
 			if targetID == "" {
@@ -443,8 +454,8 @@ func (p *CppParser) Parse(filePath string, content []byte) ([]*graph.Node, []*gr
 					if cls != "" { parts = append(parts, cls) }
 					parts = append(parts, funcName)
 					
-                    // REMOVED filePath prefix
-					sourceID := strings.Join(parts, "::")
+                                sourceFqn := fmt.Sprintf("%s:%s", filePath, strings.Join(parts, "::"))
+                        sourceID := GenerateNodeID("Class", sourceFqn, "")
 
 					targetID := localDefs[targetName]
 					if targetID == "" {
@@ -561,4 +572,31 @@ func extractCppFunctionName(n *sitter.Node, content []byte) string {
         return extractCppIdentifier(decl, content)
 	}
 	return ""
+}
+
+
+func extractCppSignature(n *sitter.Node, content []byte) string {
+    var paramList *sitter.Node
+    var findParamList func(node *sitter.Node) *sitter.Node
+    findParamList = func(node *sitter.Node) *sitter.Node {
+        if node == nil { return nil }
+        if node.Type() == "parameter_list" { return node }
+        for i := 0; i < int(node.NamedChildCount()); i++ {
+            if res := findParamList(node.NamedChild(i)); res != nil {
+                return res
+            }
+        }
+        return nil
+    }
+    
+    paramList = findParamList(n)
+    if paramList == nil {
+        return "()"
+    }
+    
+    sig := paramList.Content(content)
+    sig = strings.ReplaceAll(sig, " ", "")
+    sig = strings.ReplaceAll(sig, "\n", "")
+    sig = strings.ReplaceAll(sig, "\t", "")
+    return sig
 }

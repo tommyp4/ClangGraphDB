@@ -72,7 +72,7 @@ func (p *Neo4jProvider) Traverse(startNodeID string, relationship string, direct
 
 	// 3. Construct Cypher query
 	query := fmt.Sprintf(`
-		MATCH (n) WHERE n.id = $id OR n.name = $id
+		MATCH (n) WHERE n.id = $id OR n.fqn = $id OR n.name = $id
 		MATCH p = (n)%s[%s*1..%d]%s(m)
 		RETURN p
 	`, arrowStart, relPattern, depth, arrowEnd)
@@ -239,7 +239,7 @@ func (p *Neo4jProvider) SearchFeatures(embedding []float32, limit int) ([]*Featu
 func (p *Neo4jProvider) GetNeighbors(nodeID string, depth int) (*NeighborResult, error) {
 	query := fmt.Sprintf(`
 		MATCH (n)
-		WHERE n.name = $func OR n.id = $func
+		WHERE n.id = $func OR n.fqn = $func OR n.name = $func
 		WITH n LIMIT 1
 		
 		// Expand scope if n is a Class (include its methods)
@@ -317,7 +317,7 @@ func (p *Neo4jProvider) GetNeighbors(nodeID string, depth int) (*NeighborResult,
 // GetCallers retrieves the callers of a node.
 func (p *Neo4jProvider) GetCallers(nodeID string) ([]string, error) {
 	query := `
-		MATCH (n) WHERE n.name = $func OR n.id = $func
+		MATCH (n) WHERE n.id = $func OR n.fqn = $func OR n.name = $func
 		MATCH (caller)-[:CALLS]->(n)
 		RETURN collect(DISTINCT caller.name) as callers
 	`
@@ -353,7 +353,7 @@ func (p *Neo4jProvider) GetCallers(nodeID string) ([]string, error) {
 func (p *Neo4jProvider) GetImpact(nodeID string, depth int) (*ImpactResult, error) {
 	// Construct dynamic query for variable path length
 	query := fmt.Sprintf(`
-		MATCH (n) WHERE n.name = $nodeID OR n.id = $nodeID
+		MATCH (n) WHERE n.id = $nodeID OR n.fqn = $nodeID OR n.name = $nodeID
 		MATCH (caller)-[:CALLS*1..%d]->(n) 
 		RETURN DISTINCT caller.name as caller, caller.ui_contaminated as contaminated
 	`, depth)
@@ -393,7 +393,7 @@ func (p *Neo4jProvider) GetImpact(nodeID string, depth int) (*ImpactResult, erro
 // GetGlobals identifies global variable usage.
 func (p *Neo4jProvider) GetGlobals(nodeID string) (*GlobalUsageResult, error) {
 	query := `
-		MATCH (n) WHERE n.name = $nodeID OR n.id = $nodeID
+		MATCH (n) WHERE n.id = $nodeID OR n.fqn = $nodeID OR n.name = $nodeID
 		MATCH (n)-[:USES_GLOBAL]->(g:Global) 
 		RETURN g.name as name, g.file as defined_in
 	`
@@ -481,7 +481,7 @@ func (p *Neo4jProvider) GetSeams(modulePattern string) ([]*SeamResult, error) {
 // FetchSource retrieves the source code for a node.
 func (p *Neo4jProvider) FetchSource(nodeID string) (string, error) {
 	query := `
-		MATCH (n) WHERE n.id = $id OR n.name = $id
+		MATCH (n) WHERE n.id = $id OR n.fqn = $id OR n.name = $id
 		RETURN n.file as file, n.start_line as start, n.end_line as end
 	`
 	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
@@ -517,8 +517,8 @@ func (p *Neo4jProvider) FetchSource(nodeID string) (string, error) {
 // LocateUsage identifies where a dependency is used within a function.
 func (p *Neo4jProvider) LocateUsage(sourceID string, targetID string) (any, error) {
 	query := `
-		MATCH (source) WHERE source.id = $sourceId OR source.label = $sourceId
-		MATCH (target) WHERE target.id = $targetId OR target.label = $targetId
+		MATCH (source) WHERE source.id = $sourceId OR source.fqn = $sourceId OR source.name = $sourceId
+		MATCH (target) WHERE target.id = $targetId OR target.fqn = $targetId OR target.name = $targetId
 		RETURN source.file as file, source.start_line as start, source.end_line as end, target.name as target_name, properties(target).name as target_name_alt
 	`
 	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
