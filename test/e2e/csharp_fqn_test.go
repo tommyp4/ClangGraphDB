@@ -68,8 +68,8 @@ namespace Trucks.Server {
 		if label, ok := node["type"].(string); ok && label == "Class" {
 			foundClassNode = true
 			id, _ := node["id"].(string)
-			// Check if ID is FQN (no file path)
-			expectedID := "Trucks.Server.PaymentHistoryController"
+			// Check if ID is FQN (no file path) using new standard Label:FQN:Signature
+			expectedID := "Class:Trucks.Server.PaymentHistoryController:"
 			
 			// Currently it should fail because it has file path prefix
 			if strings.Contains(id, "Controller.cs:") {
