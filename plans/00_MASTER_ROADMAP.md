@@ -207,7 +207,7 @@
 **Status:** Pending
 **Plan:** Ref: `plans/09_CAMPAIGNS_7-11_PLAN.md` Items 1, 2, 7.
 **Key Deliverables:**
-- [ ] **Dead Code Removal:** Remove unimplemented `FindNode` from `GraphProvider` interface and all mocks (zero callers).
+- [x] **Dead Code Removal:** Remove unimplemented `FindNode` from `GraphProvider` interface and all mocks (zero callers).
 - [ ] **CLI Decomposition:** Extract `handleIngest`, `handleQuery`, `handleImport`, `handleEnrichFeatures`, `handleBuildAll` into separate files (`cmd_ingest.go`, `cmd_query.go`, etc.). Run `gofmt` to normalize inconsistent indentation.
 - [ ] **Deterministic K-Means:** Add `--seed` flag to `enrich-features` for reproducible graph builds.
 - [ ] **Batch Topology Updates:** Replace per-node Cypher in `UpdateFeatureTopology` with UNWIND-based batching.

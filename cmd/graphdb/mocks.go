@@ -29,7 +29,6 @@ func (s *MockSummarizer) Summarize(snippets []string) (string, string, error) {
 type MockProvider struct{}
 
 func (m *MockProvider) Close() error { return nil }
-func (m *MockProvider) FindNode(label string, property string, value string) (*graph.Node, error) { return nil, nil }
 func (m *MockProvider) Traverse(startNodeID string, relationship string, direction query.Direction, depth int) ([]*graph.Path, error) { return nil, nil }
 func (m *MockProvider) SearchFeatures(embedding []float32, limit int) ([]*query.FeatureResult, error) { return nil, nil }
 func (m *MockProvider) SearchSimilarFunctions(embedding []float32, limit int) ([]*query.FeatureResult, error) { return nil, nil }

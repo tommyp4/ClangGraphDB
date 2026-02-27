@@ -44,12 +44,6 @@ func (p *Neo4jProvider) Close() error {
 	return p.driver.Close(p.ctx)
 }
 
-// FindNode finds a node by label and property.
-func (p *Neo4jProvider) FindNode(label string, property string, value string) (*graph.Node, error) {
-	// TODO: Implement in Phase 2.2+
-	return nil, nil
-}
-
 // Traverse traverses the graph from a start node.
 func (p *Neo4jProvider) Traverse(startNodeID string, relationship string, direction Direction, depth int) ([]*graph.Path, error) {
 	// 1. Format relationships for Cypher (e.g., "CALLS,USES" -> "CALLS|USES")

@@ -66,7 +66,6 @@ type GraphProvider interface {
 	Close() error
 
 	// Core Operations
-	FindNode(label string, property string, value string) (*graph.Node, error)
 	Traverse(startNodeID string, relationship string, direction Direction, depth int) ([]*graph.Path, error)
 
 	// High-Level Features

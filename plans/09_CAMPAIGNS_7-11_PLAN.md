@@ -12,7 +12,7 @@ This plan addresses findings from the comprehensive code review, ordered by the 
 
 ---
 
-## Item 1: Remove Dead `FindNode` Interface Method
+## Item 1: Remove Dead `FindNode` Interface Method ✅ Implemented
 
 **Problem:** `FindNode` is declared in `GraphProvider` interface (`internal/query/interface.go:69`), has a stub implementation returning `nil, nil` (`internal/query/neo4j.go:48-51`), and two mock stubs. Zero callers exist anywhere in the codebase.
 
