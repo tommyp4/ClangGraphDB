@@ -31,6 +31,8 @@ func main() {
 		handleQuery(os.Args[2:])
 	case "enrich-features":
 		enrichCmd(os.Args[2:])
+	case "enrich-contamination":
+		handleEnrichContamination(os.Args[2:])
 	case "import":
 		importCmd(os.Args[2:])
 	case "build-all":
@@ -50,11 +52,12 @@ func printUsage() {
 	fmt.Printf("GraphDB Skill CLI (Version: %s)\n", Version)
 	fmt.Println("Usage: graphdb <command> [options]")
 	fmt.Println("\nCommands:")
-	fmt.Println("  ingest           Parse code and generate graph nodes/edges (JSONL)")
-	fmt.Println("  enrich-features  Build the RPG (Repository Planning Graph) Intent Layer")
-	fmt.Println("  import           Import JSONL files into Neo4j")
-	fmt.Println("  query            Query the graph (structural or semantic)")
-	fmt.Println("  build-all        One-shot: Ingest -> Enrich -> Import")
-	fmt.Println("  version          Show version info")
+	fmt.Println("  ingest                 Parse code and generate graph nodes/edges (JSONL)")
+	fmt.Println("  enrich-features        Build the RPG (Repository Planning Graph) Intent Layer")
+	fmt.Println("  enrich-contamination   Identify seams and propagate contamination layers")
+	fmt.Println("  import                 Import JSONL files into Neo4j")
+	fmt.Println("  query                  Query the graph (structural or semantic)")
+	fmt.Println("  build-all              One-shot: Ingest -> Enrich -> Import")
+	fmt.Println("  version                Show version info")
 	fmt.Println("\nRun 'graphdb <command> --help' for command-specific options.")
 }

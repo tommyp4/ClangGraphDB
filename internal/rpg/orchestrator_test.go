@@ -27,10 +27,18 @@ func (m *MockGraphProvider) GetNeighbors(nodeID string, depth int) (*query.Neigh
 func (m *MockGraphProvider) GetCallers(nodeID string) ([]string, error) { return nil, nil }
 func (m *MockGraphProvider) GetImpact(nodeID string, depth int) (*query.ImpactResult, error) { return nil, nil }
 func (m *MockGraphProvider) GetGlobals(nodeID string) (*query.GlobalUsageResult, error) { return nil, nil }
-func (m *MockGraphProvider) GetSeams(modulePattern string) ([]*query.SeamResult, error) { return nil, nil }
+func (m *MockGraphProvider) GetSeams(modulePattern string, layer string) ([]*query.SeamResult, error) {
+	return nil, nil
+}
 func (m *MockGraphProvider) FetchSource(nodeID string) (string, error) { return "", nil }
 func (m *MockGraphProvider) LocateUsage(sourceID string, targetID string) (any, error) { return nil, nil }
 func (m *MockGraphProvider) GetGraphState() (string, error) { return "", nil }
+
+func (m *MockGraphProvider) SeedContamination(modulePattern string, rules []query.ContaminationRule) error {
+	return nil
+}
+func (m *MockGraphProvider) PropagateContamination(layer string) error { return nil }
+func (m *MockGraphProvider) CalculateRiskScores() error               { return nil }
 
 func (m *MockGraphProvider) GetUnextractedFunctions(limit int) ([]*graph.Node, error) {
 	if m.GetUnextractedFunctionsFn != nil { return m.GetUnextractedFunctionsFn(limit) }

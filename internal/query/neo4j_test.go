@@ -210,7 +210,7 @@ func TestGetSeams(t *testing.T) {
 	}
 
 	// Test with matching pattern
-	results, err := p.GetSeams(".*test_fixture.*")
+	results, err := p.GetSeams(".*test_fixture.*", "ui")
 	if err != nil {
 		t.Fatalf("GetSeams failed: %v", err)
 	}

@@ -78,6 +78,14 @@ ${graphdb_bin} enrich-features -dir .
     *   `-batch-size`: Number of nodes to process per LLM/Batch request (default: 20).
     *   `-embed-batch-size`: Batch size for embedding generation (default: 100).
 
+**Step 4: Enrich Contamination (Legacy Modernization Analysis):**
+Identifies architectural seams and propagates contamination layers (UI, Database, External I/O) through the call graph. This is essential for finding extraction boundaries and calculating risk scores.
+```bash
+${graphdb_bin} enrich-contamination -module ".*"
+```
+*   *Options:*
+    *   `-module`: Regex pattern to filter file paths for analysis (default: ".*").
+
 ### 3. Analysis & Querying
 The primary way to interact with the graph is via the `query` command.
 
@@ -105,7 +113,7 @@ Structural queries utilize "Fully Qualified Names" (FQN). While the internal dat
 | `hybrid-context` | **Combined.** Structural neighbors + semantic similarities. Great for refactoring. | Function Name | `-depth`, `-limit` |
 | `impact` | **Risk Analysis.** What other parts of the system behave differently if I change this? | Function Name | `-depth` |
 | `globals` | **State Analysis.** Find global variables used by a function. | Function Name | |
-| `seams` | **Architecture.** Identify testing seams in a module. | (Ignored) | `-module <regex>` |
+| `seams` | **Architecture.** Identify testing seams at contamination boundaries. | (Ignored) | `-module <regex>`, `-layer <ui|db|io|all>` |
 | `locate-usage` | **Trace.** Find path/usage between two functions. | Function 1 | `-target2 <Function 2>` |
 | `fetch-source` | **Read.** Fetch the source code of a function by ID/Name. | Function Name | |
 | `explore-domain` | **Discovery.** Explore the domain model around a concept. | Concept/Entity Name | |

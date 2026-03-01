@@ -424,17 +424,39 @@ func (p *Neo4jProvider) GetGlobals(nodeID string) (*GlobalUsageResult, error) {
 }
 
 // GetSeams suggests architectural seams (boundaries) where contamination stops.
-func (p *Neo4jProvider) GetSeams(modulePattern string) ([]*SeamResult, error) {
-	query := `
-		MATCH (caller:Function {ui_contaminated: true})-[:CALLS]->(f:Function {ui_contaminated: false})-[:DEFINED_IN]->(file:File)
-		WHERE file.file =~ $pattern
-		RETURN DISTINCT f.name as seam, file.file as file, f.risk_score as risk
+func (p *Neo4jProvider) GetSeams(modulePattern string, layer string) ([]*SeamResult, error) {
+	// 1. Determine property to filter by (default to ui_contaminated)
+	property := "ui_contaminated"
+	if layer != "" && layer != "all" {
+		property = layer + "_contaminated"
+	}
+
+	query := fmt.Sprintf(`
+		MATCH (caller:Function)-[:CALLS]->(f:Function)-[:DEFINED_IN]->(file:File)
+		WHERE caller.%s = true AND (f.%s IS NULL OR f.%s = false)
+		  AND file.file =~ $pattern
+		RETURN DISTINCT f.name as seam, file.file as file, f.risk_score as risk, $layer as type
 		ORDER BY f.risk_score DESC
 		LIMIT 20
-	`
+	`, property, property, property)
+
+	if layer == "all" {
+		// Combined query for all contamination types
+		query = `
+			MATCH (caller:Function)-[:CALLS]->(f:Function)-[:DEFINED_IN]->(file:File)
+			WHERE (caller.ui_contaminated = true AND (f.ui_contaminated IS NULL OR f.ui_contaminated = false))
+			   OR (caller.db_contaminated = true AND (f.db_contaminated IS NULL OR f.db_contaminated = false))
+			   OR (caller.io_contaminated = true AND (f.io_contaminated IS NULL OR f.io_contaminated = false))
+			  AND file.file =~ $pattern
+			RETURN DISTINCT f.name as seam, file.file as file, f.risk_score as risk, "all" as type
+			ORDER BY f.risk_score DESC
+			LIMIT 20
+		`
+	}
 
 	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
 		"pattern": modulePattern,
+		"layer":   layer,
 	}, neo4j.EagerResultTransformer)
 
 	if err != nil {
@@ -448,7 +470,8 @@ func (p *Neo4jProvider) GetSeams(modulePattern string) ([]*SeamResult, error) {
 			continue
 		}
 		file, _, _ := neo4j.GetRecordValue[string](record, "file")
-		
+		seamType, _, _ := neo4j.GetRecordValue[string](record, "type")
+
 		var risk float64
 		// risk_score might be nil or integer or float. Handle safely.
 		if riskVal, ok := record.Get("risk"); ok && riskVal != nil {
@@ -466,6 +489,7 @@ func (p *Neo4jProvider) GetSeams(modulePattern string) ([]*SeamResult, error) {
 			Seam: seam,
 			File: file,
 			Risk: risk,
+			Type: seamType,
 		})
 	}
 

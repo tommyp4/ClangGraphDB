@@ -48,15 +48,24 @@ type SeamResult struct {
 	Seam string  `json:"seam"`
 	File string  `json:"file"`
 	Risk float64 `json:"risk"`
+	Type string  `json:"type,omitempty"` // The type of seam (e.g., "ui", "db", "io")
+}
+
+// ContaminationRule defines a heuristic rule for seeding initial contamination flags.
+type ContaminationRule struct {
+	Layer     string `json:"layer"`     // "ui", "db", "io"
+	Pattern   string `json:"pattern"`   // Regex pattern for file path or function name
+	Type      string `json:"type"`      // "file" or "function"
+	Heuristic string `json:"heuristic"` // "path" or "content" (matches function body)
 }
 
 // DomainExplorationResult represents the result of exploring a feature's
 // position in the RPG hierarchy.
 type DomainExplorationResult struct {
-	Feature  *graph.Node   `json:"feature"`
-	Parent   *graph.Node   `json:"parent,omitempty"`
-	Children []*graph.Node `json:"children,omitempty"`
-	Siblings []*graph.Node `json:"siblings,omitempty"`
+	Feature   *graph.Node   `json:"feature"`
+	Parent    *graph.Node   `json:"parent,omitempty"`
+	Children  []*graph.Node `json:"children,omitempty"`
+	Siblings  []*graph.Node `json:"siblings,omitempty"`
 	Functions []*graph.Node `json:"functions,omitempty"`
 }
 
@@ -75,11 +84,16 @@ type GraphProvider interface {
 	GetCallers(nodeID string) ([]string, error)
 	GetImpact(nodeID string, depth int) (*ImpactResult, error)
 	GetGlobals(nodeID string) (*GlobalUsageResult, error)
-	GetSeams(modulePattern string) ([]*SeamResult, error)
+	GetSeams(modulePattern string, layer string) ([]*SeamResult, error)
 	FetchSource(nodeID string) (string, error)
 	LocateUsage(sourceID string, targetID string) (any, error)
 	ExploreDomain(featureID string) (*DomainExplorationResult, error)
 	GetGraphState() (string, error)
+
+	// Contamination & Risk Analysis
+	SeedContamination(modulePattern string, rules []ContaminationRule) error
+	PropagateContamination(layer string) error
+	CalculateRiskScores() error
 
 	// Batch/Streaming Operations
 	GetUnextractedFunctions(limit int) ([]*graph.Node, error)

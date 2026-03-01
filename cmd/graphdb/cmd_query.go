@@ -19,6 +19,7 @@ func handleQuery(args []string) {
 	depthPtr := fs.Int("depth", 1, "Traversal depth")
 	limitPtr := fs.Int("limit", 10, "Result limit")
 	modulePtr := fs.String("module", ".*", "Module pattern for seams")
+	layerPtr := fs.String("layer", "ui", "Contamination layer for seams (ui, db, io, all)")
 	edgeTypesPtr := fs.String("edge-types", "", "Comma-separated relationship types for traverse")
 	directionPtr := fs.String("direction", "outgoing", "Traversal direction: incoming, outgoing, both")
 
@@ -127,7 +128,7 @@ func handleQuery(args []string) {
 		result, err = provider.GetGlobals(*targetPtr)
 
 	case "seams":
-		result, err = provider.GetSeams(*modulePtr)
+		result, err = provider.GetSeams(*modulePtr, *layerPtr)
 
 	case "locate-usage":
 		if *targetPtr == "" || *target2Ptr == "" {
