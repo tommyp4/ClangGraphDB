@@ -2,23 +2,29 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"flag"
 	"graphdb/internal/config"
 	"graphdb/internal/ingest"
+	"graphdb/internal/loader"
 	"graphdb/internal/storage"
 	"graphdb/internal/ui"
 	"log"
 	"os"
+	"os/exec"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 )
 
 func handleIngest(args []string) {
 	flags := flag.NewFlagSet("ingest", flag.ExitOnError)
 	dirPtr := flags.String("dir", ".", "Directory to walk (ignored if -file-list is used)")
 	fileListPtr := flags.String("file-list", "", "Path to a file containing a list of files to process")
+	sinceCommitPtr := flags.String("since-commit", "", "Commit hash for incremental ingestion (skips JSONL, writes to DB)")
 	workersPtr := flags.Int("workers", 4, "Number of workers")
 	outputPtr := flags.String("output", "graph.jsonl", "Output file path (combined)")
 	nodesPtr := flags.String("nodes", "", "Output file path for nodes")
@@ -39,7 +45,60 @@ func handleIngest(args []string) {
 	}
 
 	var emitter storage.Emitter
-	if *nodesPtr != "" || *edgesPtr != "" {
+	var neoDriver neo4j.DriverWithContext
+	var changedFiles []string
+
+	sinceCommit := *sinceCommitPtr
+	if sinceCommit == "" && *nodesPtr == "" && *edgesPtr == "" && *outputPtr == "graph.jsonl" && cfg.Neo4jURI != "" {
+		// Auto-detect incremental mode
+		provider, err := setupProvider(cfg)
+		if err == nil {
+			stateCommit, _ := provider.GetGraphState()
+			if stateCommit != "" {
+				cmd := exec.Command("git", "merge-base", "--is-ancestor", stateCommit, "HEAD")
+				cmd.Dir = *dirPtr
+				if err := cmd.Run(); err == nil {
+					sinceCommit = stateCommit
+					log.Printf("Auto-detected incremental mode from commit %s", sinceCommit)
+				}
+			}
+			provider.Close()
+		}
+	}
+
+	if sinceCommit != "" {
+		log.Printf("Running in incremental mode since %s", sinceCommit)
+		cmd := exec.Command("git", "diff", "--name-only", sinceCommit+"..HEAD")
+		cmd.Dir = *dirPtr
+		output, err := cmd.Output()
+		if err != nil {
+			log.Fatalf("Failed to get git diff: %v", err)
+		}
+
+		scanner := bufio.NewScanner(bytes.NewReader(output))
+		for scanner.Scan() {
+			if path := scanner.Text(); path != "" {
+				changedFiles = append(changedFiles, path)
+			}
+		}
+
+		if len(changedFiles) == 0 {
+			log.Println("No supported files changed. Exiting.")
+			return
+		}
+
+		log.Printf("Found %d changed files.", len(changedFiles))
+
+		neoDriver, err = neo4j.NewDriverWithContext(cfg.Neo4jURI, neo4j.BasicAuth(cfg.Neo4jUser, cfg.Neo4jPassword, ""))
+		if err != nil {
+			log.Fatalf("Failed to create Neo4j driver: %v", err)
+		}
+		defer neoDriver.Close(context.Background())
+
+		neo4jLoader := loader.NewNeo4jLoader(neoDriver, "neo4j", cfg.GeminiEmbeddingDimensions)
+		emitter = storage.NewNeo4jEmitter(neo4jLoader, context.Background(), 500)
+
+	} else if *nodesPtr != "" || *edgesPtr != "" {
 		if *nodesPtr == "" || *edgesPtr == "" {
 			log.Fatalf("Both -nodes and -edges must be provided for split output")
 		}
@@ -70,7 +129,9 @@ func handleIngest(args []string) {
 
 	// Count files first for progress bar
 	var totalFiles int64
-	if *fileListPtr != "" {
+	if sinceCommit != "" {
+		totalFiles = int64(len(changedFiles))
+	} else if *fileListPtr != "" {
 		log.Printf("Counting files in list %s...", *fileListPtr)
 		file, err := os.Open(*fileListPtr)
 		if err != nil {
@@ -115,7 +176,14 @@ func handleIngest(args []string) {
 	// Run
 	start := time.Now()
 
-	if *fileListPtr != "" {
+	if sinceCommit != "" {
+		log.Printf("Starting incremental ingestion with %d workers...", *workersPtr)
+		walker.WorkerPool.Start()
+		for _, path := range changedFiles {
+			walker.WorkerPool.Submit(*dirPtr, path)
+		}
+		walker.WorkerPool.Stop()
+	} else if *fileListPtr != "" {
 		log.Printf("Starting ingestion from file list %s with %d workers...", *fileListPtr, *workersPtr)
 		file, err := os.Open(*fileListPtr)
 		if err != nil {

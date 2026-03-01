@@ -60,7 +60,10 @@ Scans code and generates structural graph JSONL files. We output nodes and edges
 ```bash
 ${graphdb_bin} ingest -dir . -nodes nodes.jsonl -edges edges.jsonl
 ```
-*   *Options:* `-workers` (concurrency), `-file-list` (specific files).
+*   *Options:* 
+    *   `-workers` (concurrency)
+    *   `-file-list` (specific files)
+    *   `-since-commit <hash>`: **Incremental Ingestion.** Only parses files changed since the specified commit and writes directly to Neo4j, skipping JSONL files. Auto-detects if omitted and the graph has a stored state.
 
 **Step 2: Import (Load Structural Graph to Neo4j):**
 Loads the structural graph into the active Neo4j database. This must be done **before** enrichment in the new streaming pipeline. Using separate nodes and edges files prevents a massive CPU penalty from scanning a combined file multiple times.
@@ -85,6 +88,14 @@ ${graphdb_bin} enrich-contamination -module ".*"
 ```
 *   *Options:*
     *   `-module`: Regex pattern to filter file paths for analysis (default: ".*").
+
+**Step 5: Enrich History (Git Integration):**
+Analyzes the git commit history to determine file change frequencies and co-change dependencies. This populates data for the `hotspots` query.
+```bash
+${graphdb_bin} enrich-history -dir . -since "1 year ago"
+```
+*   *Options:*
+    *   `-since`: How far back to analyze history (default: "1 year ago").
 
 ### 3. Analysis & Querying
 The primary way to interact with the graph is via the `query` command.
@@ -112,6 +123,7 @@ Structural queries utilize "Fully Qualified Names" (FQN). While the internal dat
 | `neighbors` / `test-context` | **Dependency Analysis.** Find immediate callers and callees. | Function Name (exact) | `-depth` |
 | `hybrid-context` | **Combined.** Structural neighbors + semantic similarities. Great for refactoring. | Function Name | `-depth`, `-limit` |
 | `impact` | **Risk Analysis.** What other parts of the system behave differently if I change this? | Function Name | `-depth` |
+| `hotspots` | **Risk Analysis.** Find functions with high complexity that change frequently. | (Ignored) | `-module <regex>` |
 | `globals` | **State Analysis.** Find global variables used by a function. | Function Name | |
 | `seams` | **Architecture.** Identify testing seams at contamination boundaries. | (Ignored) | `-module <regex>`, `-layer <ui|db|io|all>` |
 | `locate-usage` | **Trace.** Find path/usage between two functions. | Function 1 | `-target2 <Function 2>` |

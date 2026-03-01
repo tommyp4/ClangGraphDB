@@ -91,23 +91,25 @@ func (p *Neo4jProvider) PropagateContamination(layer string) error {
 	return nil
 }
 
-// CalculateRiskScores calculates risk scores for functions based on fan-in, fan-out, and contamination.
-// Formula: risk_score = normalize(fan_in * 0.4 + fan_out * 0.3 + contamination_layers * 0.3)
+// CalculateRiskScores calculates risk scores for functions based on fan-in, fan-out, contamination, and file churn.
+// Formula: risk_score = normalize(fan_in * 0.4 + fan_out * 0.1 + contamination_layers * 2.0 + churn * 0.4)
 func (p *Neo4jProvider) CalculateRiskScores() error {
 	// 1. Calculate raw scores and store them temporarily
 	// We use the number of incoming CALLS (fan-in), outgoing CALLS (fan-out),
-	// and count how many contamination flags are set.
+	// count how many contamination flags are set, and file change frequency (churn).
 	query := `
 		MATCH (f:Function)
+		OPTIONAL MATCH (f)-[:DEFINED_IN]->(file:File)
+		WITH f, coalesce(file.change_frequency, 0) as churn
 		OPTIONAL MATCH (f)<-[:CALLS]-(caller)
-		WITH f, count(caller) as fan_in
+		WITH f, churn, count(caller) as fan_in
 		OPTIONAL MATCH (f)-[:CALLS]->(callee)
-		WITH f, fan_in, count(callee) as fan_out
-		WITH f, fan_in, fan_out,
+		WITH f, churn, fan_in, count(callee) as fan_out
+		WITH f, churn, fan_in, fan_out,
 		     (CASE WHEN f.ui_contaminated = true THEN 1 ELSE 0 END +
 		      CASE WHEN f.db_contaminated = true THEN 1 ELSE 0 END +
 		      CASE WHEN f.io_contaminated = true THEN 1 ELSE 0 END) as contam_count
-		SET f.raw_risk_score = (fan_in * 0.4 + fan_out * 0.3 + contam_count * 5.0)
+		SET f.raw_risk_score = (fan_in * 0.4 + fan_out * 0.1 + contam_count * 2.0 + churn * 0.4)
 		RETURN max(f.raw_risk_score) as max_score
 	`
 	res, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, nil, neo4j.EagerResultTransformer)

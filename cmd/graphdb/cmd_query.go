@@ -13,7 +13,7 @@ import (
 
 func handleQuery(args []string) {
 	fs := flag.NewFlagSet("query", flag.ExitOnError)
-	typePtr := fs.String("type", "", "Query type: search-features, search-similar, hybrid-context, neighbors, impact, globals, seams, explore-domain")
+	typePtr := fs.String("type", "", "Query type: search-features, search-similar, hybrid-context, neighbors, impact, globals, seams, hotspots, explore-domain")
 	targetPtr := fs.String("target", "", "Target function name or query text")
 	target2Ptr := fs.String("target2", "", "Second target (e.g. for locate-usage)")
 	depthPtr := fs.Int("depth", 1, "Traversal depth")
@@ -129,6 +129,9 @@ func handleQuery(args []string) {
 
 	case "seams":
 		result, err = provider.GetSeams(*modulePtr, *layerPtr)
+
+	case "hotspots":
+		result, err = provider.GetHotspots(*modulePtr)
 
 	case "locate-usage":
 		if *targetPtr == "" || *target2Ptr == "" {

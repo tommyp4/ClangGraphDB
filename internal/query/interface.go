@@ -51,6 +51,21 @@ type SeamResult struct {
 	Type string  `json:"type,omitempty"` // The type of seam (e.g., "ui", "db", "io")
 }
 
+// HotspotResult represents a high-risk area of the codebase.
+type HotspotResult struct {
+	Name  string  `json:"name"`
+	File  string  `json:"file"`
+	Risk  float64 `json:"risk"`
+	Churn int     `json:"churn"`
+}
+
+// FileHistoryMetrics contains git history metadata for a file.
+type FileHistoryMetrics struct {
+	ChangeFrequency int      `json:"change_frequency"`
+	LastChanged     string   `json:"last_changed"`
+	CoChanges       []string `json:"co_changes"`
+}
+
 // ContaminationRule defines a heuristic rule for seeding initial contamination flags.
 type ContaminationRule struct {
 	Layer     string `json:"layer"`     // "ui", "db", "io"
@@ -85,6 +100,7 @@ type GraphProvider interface {
 	GetImpact(nodeID string, depth int) (*ImpactResult, error)
 	GetGlobals(nodeID string) (*GlobalUsageResult, error)
 	GetSeams(modulePattern string, layer string) ([]*SeamResult, error)
+	GetHotspots(modulePattern string) ([]*HotspotResult, error)
 	FetchSource(nodeID string) (string, error)
 	LocateUsage(sourceID string, targetID string) (any, error)
 	ExploreDomain(featureID string) (*DomainExplorationResult, error)
@@ -94,6 +110,7 @@ type GraphProvider interface {
 	SeedContamination(modulePattern string, rules []ContaminationRule) error
 	PropagateContamination(layer string) error
 	CalculateRiskScores() error
+	UpdateFileHistory(metrics map[string]FileHistoryMetrics) error
 
 	// Batch/Streaming Operations
 	GetUnextractedFunctions(limit int) ([]*graph.Node, error)

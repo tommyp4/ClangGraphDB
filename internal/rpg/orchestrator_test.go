@@ -30,6 +30,7 @@ func (m *MockGraphProvider) GetGlobals(nodeID string) (*query.GlobalUsageResult,
 func (m *MockGraphProvider) GetSeams(modulePattern string, layer string) ([]*query.SeamResult, error) {
 	return nil, nil
 }
+func (m *MockGraphProvider) GetHotspots(modulePattern string) ([]*query.HotspotResult, error) { return nil, nil }
 func (m *MockGraphProvider) FetchSource(nodeID string) (string, error) { return "", nil }
 func (m *MockGraphProvider) LocateUsage(sourceID string, targetID string) (any, error) { return nil, nil }
 func (m *MockGraphProvider) GetGraphState() (string, error) { return "", nil }
@@ -39,6 +40,7 @@ func (m *MockGraphProvider) SeedContamination(modulePattern string, rules []quer
 }
 func (m *MockGraphProvider) PropagateContamination(layer string) error { return nil }
 func (m *MockGraphProvider) CalculateRiskScores() error               { return nil }
+func (m *MockGraphProvider) UpdateFileHistory(metrics map[string]query.FileHistoryMetrics) error { return nil }
 
 func (m *MockGraphProvider) GetUnextractedFunctions(limit int) ([]*graph.Node, error) {
 	if m.GetUnextractedFunctionsFn != nil { return m.GetUnextractedFunctionsFn(limit) }
