@@ -11,6 +11,7 @@ import (
 	"log"
 	"os"
 )
+
 func setupEmbedder(project, location, modelName string, dimensions int) embedding.Embedder {
 	if os.Getenv("GRAPHDB_MOCK_ENABLED") == "true" {
 		log.Println("Using Mock Embedder (test_mocks build)")

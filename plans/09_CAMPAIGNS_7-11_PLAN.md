@@ -28,7 +28,7 @@ This plan addresses findings from the comprehensive code review, ordered by the 
 
 ---
 
-## Item 2: Decompose Monolithic `main.go`
+## Item 2: Decompose Monolithic `main.go` ✅ Implemented
 
 **Problem:** `cmd/graphdb/main.go` is 713 lines with all command handlers (`handleIngest`, `handleQuery`, `handleImport`, `handleEnrichFeatures`, `handleBuildAll`) in a single file. `handleQuery` alone is ~180 lines of switch/case.
 
