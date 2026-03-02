@@ -84,6 +84,14 @@ type DomainExplorationResult struct {
 	Functions []*graph.Node `json:"functions,omitempty"`
 }
 
+// WhatIfResult represents the impact of removing/extracting nodes.
+type WhatIfResult struct {
+	SeveredEdges       []*graph.Edge `json:"severed_edges"`
+	OrphanedNodes      []*graph.Node `json:"orphaned_nodes"`
+	CrossBoundaryCalls []*graph.Edge `json:"cross_boundary_calls"`
+	SharedState        []*graph.Node `json:"shared_state"`
+}
+
 // GraphProvider defines the interface for graph database operations.
 type GraphProvider interface {
 	// Lifecycle
@@ -105,6 +113,7 @@ type GraphProvider interface {
 	LocateUsage(sourceID string, targetID string) (any, error)
 	ExploreDomain(featureID string) (*DomainExplorationResult, error)
 	GetGraphState() (string, error)
+	WhatIf(targets []string) (*WhatIfResult, error)
 
 	// Test Coverage Analysis
 	GetCoverage(nodeID string) ([]*graph.Node, error)

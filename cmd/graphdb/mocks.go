@@ -57,6 +57,7 @@ func (m *MockProvider) GetGraphState() (string, error)                          
 func (m *MockProvider) ExploreDomain(featureID string) (*query.DomainExplorationResult, error) {
 	return nil, nil
 }
+func (m *MockProvider) WhatIf(targets []string) (*query.WhatIfResult, error) { return nil, nil }
 
 func (m *MockProvider) GetCoverage(nodeID string) ([]*graph.Node, error) { return nil, nil }
 func (m *MockProvider) LinkTests() error { return nil }

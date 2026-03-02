@@ -34,6 +34,7 @@ func (m *MockGraphProvider) GetHotspots(modulePattern string) ([]*query.HotspotR
 func (m *MockGraphProvider) FetchSource(nodeID string) (string, error) { return "", nil }
 func (m *MockGraphProvider) LocateUsage(sourceID string, targetID string) (any, error) { return nil, nil }
 func (m *MockGraphProvider) GetGraphState() (string, error) { return "", nil }
+func (m *MockGraphProvider) WhatIf(targets []string) (*query.WhatIfResult, error) { return nil, nil }
 
 func (m *MockGraphProvider) GetCoverage(nodeID string) ([]*graph.Node, error) { return nil, nil }
 func (m *MockGraphProvider) LinkTests() error { return nil }

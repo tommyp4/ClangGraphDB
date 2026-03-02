@@ -13,9 +13,9 @@ import (
 
 func handleQuery(args []string) {
 	fs := flag.NewFlagSet("query", flag.ExitOnError)
-	typePtr := fs.String("type", "", "Query type: search-features, search-similar, hybrid-context, neighbors, impact, globals, coverage, seams, hotspots, explore-domain")
-	targetPtr := fs.String("target", "", "Target function name or query text")
-	target2Ptr := fs.String("target2", "", "Second target (e.g. for locate-usage)")
+	typePtr := fs.String("type", "", "Query type: search-features, search-similar, hybrid-context, neighbors, impact, globals, coverage, seams, hotspots, explore-domain, what-if")
+	targetPtr := fs.String("target", "", "Target function name or query text (comma-separated for what-if)")
+	target2Ptr := fs.String("target2", "", "Second target (e.g. for locate-usage or what-if)")
 	depthPtr := fs.Int("depth", 1, "Traversal depth")
 	limitPtr := fs.Int("limit", 10, "Result limit")
 	modulePtr := fs.String("module", ".*", "Module pattern for seams")
@@ -162,6 +162,24 @@ func handleQuery(args []string) {
 		}
 		result, err = provider.ExploreDomain(*targetPtr)
 
+	case "what-if":
+		if *targetPtr == "" {
+			log.Fatal("-target is required for 'what-if'")
+		}
+		targets := strings.Split(*targetPtr, ",")
+		if *target2Ptr != "" {
+			targets = append(targets, *target2Ptr)
+		}
+		// Trim whitespace and remove empty strings
+		var cleanTargets []string
+		for _, t := range targets {
+			trimmed := strings.TrimSpace(t)
+			if trimmed != "" {
+				cleanTargets = append(cleanTargets, trimmed)
+			}
+		}
+		result, err = provider.WhatIf(cleanTargets)
+
 	case "traverse":
 		if *targetPtr == "" {
 			log.Fatal("-target is required for 'traverse'")
@@ -185,7 +203,7 @@ func handleQuery(args []string) {
 		}
 
 	default:
-		log.Fatalf("Unknown or missing query type: %s. Valid types: search-features, search-similar, hybrid-context, neighbors, impact, globals, coverage, seams, explore-domain, status", *typePtr)
+		log.Fatalf("Unknown or missing query type: %s. Valid types: search-features, search-similar, hybrid-context, neighbors, impact, globals, coverage, seams, explore-domain, what-if, status", *typePtr)
 	}
 
 	if err != nil {

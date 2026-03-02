@@ -238,7 +238,7 @@ The first option is cleaner -- it reuses the existing worker pool and emitter ab
 
 ---
 
-## Item 6: "What-If" Query Mode
+## Item 6: "What-If" Query Mode ✅ Implemented
 
 **Problem:** Agents performing Strangler Fig extraction need to ask "If I extract these functions to a new service, what breaks?" Currently there's no way to simulate graph modifications.
 

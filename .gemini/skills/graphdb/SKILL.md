@@ -97,6 +97,12 @@ ${graphdb_bin} enrich-history -dir . -since "1 year ago"
 *   *Options:*
     *   `-since`: How far back to analyze history (default: "1 year ago").
 
+**Step 6: Enrich Tests (Link Tests to Production Code):**
+Analyzes naming conventions and call patterns to explicitly link test functions to the production code they exercise. This enables the `coverage` query for pinpointing test contexts.
+```bash
+${graphdb_bin} enrich-tests
+```
+
 ### 3. Analysis & Querying
 The primary way to interact with the graph is via the `query` command.
 
@@ -121,8 +127,10 @@ Structural queries utilize "Fully Qualified Names" (FQN). While the internal dat
 | `search-features` | **Intent Search.** Find features/concepts using vector search. | Natural language query | `-limit` |
 | `search-similar` | **Code Search.** Find functions semantically similar to a query. | Natural language or code snippet | `-limit` |
 | `neighbors` / `test-context` | **Dependency Analysis.** Find immediate callers and callees. | Function Name (exact) | `-depth` |
+| `coverage` | **Test Analysis.** Returns tests that cover a specific production function or method. | Function Name/ID | |
 | `hybrid-context` | **Combined.** Structural neighbors + semantic similarities. Great for refactoring. | Function Name | `-depth`, `-limit` |
 | `impact` | **Risk Analysis.** What other parts of the system behave differently if I change this? | Function Name | `-depth` |
+| `what-if` | **Impact Simulation.** Computes the impact of hypothetical node removals (Severed Edges, Orphaned Nodes, etc.) for Strangler Fig planning. | Function Name/ID | `-target2 <Target 2>` |
 | `hotspots` | **Risk Analysis.** Find functions with high complexity that change frequently. | (Ignored) | `-module <regex>` |
 | `globals` | **State Analysis.** Find global variables used by a function. | Function Name | |
 | `seams` | **Architecture.** Identify testing seams at contamination boundaries. | (Ignored) | `-module <regex>`, `-layer <ui|db|io|all>` |
@@ -134,8 +142,10 @@ Structural queries utilize "Fully Qualified Names" (FQN). While the internal dat
 
 ## Operational Guidelines
 *   **Output Parsing:** The tool returns JSON. Parse it and present a concise summary (bullet points, mermaid diagrams, or tables).
-*   **Exact Names:** Structural queries (`neighbors`, `impact`) are **polymorphic**. You can provide the Node `ID` (e.g., `Function:Namespace.Class.Method:()`), the `fqn` (e.g., `Namespace.Class.Method`), or the simple `name` (e.g., `Method`).
+*   **Exact Names:** Structural queries (`neighbors`, `impact`, `coverage`, `what-if`) are **polymorphic**. You can provide the Node `ID` (e.g., `Function:Namespace.Class.Method:()`), the `fqn` (e.g., `Namespace.Class.Method`), or the simple `name` (e.g., `Method`).
     *   **Recommendation:** Use the `fqn` for the most robust results across overloads and distinct modules.
+    *   **Test Analysis:** Always prefer `coverage` over `neighbors` when specifically looking for tests, as it leverages explicit links from `enrich-tests`.
+    *   **Impact Analysis:** Use `impact` for general risk assessment and `what-if` for simulation-based planning (e.g., Strangler Fig pattern).
     *   **CRITICAL RULE:** If you only have a partial name or an ambiguous symbol from the user, **DO NOT use `grep` or text search** to find the fully qualified name. Instead, you MUST use `search-similar` (semantic search) first to locate the exact node `ID` or `fqn` before running structural queries.
 *   **Context:** Always mention the source file and line number when discussing a function.
 *   **Missing Data:** If a query returns empty, verify the spelling of the function/module name or try a semantic search.
