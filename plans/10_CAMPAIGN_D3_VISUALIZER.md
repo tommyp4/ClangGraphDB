@@ -22,6 +22,7 @@ Use the connection info in the `.env` file to connect to the existing local podm
 ### Step-by-Step Implementation
 
 #### Phase 1: Go HTTP Server and API Foundation
+*(See `plans/10_PHASE_1_HTTP_SERVER_TASKS.md` for detailed technical implementation tasks)*
 1.  **Step 1.A (The Harness):** Define the server routing test.
     *   *Action:* Create `internal/ui/server_test.go`.
     *   *Goal:* Assert that the HTTP server initializes, maps `/api/health` to a 200 OK, and wires up a mock `query.GraphProvider` to a `/api/query` endpoint.
