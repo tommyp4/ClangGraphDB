@@ -4,7 +4,7 @@ This document expands on Phase 1 from `plans/10_CAMPAIGN_D3_VISUALIZER.md`, prov
 
 ## 📋 Task Breakdown
 
-### 1. Define Server Structs & Interfaces
+### 1. Define Server Structs & Interfaces ✅ Implemented
 **File:** `internal/ui/server.go`
 
 Define the foundational structures for the HTTP server. The server must act as a dependency injection container for the `GraphProvider` and `Embedder`.
@@ -43,7 +43,7 @@ Define the foundational structures for the HTTP server. The server must act as a
     }
     ```
 
-### 2. Implement the Routing Harness and Test
+### 2. Implement the Routing Harness and Test ✅ Implemented
 **File:** `internal/ui/server_test.go`
 
 Before implementing the API logic, create the test harness using `net/http/httptest`.
@@ -55,7 +55,7 @@ Before implementing the API logic, create the test harness using `net/http/httpt
 *   **Test 2: `TestQueryRouting` (Mocked)**
     *   To be completed alongside step 3. Will assert that a valid request maps to a mocked `GraphProvider` method.
 
-### 3. Implement Handlers
+### 3. Implement Handlers ✅ Implemented
 **File:** `internal/ui/server.go`
 
 Implement the `routes()` method and the handler logic.
@@ -78,7 +78,7 @@ Implement the `routes()` method and the handler logic.
         *   On failure, write a `500 Internal Server Error` with `ErrorResponse`.
         *   Always set header `Content-Type: application/json`.
 
-### 4. Implement Server Tests (Verification)
+### 4. Implement Server Tests (Verification) ✅ Implemented
 **File:** `internal/ui/server_test.go`
 
 Write comprehensive unit tests ensuring JSON payload/query params bind correctly to `GraphProvider` method calls.
@@ -95,7 +95,7 @@ Write comprehensive unit tests ensuring JSON payload/query params bind correctly
     *   Issue `GET /api/query?type=what-if&target=funcA,funcB`.
     *   Assert the mocked `WhatIf` function receives a slice of `["funcA", "funcB"]`.
 
-### 5. Add `ServeHTTP` interface
+### 5. Add `ServeHTTP` interface ✅ Implemented
 **File:** `internal/ui/server.go`
 
 Ensure the `Server` struct implements `http.Handler` so it can be passed directly to `http.ListenAndServe`.

@@ -1,7 +1,7 @@
 # Feature Implementation Plan: D3 Graph Visualizer
 
 ## 📋 Todo Checklist
-- [ ] Phase 1: Go HTTP Server and API Foundation
+- [x] ~~Phase 1: Go HTTP Server and API Foundation~~ ✅ Implemented
 - [ ] Phase 2: Static Asset Embedding and UI Framework
 - [ ] Phase 3: D3 Semantic Search and Initial View
 - [ ] Phase 4: Neighborhood Navigation (Force-Directed Graph)
@@ -23,13 +23,13 @@ Use the connection info in the `.env` file to connect to the existing local podm
 
 #### Phase 1: Go HTTP Server and API Foundation
 *(See `plans/10_PHASE_1_HTTP_SERVER_TASKS.md` for detailed technical implementation tasks)*
-1.  **Step 1.A (The Harness):** Define the server routing test.
+1.  **Step 1.A (The Harness):** Define the server routing test. ✅ Implemented
     *   *Action:* Create `internal/ui/server_test.go`.
     *   *Goal:* Assert that the HTTP server initializes, maps `/api/health` to a 200 OK, and wires up a mock `query.GraphProvider` to a `/api/query` endpoint.
-2.  **Step 1.B (The Implementation):** Build the `Server` struct.
+2.  **Step 1.B (The Implementation):** Build the `Server` struct. ✅ Implemented
     *   *Action:* Create `internal/ui/server.go`.
     *   *Detail:* Implement an HTTP server struct that takes a `query.GraphProvider`. Create a generic handler for `/api/query` that accepts JSON payloads equivalent to the CLI flags (e.g., `{"type": "hybrid-context", "target": "main", "depth": 1}`) and returns the JSON output directly from the provider.
-3.  **Step 1.C (The Verification):** Verify the server harness.
+3.  **Step 1.C (The Verification):** Verify the server harness. ✅ Implemented
     *   *Action:* Run `go test ./internal/ui/...`.
     *   *Success:* The server routing tests pass.
 
