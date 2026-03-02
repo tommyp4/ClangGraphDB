@@ -12,12 +12,12 @@
 The `graphdb` system currently outputs structural and semantic queries via the CLI (JSON format). To support an interactive web-based D3 visualization, we must transition from a pure CLI to a hybrid CLI/Server architecture.
 - **Architecture:** We will introduce a new `serve` command to the Go binary. This command will start a standard `net/http` server. It will use `//go:embed` to package the static D3 frontend files (HTML/JS/CSS), ensuring the binary remains standalone.
 - **Dependencies:** The HTTP server will depend on the existing `query.GraphProvider` interface and `Neo4jProvider` implementation. The frontend will depend on the D3.js library.
-- **Challenges:** Graph visualization performance degrades rapidly beyond a few hundred nodes. The D3 implementation must prune nodes, implement pagination or depth limits, and potentially aggregate edges or namespaces to maintain 60FPS interaction. Additionally, the pre-existing Neo4j `Neo.ClientError.Security.Unauthorized` issue must be addressed by ensuring consistent container authentication before testing the server.
+- **Challenges:** Graph visualization performance degrades rapidly beyond a few hundred nodes. The D3 implementation must prune nodes, implement pagination or depth limits, and potentially aggregate edges or namespaces to maintain 60FPS interaction. The local `.env` file contains all necessary connection info to connect to the local podman Neo4j container. **CRITICAL:** This existing database is fully populated with a sample application (NOT this codebase). The D3 visualizer will connect to this existing container to visualize the sample app. Do NOT use the `graphdb` skill to analyze the architecture of this project itself, as it will return data for the sample application.
 
 ## 📝 Implementation Plan
 
 ### Prerequisites
-Ensure the Neo4j docker container authentication is working correctly. Reset the container or recreate it with a fresh volume if the password cannot be authenticated as `neo4j/password`.
+Use the connection info in the `.env` file to connect to the existing local podman container. **DO NOT create any new databases or reset volumes.** The database is already populated with a sample application which we will use to build and test the D3 visualizer. If you encounter any connection failures, **STOP** immediately and seek user guidance.
 
 ### Step-by-Step Implementation
 
