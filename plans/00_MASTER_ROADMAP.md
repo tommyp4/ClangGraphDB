@@ -204,37 +204,37 @@
 
 ### Campaign 7: Code Hygiene & CLI Decomposition
 **Goal:** Remove dead interface surface area and decompose the monolithic `main.go` (713 lines) into per-command files. Includes Priority 2 quality fixes (deterministic K-Means, batch topology updates, Cypher sanitization, filter fix).
-**Status:** Pending
+**Status:** Completed
 **Plan:** Ref: `plans/09_CAMPAIGNS_7-11_PLAN.md` Items 1, 2, 7.
 **Key Deliverables:**
 - [x] **Dead Code Removal:** Remove unimplemented `FindNode` from `GraphProvider` interface and all mocks (zero callers).
-- [ ] **CLI Decomposition:** Extract `handleIngest`, `handleQuery`, `handleImport`, `handleEnrichFeatures`, `handleBuildAll` into separate files (`cmd_ingest.go`, `cmd_query.go`, etc.). Run `gofmt` to normalize inconsistent indentation.
-- [ ] **Deterministic K-Means:** Add `--seed` flag to `enrich-features` for reproducible graph builds.
-- [ ] **Batch Topology Updates:** Replace per-node Cypher in `UpdateFeatureTopology` with UNWIND-based batching.
-- [ ] **Filter Fix:** Correct `GetUnextractedFunctions` predicate (`n.content IS NOT NULL` -> `n.file IS NOT NULL`).
-- [ ] **Cypher Sanitization:** Expand `sanitizeLabel()` to strip all non-alphanumeric/underscore characters.
+- [x] **CLI Decomposition:** Extract `handleIngest`, `handleQuery`, `handleImport`, `handleEnrichFeatures`, `handleBuildAll` into separate files (`cmd_ingest.go`, `cmd_query.go`, etc.). Run `gofmt` to normalize inconsistent indentation.
+- [x] **Deterministic K-Means:** Add `--seed` flag to `enrich-features` for reproducible graph builds.
+- [x] **Batch Topology Updates:** Replace per-node Cypher in `UpdateFeatureTopology` with UNWIND-based batching.
+- [x] **Filter Fix:** Correct `GetUnextractedFunctions` predicate (`n.content IS NOT NULL` -> `n.file IS NOT NULL`).
+- [x] **Cypher Sanitization:** Expand `sanitizeLabel()` to strip all non-alphanumeric/underscore characters.
 
 ### Campaign 8: Seam Detection & Contamination Propagation (Feathers Parity)
 **Goal:** Restore and extend seam identification, which is currently non-functional. The `GetSeams()` query exists but depends on `ui_contaminated` and `risk_score` properties that are never set -- the Node.js scripts (`propagate_contamination.js`, `analyze_git_history.js`) that populated them were not ported during the Go migration. This campaign implements multi-layer contamination propagation and risk scoring directly in the Go binary.
-**Status:** Pending
+**Status:** Completed
 **Plan:** Ref: `plans/09_CAMPAIGNS_7-11_PLAN.md` Item 3.
 **Key Deliverables:**
-- [ ] **New CLI Command:** `graphdb enrich-contamination -dir <path> [--rules <rules.json>]`.
-- [ ] **Multi-Layer Contamination:** Seed and propagate `ui_contaminated`, `db_contaminated`, `io_contaminated` flags via BFS over the CALLS graph.
-- [ ] **Default Heuristic Rules:** Built-in detection for UI (Controller/View/Form patterns, MFC/WinForms APIs), Database (SQL keywords, ORM patterns), External I/O (HttpClient, Socket, file system APIs).
-- [ ] **Risk Scoring:** Calculate `risk_score` from fan-in, fan-out, and contamination layer count.
-- [ ] **Broadened `GetSeams()`:** Accept `-layer` flag (ui, db, io, all) to find seams at any contamination boundary, not just UI.
+- [x] **New CLI Command:** `graphdb enrich-contamination -dir <path> [--rules <rules.json>]`.
+- [x] **Multi-Layer Contamination:** Seed and propagate `ui_contaminated`, `db_contaminated`, `io_contaminated` flags via BFS over the CALLS graph.
+- [x] **Default Heuristic Rules:** Built-in detection for UI (Controller/View/Form patterns, MFC/WinForms APIs), Database (SQL keywords, ORM patterns), External I/O (HttpClient, Socket, file system APIs).
+- [x] **Risk Scoring:** Calculate `risk_score` from fan-in, fan-out, and contamination layer count.
+- [x] **Broadened `GetSeams()`:** Accept `-layer` flag (ui, db, io, all) to find seams at any contamination boundary, not just UI.
 
 ### Campaign 9: Git History Restoration & Incremental Ingestion
 **Goal:** Restore git history analysis (lost during Node.js migration) and add incremental ingestion so large codebases don't require full rebuilds. The v1 pipeline had `analyze_git_history.js` and a `hotspots` query type -- neither was ported to Go.
-**Status:** Pending
+**Status:** Completed
 **Plan:** Ref: `plans/09_CAMPAIGNS_7-11_PLAN.md` Item 4.
 **Key Deliverables:**
-- [ ] **New CLI Command:** `graphdb enrich-history -dir <path> [-since <date>]`.
-- [ ] **Git Metrics:** Populate `change_frequency`, `last_changed`, `co_changes` on File nodes via `git log` analysis.
-- [ ] **Restore `hotspots` Query:** Combine `risk_score` + `change_frequency` to surface high-risk code.
-- [ ] **Incremental Ingestion:** `graphdb ingest -dir . --since-commit <hash>` -- writes directly to Neo4j via new `Neo4jEmitter` (no intermediate JSONL files). Auto-detects baseline from `GraphState.commit` if `--since-commit` is omitted.
-- [ ] **Co-Change Detection:** Identify files that frequently change together (pairwise commit analysis).
+- [x] **New CLI Command:** `graphdb enrich-history -dir <path> [-since <date>]`.
+- [x] **Git Metrics:** Populate `change_frequency`, `last_changed`, `co_changes` on File nodes via `git log` analysis.
+- [x] **Restore `hotspots` Query:** Combine `risk_score` + `change_frequency` to surface high-risk code.
+- [x] **Incremental Ingestion:** `graphdb ingest -dir . --since-commit <hash>` -- writes directly to Neo4j via new `Neo4jEmitter` (no intermediate JSONL files). Auto-detects baseline from `GraphState.commit` if `--since-commit` is omitted.
+- [x] **Co-Change Detection:** Identify files that frequently change together (pairwise commit analysis).
 
 ### Campaign 10: Test Coverage Integration (Feathers Characterization Tests)
 **Goal:** Enable agents to understand which functions have tests and which don't -- critical for Feathers' "characterization test" workflow during legacy modernization.
@@ -247,14 +247,14 @@
 
 ### Campaign 11: What-If Extraction Analysis (Strangler Fig Planning)
 **Goal:** Enable agents to simulate Strangler Fig extractions before executing them. Answer "If I extract these classes to a new service, what breaks?" without modifying the graph.
-**Status:** Pending
+**Status:** Completed
 **Plan:** Ref: `plans/09_CAMPAIGNS_7-11_PLAN.md` Item 6.
 **Key Deliverables:**
-- [ ] **What-If Query:** `graphdb query -type what-if -target "Namespace.Class" [-target2 "Namespace.Class2"]`.
-- [ ] **Severed Edge Analysis:** Identify all incoming edges that would break.
-- [ ] **Orphan Detection:** Find nodes that become unreachable from non-extracted code.
-- [ ] **Cross-Boundary Calls:** Surface calls from remaining code into extracted code (these need an API/interface).
-- [ ] **Shared State Detection:** Flag globals used by both extracted and remaining code.
+- [x] **What-If Query:** `graphdb query -type what-if -target "Namespace.Class" [-target2 "Namespace.Class2"]`.
+- [x] **Severed Edge Analysis:** Identify all incoming edges that would break.
+- [x] **Orphan Detection:** Find nodes that become unreachable from non-extracted code.
+- [x] **Cross-Boundary Calls:** Surface calls from remaining code into extracted code (these need an API/interface).
+- [x] **Shared State Detection:** Flag globals used by both extracted and remaining code.
 
 ---
 
@@ -285,3 +285,14 @@
 - [ ] MCP Protocol implementation (Stdio transport).
 - [ ] "RAM Overlay" logic (Local Diff vs. Cloud Base).
 - [ ] Tool implementations (`search_features`, `traverse_deps`).
+
+### Campaign 15: D3 Graph Visualizer (Interactive Exploration)
+**Goal:** Create a single-page web application using D3.js to visualize, navigate, and search the Code Property Graph (CPG) generated by `graphdb`, acting as an interactive frontend for exploration and refactoring planning.
+**Status:** Pending
+**Plan:** Ref: `plans/10_CAMPAIGN_D3_VISUALIZER.md`
+**Key Deliverables:**
+- [ ] **API Gateway / Backend Service:** Expose existing `internal/query` Go packages via REST/GraphQL HTTP endpoints.
+- [ ] **D3 Frontend:** Web application with Force-directed graphs and Hierarchical layouts.
+- [ ] **Semantic Search View:** Map `search-similar` and `search-features` to a search UI.
+- [ ] **Neighborhood Navigation:** Interactive expansion of node dependencies (`hybrid-context`, `neighbors`).
+- [ ] **Refactoring Risk Analysis View:** Visual representation of `impact` and `what-if` queries.
