@@ -118,3 +118,24 @@ func TestGetConstraints(t *testing.T) {
 		t.Error("Dynamic dimensions not reflected in constraints")
 	}
 }
+
+func TestSanitizeLabel(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"Function", "Function"},
+		{"`Function`", "Function"},
+		{"My-Label", "MyLabel"},
+		{"Label with space", "Labelwithspace"},
+		{"Label;DROP TABLE", "LabelDROPTABLE"},
+		{"Label_123", "Label_123"},
+	}
+
+	for _, tc := range tests {
+		got := SanitizeLabel(tc.input)
+		if got != tc.expected {
+			t.Errorf("SanitizeLabel(%q) = %q; want %q", tc.input, got, tc.expected)
+		}
+	}
+}

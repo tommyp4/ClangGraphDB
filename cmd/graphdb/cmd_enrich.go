@@ -12,6 +12,7 @@ func handleEnrichFeatures(args []string) {
 	dirPtr := fs.String("dir", ".", "Directory to analyze")
 	batchSizePtr := fs.Int("batch-size", 20, "Batch size for LLM feature extraction")
 	embedBatchSizePtr := fs.Int("embed-batch-size", 100, "Batch size for embedding generation")
+	seedPtr := fs.Int64("seed", 42, "Seed for deterministic K-Means clustering")
 
 	fs.Parse(args)
 
@@ -58,6 +59,7 @@ func handleEnrichFeatures(args []string) {
 		Extractor:  extractor,
 		Embedder:   embedder,
 		Summarizer: summarizer,
+		Seed:       *seedPtr,
 	}
 
 	log.Println("Starting Database-backed Feature Enrichment...")

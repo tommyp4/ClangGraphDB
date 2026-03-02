@@ -3,6 +3,7 @@ package query
 import (
 	"fmt"
 	"graphdb/internal/graph"
+	"graphdb/internal/loader"
 
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 )
@@ -11,7 +12,7 @@ import (
 func (p *Neo4jProvider) GetUnextractedFunctions(limit int) ([]*graph.Node, error) {
 	query := `
 		MATCH (n:Function)
-		WHERE n.atomic_features IS NULL AND n.content IS NOT NULL
+		WHERE n.atomic_features IS NULL AND n.file IS NOT NULL AND n.start_line IS NOT NULL
 		RETURN n.id as id, n.file as file, n.start_line as start, n.end_line as end
 		LIMIT $limit
 	`
@@ -200,49 +201,64 @@ func (p *Neo4jProvider) GetUnnamedFeatures(limit int) ([]*graph.Node, error) {
 
 // UpdateFeatureTopology writes feature nodes and relationships to the graph.
 func (p *Neo4jProvider) UpdateFeatureTopology(nodes []*graph.Node, edges []*graph.Edge) error {
+	if len(nodes) == 0 && len(edges) == 0 {
+		return nil
+	}
+
 	session := p.driver.NewSession(p.ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
 	defer session.Close(p.ctx)
 
 	_, err := session.ExecuteWrite(p.ctx, func(tx neo4j.ManagedTransaction) (any, error) {
-		// Insert/Update Nodes
-		for _, n := range nodes {
+		// 1. Batch insert nodes
+		if len(nodes) > 0 {
+			nodeBatches := make([]map[string]any, 0, len(nodes))
+			for _, n := range nodes {
+				props := make(map[string]any)
+				if n.Properties != nil {
+					for k, v := range n.Properties {
+						props[k] = v
+					}
+				}
+				props["id"] = n.ID
+				nodeBatches = append(nodeBatches, props)
+			}
 			query := `
-				MERGE (f:Feature {id: $id})
-				SET f += $props
+				UNWIND $batch AS row
+				MERGE (f:Feature {id: row.id})
+				SET f += row
 			`
-			props := n.Properties
-			if props == nil {
-				props = map[string]any{}
-			}
-			_, txErr := tx.Run(p.ctx, query, map[string]any{
-				"id":    n.ID,
-				"props": props,
-			})
+			_, txErr := tx.Run(p.ctx, query, map[string]any{"batch": nodeBatches})
 			if txErr != nil {
-				return nil, fmt.Errorf("failed to write node %s: %w", n.ID, txErr)
+				return nil, fmt.Errorf("failed to batch load feature nodes: %w", txErr)
 			}
 		}
 
-		// Insert Relationships
-		for _, e := range edges {
-			var query string
-			
-			// To simplify, we match by id for both source and target
-			query = fmt.Sprintf(`
-				MATCH (source {id: $sourceId})
-				MATCH (target {id: $targetId})
-				MERGE (source)-[r:%s]->(target)
-			`, e.Type)
-			
-			_, txErr := tx.Run(p.ctx, query, map[string]any{
-				"sourceId": e.SourceID,
-				"targetId": e.TargetID,
-			})
-			if txErr != nil {
-				return nil, fmt.Errorf("failed to write edge %s->%s: %w", e.SourceID, e.TargetID, txErr)
+		// 2. Batch insert edges
+		if len(edges) > 0 {
+			// Group edges by type since we need to put the type in the Cypher
+			edgeGroups := make(map[string][]map[string]any)
+			for _, e := range edges {
+				edgeGroups[e.Type] = append(edgeGroups[e.Type], map[string]any{
+					"sourceId": e.SourceID,
+					"targetId": e.TargetID,
+				})
+			}
+
+			for relType, batch := range edgeGroups {
+				// Ensure label is sanitized
+				sanitizedRelType := loader.SanitizeLabel(relType)
+				query := fmt.Sprintf(`
+					UNWIND $batch AS row
+					MATCH (source {id: row.sourceId})
+					MATCH (target {id: row.targetId})
+					MERGE (source)-[r:%s]->(target)
+				`, sanitizedRelType)
+				_, txErr := tx.Run(p.ctx, query, map[string]any{"batch": batch})
+				if txErr != nil {
+					return nil, fmt.Errorf("failed to batch load edges of type %s: %w", relType, txErr)
+				}
 			}
 		}
-
 		return nil, nil
 	})
 

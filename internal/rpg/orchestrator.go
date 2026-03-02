@@ -15,6 +15,7 @@ type Orchestrator struct {
 	Extractor  FeatureExtractor
 	Embedder   embedding.Embedder
 	Summarizer Summarizer
+	Seed       int64
 }
 
 func (o *Orchestrator) RunExtraction(batchSize int) error {
@@ -137,11 +138,13 @@ func (o *Orchestrator) RunClustering(dir string) error {
 	clusterer := &EmbeddingClusterer{
 		Embedder:              o.Embedder,
 		PrecomputedEmbeddings: embeddings,
+		Seed:                  o.Seed,
 	}
 
 	innerGlobalClusterer := &EmbeddingClusterer{
 		Embedder:              o.Embedder,
 		PrecomputedEmbeddings: embeddings,
+		Seed:                  o.Seed,
 		KStrategy: func(n int) int {
 			if n == 0 {
 				return 0

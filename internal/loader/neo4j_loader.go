@@ -316,7 +316,7 @@ func buildNodeQuery(label string) string {
 			MERGE (n:%s {id: row.id})
 			SET n += row
 			SET n:CodeElement
-		`, sanitizeLabel(label))
+		`, SanitizeLabel(label))
 }
 
 func groupEdgesByType(edges []graph.Edge) map[string][]map[string]any {
@@ -342,7 +342,7 @@ func buildEdgeQuery(relType string) string {
 			MATCH (source:CodeElement {id: row.sourceId})
 			MATCH (target:CodeElement) WHERE target.id = row.targetId OR target.fqn = row.targetId
 			MERGE (source)-[r:%s]->(target)
-		`, sanitizeLabel(relType))
+		`, SanitizeLabel(relType))
 }
 
 func buildWipeQuery() string {
@@ -388,6 +388,12 @@ func (l *Neo4jLoader) getConstraints() []string {
 	}
 }
 
-func sanitizeLabel(label string) string {
-	return strings.ReplaceAll(label, "`", "")
+func SanitizeLabel(label string) string {
+	var sb strings.Builder
+	for _, r := range label {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' {
+			sb.WriteRune(r)
+		}
+	}
+	return sb.String()
 }

@@ -15,6 +15,7 @@ type EmbeddingClusterer struct {
 	MaxIterations         int // K-Means iterations; 0 defaults to 50
 	PrecomputedEmbeddings map[string][]float32
 	KStrategy             func(n int) int // Optional custom K calculation
+	Seed                  int64           // Seed for K-Means initialization
 }
 
 func (c *EmbeddingClusterer) Cluster(nodes []graph.Node, domain string) (map[string][]graph.Node, error) {
@@ -85,7 +86,7 @@ func (c *EmbeddingClusterer) Cluster(nodes []graph.Node, domain string) (map[str
 	if maxIter <= 0 {
 		maxIter = 50
 	}
-	assignments := kmeans(embeddings, k, maxIter)
+	assignments := kmeans(embeddings, k, maxIter, c.Seed)
 
 	// 5. Group nodes by cluster assignment
 	clusters := make(map[string][]graph.Node)
@@ -99,7 +100,7 @@ func (c *EmbeddingClusterer) Cluster(nodes []graph.Node, domain string) (map[str
 
 // kmeans runs K-Means clustering on a set of vectors.
 // Returns a slice of cluster assignments (one per input vector).
-func kmeans(vectors [][]float32, k int, maxIterations int) []int {
+func kmeans(vectors [][]float32, k int, maxIterations int, seed int64) []int {
 	n := len(vectors)
 	if n == 0 || k <= 0 {
 		return nil
@@ -107,7 +108,7 @@ func kmeans(vectors [][]float32, k int, maxIterations int) []int {
 	dim := len(vectors[0])
 
 	// Initialize centroids using K-Means++ initialization
-	centroids := kmeansppInit(vectors, k)
+	centroids := kmeansppInit(vectors, k, seed)
 
 	assignments := make([]int, n)
 
@@ -162,12 +163,13 @@ func kmeans(vectors [][]float32, k int, maxIterations int) []int {
 }
 
 // kmeansppInit selects initial centroids using K-Means++ algorithm.
-func kmeansppInit(vectors [][]float32, k int) [][]float32 {
+func kmeansppInit(vectors [][]float32, k int, seed int64) [][]float32 {
 	n := len(vectors)
 	centroids := make([][]float32, 0, k)
+	rng := rand.New(rand.NewSource(seed))
 
 	// Pick first centroid randomly
-	first := rand.Intn(n)
+	first := rng.Intn(n)
 	centroids = append(centroids, vectors[first])
 
 	for len(centroids) < k {
@@ -187,7 +189,7 @@ func kmeansppInit(vectors [][]float32, k int) [][]float32 {
 		}
 
 		// Weighted random selection
-		r := rand.Float64() * total
+		r := rng.Float64() * total
 		cumulative := 0.0
 		chosen := 0
 		for i, d := range dists {
