@@ -57,3 +57,26 @@ func TestParse(t *testing.T) {
 		t.Errorf("Expected 1 edge, got %d", len(edges))
 	}
 }
+
+func TestIsTestFile(t *testing.T) {
+	tests := []struct {
+		path   string
+		isTest bool
+	}{
+		{"internal/analysis/parser_test.go", true},
+		{"internal/analysis/parser.go", false},
+		{"src/MyServiceTest.java", true},
+		{"src/MyService.java", false},
+		{"src/MyServiceTests.cs", true},
+		{"src/MyService.cs", false},
+		{"src/app.test.ts", true},
+		{"src/app.spec.ts", true},
+		{"src/app.ts", false},
+	}
+
+	for _, tt := range tests {
+		if got := IsTestFile(tt.path); got != tt.isTest {
+			t.Errorf("IsTestFile(%q) = %v; want %v", tt.path, got, tt.isTest)
+		}
+	}
+}

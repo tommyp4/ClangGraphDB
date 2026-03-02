@@ -238,12 +238,12 @@
 
 ### Campaign 10: Test Coverage Integration (Feathers Characterization Tests)
 **Goal:** Enable agents to understand which functions have tests and which don't -- critical for Feathers' "characterization test" workflow during legacy modernization.
-**Status:** Pending
+**Status:** ✅ Completed
 **Plan:** Ref: `plans/09_CAMPAIGNS_7-11_PLAN.md` Item 5.
 **Key Deliverables:**
-- [ ] **Test File Detection:** Identify test files by convention (`*_test.go`, `*Test.java`, `*Tests.cs`, `*.test.ts`, `*.spec.ts`) and tag Function nodes with `is_test: true`.
-- [ ] **Test-to-Production Linkage:** Create `TESTS` edges from test functions to production functions via naming conventions and import analysis.
-- [ ] **Coverage Query:** New `graphdb query -type coverage -target <function>` to check test status.
+- [x] **Test File Detection:** Identify test files by convention (`*_test.go`, `*Test.java`, `*Tests.cs`, `*.test.ts`, `*.spec.ts`) and tag Function nodes with `is_test: true`.
+- [x] **Test-to-Production Linkage:** Create `TESTS` edges from test functions to production functions via naming conventions and import analysis.
+- [x] **Coverage Query:** New `graphdb query -type coverage -target <function>` to check test status.
 
 ### Campaign 11: What-If Extraction Analysis (Strangler Fig Planning)
 **Goal:** Enable agents to simulate Strangler Fig extractions before executing them. Answer "If I extract these classes to a new service, what breaks?" without modifying the graph.

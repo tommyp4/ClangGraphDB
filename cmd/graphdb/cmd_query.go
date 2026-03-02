@@ -13,7 +13,7 @@ import (
 
 func handleQuery(args []string) {
 	fs := flag.NewFlagSet("query", flag.ExitOnError)
-	typePtr := fs.String("type", "", "Query type: search-features, search-similar, hybrid-context, neighbors, impact, globals, seams, hotspots, explore-domain")
+	typePtr := fs.String("type", "", "Query type: search-features, search-similar, hybrid-context, neighbors, impact, globals, coverage, seams, hotspots, explore-domain")
 	targetPtr := fs.String("target", "", "Target function name or query text")
 	target2Ptr := fs.String("target2", "", "Second target (e.g. for locate-usage)")
 	depthPtr := fs.Int("depth", 1, "Traversal depth")
@@ -127,6 +127,12 @@ func handleQuery(args []string) {
 		}
 		result, err = provider.GetGlobals(*targetPtr)
 
+	case "coverage":
+		if *targetPtr == "" {
+			log.Fatal("-target is required for 'coverage'")
+		}
+		result, err = provider.GetCoverage(*targetPtr)
+
 	case "seams":
 		result, err = provider.GetSeams(*modulePtr, *layerPtr)
 
@@ -179,7 +185,7 @@ func handleQuery(args []string) {
 		}
 
 	default:
-		log.Fatalf("Unknown or missing query type: %s. Valid types: search-features, search-similar, hybrid-context, neighbors, impact, globals, seams, explore-domain, status", *typePtr)
+		log.Fatalf("Unknown or missing query type: %s. Valid types: search-features, search-similar, hybrid-context, neighbors, impact, globals, coverage, seams, explore-domain, status", *typePtr)
 	}
 
 	if err != nil {

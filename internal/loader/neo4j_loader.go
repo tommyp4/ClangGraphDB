@@ -369,7 +369,9 @@ func (l *Neo4jLoader) getConstraints() []string {
 		"CREATE CONSTRAINT IF NOT EXISTS FOR (n:CodeElement) REQUIRE n.id IS UNIQUE",
 		"CREATE INDEX IF NOT EXISTS FOR (n:CodeElement) ON (n.fqn)",
 		"CREATE INDEX IF NOT EXISTS FOR (n:Function) ON (n.name)",
+		"CREATE INDEX IF NOT EXISTS FOR (n:Function) ON (n.is_test)",
 		"CREATE INDEX IF NOT EXISTS FOR (n:File) ON (n.file)",
+		"CREATE INDEX IF NOT EXISTS FOR (n:File) ON (n.is_test)",
 		// Vector Indexes (restored from Node.js implementation)
 		fmt.Sprintf(`CREATE VECTOR INDEX feature_embeddings IF NOT EXISTS
 		FOR (n:Feature) ON (n.embedding)

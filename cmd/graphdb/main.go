@@ -35,6 +35,8 @@ func main() {
 		handleEnrichContamination(os.Args[2:])
 	case "enrich-history":
 		handleEnrichHistory(os.Args[2:])
+	case "enrich-tests":
+		handleEnrichTests(os.Args[2:])
 	case "import":
 		importCmd(os.Args[2:])
 	case "build-all":
@@ -58,6 +60,7 @@ func printUsage() {
 	fmt.Println("  enrich-features        Build the RPG (Repository Planning Graph) Intent Layer")
 	fmt.Println("  enrich-contamination   Identify seams and propagate contamination layers")
 	fmt.Println("  enrich-history         Analyze git history to find hotspots and co-changes")
+	fmt.Println("  enrich-tests           Link tests to production functions")
 	fmt.Println("  import                 Import JSONL files into Neo4j")
 	fmt.Println("  query                  Query the graph (structural or semantic)")
 	fmt.Println("  build-all              One-shot: Ingest -> Enrich -> Import")

@@ -89,6 +89,19 @@ func (wp *WorkerPool) processFile(job Job) error {
 		},
 	}
 
+	isTestFile := analysis.IsTestFile(relPath)
+	if isTestFile {
+		fileNode.Properties["is_test"] = true
+		for _, node := range nodes {
+			if node.Label == "Function" || node.Label == "Method" {
+				if node.Properties == nil {
+					node.Properties = make(map[string]interface{})
+				}
+				node.Properties["is_test"] = true
+			}
+		}
+	}
+
 	// Link nodes to File
 	var definedInEdges []*graph.Edge
 	for _, node := range nodes {

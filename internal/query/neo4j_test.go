@@ -29,7 +29,7 @@ func getProvider(t *testing.T) *Neo4jProvider {
 
 func cleanup(t *testing.T, p *Neo4jProvider) {
 	_, err := neo4j.ExecuteQuery(p.ctx, p.driver, `
-		MATCH (n) WHERE n.name STARTS WITH 'Test' OR n.name = 'ContaminatedCaller' OR n.name = 'SeamFunc' OR n.file = 'test_fixture.go' DETACH DELETE n
+		MATCH (n) WHERE n.name STARTS WITH 'Test' OR n.file STARTS WITH 'Test' OR n.name = 'ContaminatedCaller' OR n.name = 'SeamFunc' OR n.file = 'test_fixture.go' DETACH DELETE n
 	`, nil, neo4j.EagerResultTransformer)
 	if err != nil {
 		t.Logf("Failed to cleanup: %v", err)

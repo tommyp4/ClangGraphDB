@@ -58,6 +58,9 @@ func (m *MockProvider) ExploreDomain(featureID string) (*query.DomainExploration
 	return nil, nil
 }
 
+func (m *MockProvider) GetCoverage(nodeID string) ([]*graph.Node, error) { return nil, nil }
+func (m *MockProvider) LinkTests() error { return nil }
+
 func (m *MockProvider) SeedContamination(modulePattern string, rules []query.ContaminationRule) error {
 	return nil
 }

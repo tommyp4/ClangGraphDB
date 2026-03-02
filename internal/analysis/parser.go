@@ -3,6 +3,7 @@ package analysis
 import (
 	"fmt"
 	"graphdb/internal/graph"
+	"strings"
 )
 
 // LanguageParser defines the interface for parsing source code files.
@@ -29,4 +30,23 @@ func GetParser(ext string) (LanguageParser, bool) {
 // collisions (e.g. methods with same name but different parameters).
 func GenerateNodeID(label string, fqn string, signature string) string {
 	return fmt.Sprintf("%s:%s:%s", label, fqn, signature)
+}
+
+// IsTestFile detects if a file path belongs to a test file by convention.
+func IsTestFile(path string) bool {
+	lowerPath := strings.ToLower(path)
+	switch {
+	case strings.HasSuffix(lowerPath, "_test.go"):
+		return true
+	case strings.HasSuffix(lowerPath, "test.java"):
+		return true
+	case strings.HasSuffix(lowerPath, "tests.cs"):
+		return true
+	case strings.HasSuffix(lowerPath, ".test.ts"):
+		return true
+	case strings.HasSuffix(lowerPath, ".spec.ts"):
+		return true
+	default:
+		return false
+	}
 }

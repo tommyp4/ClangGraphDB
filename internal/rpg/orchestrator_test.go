@@ -35,6 +35,9 @@ func (m *MockGraphProvider) FetchSource(nodeID string) (string, error) { return 
 func (m *MockGraphProvider) LocateUsage(sourceID string, targetID string) (any, error) { return nil, nil }
 func (m *MockGraphProvider) GetGraphState() (string, error) { return "", nil }
 
+func (m *MockGraphProvider) GetCoverage(nodeID string) ([]*graph.Node, error) { return nil, nil }
+func (m *MockGraphProvider) LinkTests() error { return nil }
+
 func (m *MockGraphProvider) SeedContamination(modulePattern string, rules []query.ContaminationRule) error {
 	return nil
 }

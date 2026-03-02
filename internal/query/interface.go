@@ -106,6 +106,10 @@ type GraphProvider interface {
 	ExploreDomain(featureID string) (*DomainExplorationResult, error)
 	GetGraphState() (string, error)
 
+	// Test Coverage Analysis
+	GetCoverage(nodeID string) ([]*graph.Node, error)
+	LinkTests() error
+
 	// Contamination & Risk Analysis
 	SeedContamination(modulePattern string, rules []ContaminationRule) error
 	PropagateContamination(layer string) error
