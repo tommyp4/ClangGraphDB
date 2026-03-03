@@ -36,13 +36,44 @@ Phase 1 & 2 Completed ✅
   - [x] Update `cmd/graphdb/cmd_query.go` to support `-type seams` using the new Pinch Point definition. ✅
 
 ### Phase 4: Implement Semantic Seams (SRP Violations)
-- **Objective:** Utilize Vector Embeddings to find structural cohesion vs semantic divergence.
-- **Tasks:**
-  - Introduce a new query type `-type semantic-seams`.
-  - Implement Cypher/Go logic to analyze siblings (e.g., functions within the same class/file).
-  - Use vector similarity to flag sibling nodes that have highly divergent embeddings, indicating a Single Responsibility Principle violation and a potential "conceptual" seam.
+- **Objective:** Utilize Vector Embeddings to find structural cohesion vs semantic divergence. By analyzing the semantic similarity of functions/methods within the same class or file, we can detect Single Responsibility Principle (SRP) violations, which serve as excellent "conceptual seams" for refactoring.
+
+#### Task 4.1: Extend Query Interface and Mock for Semantic Seams ✅ (REMEDIATED)
+1.  **Step 4.1.A (The Harness):** Define the verification requirement in `internal/query/neo4j_semantic_seams_test.go`. ✅
+    *   *Action:* Create a test file asserting that a mock or a real database can execute and return results for semantic seam detection.
+    *   *Goal:* Ensure the new method signature `GetSemanticSeams(ctx context.Context, similarityThreshold float64) ([]*SemanticSeamResult, error)` is testable and properly asserted.
+2.  **Step 4.1.B (The Implementation):** Add the interface and structs. ✅
+    *   *Action:* Modify `internal/query/interface.go` to add `SemanticSeamResult` struct containing `Container string` (File/Class name), `MethodA string`, `MethodB string`, and `Similarity float64`.
+    *   *Action:* Add `GetSemanticSeams(ctx context.Context, similarityThreshold float64) ([]*SemanticSeamResult, error)` to the `GraphProvider` interface.
+3.  **Step 4.1.C (The Verification):** Verify interfaces. ✅
+    *   *Action:* Run `go test ./internal/query/...`. Update `cmd/graphdb/mocks.go` to implement `GetSemanticSeams` to ensure the build succeeds and assertions pass.
+
+#### Task 4.2: Implement Cypher Logic for Vector Similarity (Intra-Class)
+1.  **Step 4.2.A (The Harness):** Add an integration test in `internal/query/neo4j_test.go` (or a dedicated `neo4j_seams_test.go`).
+    *   *Action:* Create a mock File node with several Function child nodes. Assign known embedding properties to the functions (some mathematically close, some distant).
+2.  **Step 4.2.B (The Implementation):** Implement the query in `internal/query/neo4j.go`.
+    *   *Action:* Write the Cypher logic for `GetSemanticSeams`.
+    *   *Detail:* The query should MATCH a container (File/Class) and its child Functions. It should pair the functions `(f1)` and `(f2)` where `id(f1) < id(f2)`, calculate `db.dbms.math.cosineSimilarity(f1.embedding, f2.embedding)`, and filter pairs where the similarity is below the `threshold`.
+    *   *Action:* Return the aggregated pairs as `SemanticSeamResult`.
+3.  **Step 4.2.C (The Verification):** Execute tests.
+    *   *Action:* Run the new integration test against the local Neo4j instance to ensure the Cypher query executes and correctly identifies the divergent methods.
+
+#### Task 4.3: Expose Semantic Seams in the CLI
+1.  **Step 4.3.A (The Harness):** Create/update CLI tests.
+    *   *Action:* Update testing for CLI flags in `cmd/graphdb/cmd_query_test.go` (if it exists) to ensure `-type semantic-seams` parses correctly with its respective thresholds.
+2.  **Step 4.3.B (The Implementation):** Modify `cmd/graphdb/cmd_query.go`.
+    *   *Action:* Add `"semantic-seams"` to the `switch *typePtr` block.
+    *   *Action:* Add a new flag `-similarity` (default `0.5`) to control the cosine similarity threshold (lower means more divergent).
+    *   *Action:* Call `provider.GetSemanticSeams(*similarityPtr)` and format the JSON output to clearly show the SRP violations (e.g., displaying the File, the two methods, and their low similarity score).
+3.  **Step 4.3.C (The Verification):** End-to-end test.
+    *   *Action:* Run `go build ./cmd/graphdb` and execute `./graphdb query -type semantic-seams -similarity 0.5`. Verify the output format is readable, accurate, and actionable.
+
+### Testing Strategy
+- **Unit Tests:** Verify the mock interface generation and correct definition of `SemanticSeamResult`.
+- **Integration Tests:** Use specifically crafted sub-graphs within Neo4j with deterministic embedding vectors (e.g., `[1.0, 0.0, 0.0]` vs `[0.0, 1.0, 0.0]`) to prove cosine similarity logic detects distinct semantic clusters accurately.
+- **E2E Tests:** Ensure the newly built binary executes the semantic seams query and formats JSON correctly.
 
 ## Success Criteria
 - The `enrich-contamination` CLI command correctly seeds and propagates volatility upwards.
 - The `seams` query returns valid Pinch Points (hourglass nodes) instead of returning 0.
-- The `semantic-seams` query accurately identifies conceptually mismatched functions within a single file.
+- The `semantic-seams` query accurately identifies conceptually mismatched functions within a single file based on their vector embeddings, outputting actionable refactoring recommendations.

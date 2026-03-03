@@ -203,7 +203,7 @@ func handleQuery(args []string) {
 		}
 
 	default:
-		log.Fatalf("Unknown or missing query type: %s. Valid types: search-features, search-similar, hybrid-context, neighbors, impact, globals, coverage, seams, explore-domain, what-if, status", *typePtr)
+		log.Fatalf("Unknown or missing query type: %s. Valid types: search-features, search-similar, hybrid-context, neighbors, impact, globals, coverage, seams, hotspots, explore-domain, what-if, status", *typePtr)
 	}
 
 	if err != nil {
