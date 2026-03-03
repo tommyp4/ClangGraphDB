@@ -3,6 +3,8 @@ package query
 import (
 	"context"
 	"testing"
+
+	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 )
 
 // mockSemanticSeamsProvider is a minimal mock for testing the interface definition.
@@ -58,17 +60,65 @@ func TestGetSemanticSeamsInterface(t *testing.T) {
 	}
 }
 
-func TestNeo4jProvider_GetSemanticSeams_Stub(t *testing.T) {
-	// Ensure the Neo4jProvider implements the method even if it's currently a stub.
-	// This ensures the interface is satisfied.
-	var provider GraphProvider = &Neo4jProvider{}
-	
-	// We don't need a real connection for this check if we just want to see if it compiles and returns (nil, nil)
-	results, err := provider.GetSemanticSeams(context.Background(), 0.5)
+func TestNeo4jProvider_GetSemanticSeams_Integration(t *testing.T) {
+	p := getProvider(t)
+	defer p.Close()
+
+	// Ensure cleanup for this specific test
+	defer func() {
+		_, _ = neo4j.ExecuteQuery(p.ctx, p.driver, `
+			MATCH (n) WHERE n.id STARTS WITH 'seams-test-' DETACH DELETE n
+		`, nil, neo4j.EagerResultTransformer)
+	}()
+
+	// Clear before running just in case
+	_, _ = neo4j.ExecuteQuery(p.ctx, p.driver, `
+		MATCH (n) WHERE n.id STARTS WITH 'seams-test-' DETACH DELETE n
+	`, nil, neo4j.EagerResultTransformer)
+
+	// Setup initial state: 1 File with 2 Functions that are divergent
+	setupQuery := `
+		CREATE (f:File {id: 'seams-test-file1', name: 'divergent_file.go'})
+		CREATE (f1:Function {id: 'seams-test-f1', name: 'func1', embedding: [1.0, 0.0, 0.0]})
+		CREATE (f2:Function {id: 'seams-test-f2', name: 'func2', embedding: [0.0, 1.0, 0.0]})
+		CREATE (f)-[:DEFINES]->(f1)
+		CREATE (f)-[:DEFINES]->(f2)
+
+		CREATE (f_close:File {id: 'seams-test-file2', name: 'cohesive_file.go'})
+		CREATE (f3:Function {id: 'seams-test-f3', name: 'func3', embedding: [1.0, 0.0, 0.0]})
+		CREATE (f4:Function {id: 'seams-test-f4', name: 'func4', embedding: [0.9, 0.1, 0.0]})
+		CREATE (f_close)-[:DEFINES]->(f3)
+		CREATE (f_close)-[:DEFINES]->(f4)
+	`
+	_, err := neo4j.ExecuteQuery(p.ctx, p.driver, setupQuery, nil, neo4j.EagerResultTransformer)
 	if err != nil {
-		t.Errorf("Stub should not return error, got %v", err)
+		t.Fatalf("Failed to setup seams fixture: %v", err)
 	}
-	if results != nil {
-		t.Errorf("Stub should return nil results, got %v", results)
+
+	// 1. Test GetSemanticSeams with a threshold that should only find the divergent pair
+	results, err := p.GetSemanticSeams(p.ctx, 0.6)
+	if err != nil {
+		t.Fatalf("GetSemanticSeams failed: %v", err)
+	}
+
+	// 2. Assertions
+	foundDivergent := false
+	for _, res := range results {
+		if res.Container == "divergent_file.go" {
+			foundDivergent = true
+			if res.MethodA != "func1" && res.MethodA != "func2" {
+				t.Errorf("Expected MethodA to be func1 or func2, got %s", res.MethodA)
+			}
+			if res.Similarity > 0.51 { // Cosine similarity should be 0.5 in this environment
+				t.Errorf("Expected low similarity for divergent file, got %f", res.Similarity)
+			}
+		}
+		if res.Container == "cohesive_file.go" {
+			t.Errorf("Did not expect cohesive_file.go to be in results")
+		}
+	}
+
+	if !foundDivergent {
+		t.Errorf("Expected to find divergent_file.go in results")
 	}
 }

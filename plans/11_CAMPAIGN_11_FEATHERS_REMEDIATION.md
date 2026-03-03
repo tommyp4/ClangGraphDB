@@ -48,14 +48,14 @@ Phase 1 & 2 Completed ✅
 3.  **Step 4.1.C (The Verification):** Verify interfaces. ✅
     *   *Action:* Run `go test ./internal/query/...`. Update `cmd/graphdb/mocks.go` to implement `GetSemanticSeams` to ensure the build succeeds and assertions pass.
 
-#### Task 4.2: Implement Cypher Logic for Vector Similarity (Intra-Class)
-1.  **Step 4.2.A (The Harness):** Add an integration test in `internal/query/neo4j_test.go` (or a dedicated `neo4j_seams_test.go`).
-    *   *Action:* Create a mock File node with several Function child nodes. Assign known embedding properties to the functions (some mathematically close, some distant).
-2.  **Step 4.2.B (The Implementation):** Implement the query in `internal/query/neo4j.go`.
+#### Task 4.2: Implement Cypher Logic for Vector Similarity (Intra-Class) ✅ (REMEDIATED)
+1.  **Step 4.2.A (The Harness):** Add an integration test in `internal/query/neo4j_semantic_seams_test.go`. ✅
+    *   *Action:* Create a mock File node with several Function child nodes. Assign known embedding properties to the functions (some mathematically close, some divergent).
+2.  **Step 4.2.B (The Implementation):** Implement the query in `internal/query/neo4j_semantic_seams.go`. ✅
     *   *Action:* Write the Cypher logic for `GetSemanticSeams`.
-    *   *Detail:* The query should MATCH a container (File/Class) and its child Functions. It should pair the functions `(f1)` and `(f2)` where `id(f1) < id(f2)`, calculate `db.dbms.math.cosineSimilarity(f1.embedding, f2.embedding)`, and filter pairs where the similarity is below the `threshold`.
+    *   *Detail:* The query should MATCH a container (File/Class) and its child Functions. It should pair the functions `(f1)` and `(f2)` where `f1.id < f2.id`, calculate `vector.similarity.cosine(f1.embedding, f2.embedding)`, and filter pairs where the similarity is below the `threshold`.
     *   *Action:* Return the aggregated pairs as `SemanticSeamResult`.
-3.  **Step 4.2.C (The Verification):** Execute tests.
+3.  **Step 4.2.C (The Verification):** Execute tests. ✅
     *   *Action:* Run the new integration test against the local Neo4j instance to ensure the Cypher query executes and correctly identifies the divergent methods.
 
 #### Task 4.3: Expose Semantic Seams in the CLI

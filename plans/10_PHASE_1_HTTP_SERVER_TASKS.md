@@ -1,6 +1,6 @@
 # Phase 1: Go HTTP Server and API Foundation - Detailed Tasks
 
-This document expands on Phase 1 from `plans/10_CAMPAIGN_D3_VISUALIZER.md`, providing the strict technical specifications for the `internal/ui` HTTP server package. This implementation bridges the existing `query.GraphProvider` into a web-accessible JSON API, enabling the future D3 frontend.
+This document expands on Phase 1 from `plans/12_CAMPAIGN_D3_VISUALIZER.md`, providing the strict technical specifications for the `internal/ui` HTTP server package. This implementation bridges the existing `query.GraphProvider` into a web-accessible JSON API, enabling the future D3 frontend.
 
 ## 📋 Task Breakdown
 
