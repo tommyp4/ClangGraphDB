@@ -28,12 +28,12 @@ Phase 1 & 2 Completed ✅
   - [x] Rewrite `PropagateContamination` as `PropagateVolatility`. **Crucially, change the propagation direction to UPWARD** (from Callee to Caller): `MATCH (caller)-[:CALLS]->(callee {is_volatile: true}) SET caller.is_volatile = true`. ✅
   - [x] Calculate a `volatility_score` based on distance to volatile boundaries and degree of contamination. ✅
 
-### Phase 3: Rewrite Seams to Detect Pinch Points
-- **Objective:** Replace the broken "where contamination stops" seam query with a Pinch Point query.
+### Phase 3: Rewrite Seams to Detect Pinch Points ✅
+- **Objective:** Replace the broken "where contamination stops" seam query with a Pinch Point query. ✅
 - **Tasks:**
-  - Update `GetSeams` in `internal/query/neo4j.go`.
-  - Implement Cypher query to identify **Pinch Points**: nodes with high internal Fan-In (called by many non-volatile internal functions) and high volatile Fan-Out (orchestrates multiple volatile/external dependencies).
-  - Update `cmd/graphdb/cmd_query.go` to support `-type seams` using the new Pinch Point definition.
+  - [x] Update `GetSeams` in `internal/query/neo4j.go`. ✅
+  - [x] Implement Cypher query to identify **Pinch Points**: nodes with high internal Fan-In (called by many non-volatile internal functions) and high volatile Fan-Out (orchestrates multiple volatile/external dependencies). ✅
+  - [x] Update `cmd/graphdb/cmd_query.go` to support `-type seams` using the new Pinch Point definition. ✅
 
 ### Phase 4: Implement Semantic Seams (SRP Violations)
 - **Objective:** Utilize Vector Embeddings to find structural cohesion vs semantic divergence.

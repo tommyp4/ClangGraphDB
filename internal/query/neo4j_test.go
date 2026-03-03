@@ -29,7 +29,7 @@ func getProvider(t *testing.T) *Neo4jProvider {
 
 func cleanup(t *testing.T, p *Neo4jProvider) {
 	_, err := neo4j.ExecuteQuery(p.ctx, p.driver, `
-		MATCH (n) WHERE n.name STARTS WITH 'Test' OR n.file STARTS WITH 'Test' OR n.name = 'ContaminatedCaller' OR n.name = 'SeamFunc' OR n.file = 'test_fixture.go' DETACH DELETE n
+		MATCH (n) WHERE n.name STARTS WITH 'Test' OR n.file STARTS WITH 'Test' OR n.name = 'ContaminatedCaller' OR n.name = 'SeamFunc' OR n.file = 'test_fixture.go' OR n.name = 'InternalCaller' OR n.name = 'ExternalLib' DETACH DELETE n
 	`, nil, neo4j.EagerResultTransformer)
 	if err != nil {
 		t.Logf("Failed to cleanup: %v", err)
@@ -198,10 +198,17 @@ func TestGetSeams(t *testing.T) {
 	defer cleanup(t, p)
 
 	setupQuery := `
-		CREATE (caller:Function {name: 'ContaminatedCaller', id: 'ContaminatedCaller', is_volatile: true})
-		CREATE (seam:Function {name: 'SeamFunc', id: 'SeamFunc', is_volatile: false, risk_score: 0.8})
+		// Internal (non-volatile) caller
+		CREATE (caller:Function {name: 'InternalCaller', id: 'InternalCaller', is_volatile: false})
+		// Pinch point
+		CREATE (seam:Function {name: 'SeamFunc', id: 'SeamFunc', is_volatile: false})
+		// Volatile callee
+		CREATE (external:Function {name: 'ExternalLib', id: 'ExternalLib', is_volatile: true})
+		
 		CREATE (file:File {id: 'test_fixture.go', file: 'test_fixture.go'})
+		
 		CREATE (caller)-[:CALLS]->(seam)
+		CREATE (seam)-[:CALLS]->(external)
 		CREATE (seam)-[:DEFINED_IN]->(file)
 	`
 	_, err := neo4j.ExecuteQuery(p.ctx, p.driver, setupQuery, nil, neo4j.EagerResultTransformer)
@@ -224,8 +231,9 @@ func TestGetSeams(t *testing.T) {
 	if results[0].File != "test_fixture.go" {
 		t.Errorf("Expected test_fixture.go, got %s", results[0].File)
 	}
-	if results[0].Risk != 0.8 {
-		t.Errorf("Expected risk 0.8, got %f", results[0].Risk)
+	// Risk should be 1.0 (internal_fan_in=1 * volatile_fan_out=1)
+	if results[0].Risk != 1.0 {
+		t.Errorf("Expected risk 1.0, got %f", results[0].Risk)
 	}
 }
 

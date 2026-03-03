@@ -423,17 +423,31 @@ func (p *Neo4jProvider) GetGlobals(nodeID string) (*GlobalUsageResult, error) {
 	}, nil
 }
 
-// GetSeams suggests architectural seams (boundaries).
-// Deprecated: Will be replaced by Pinch Point detection in Phase 3.
+// GetSeams suggests architectural seams (boundaries) using Pinch Point detection.
 func (p *Neo4jProvider) GetSeams(modulePattern string, layer string) ([]*SeamResult, error) {
-	// Transitionary implementation using is_volatile.
-	// Seams are where volatile callers meet non-volatile callees.
+	// Pinch Point detection:
+	// Find functions that have high internal fan-in (non-volatile callers)
+	// and high volatile fan-out (volatile callees).
+	// This represents a 'pinch point' or 'chokepoint' between internal and external worlds.
 	query := `
-		MATCH (caller:Function)-[:CALLS]->(f:Function)-[:DEFINED_IN]->(file:File)
-		WHERE caller.is_volatile = true AND (f.is_volatile IS NULL OR f.is_volatile = false)
-		  AND file.file =~ $pattern
-		RETURN DISTINCT f.name as seam, file.file as file, f.risk_score as risk, "volatility" as type
-		ORDER BY f.risk_score DESC
+		MATCH (f:Function)
+		// Filter by module pattern if provided
+		OPTIONAL MATCH (f)-[:DEFINED_IN]->(file:File)
+		WHERE ($pattern = "" OR file.file =~ $pattern)
+		
+		// Internal Fan-In: Non-volatile callers
+		OPTIONAL MATCH (caller:Function)-[:CALLS]->(f)
+		WHERE (caller.is_volatile = false OR caller.is_volatile IS NULL)
+		WITH f, count(DISTINCT caller) AS internal_fan_in, file
+
+		// Volatile Fan-Out: Volatile callees
+		OPTIONAL MATCH (f)-[:CALLS]->(callee:Function)
+		WHERE callee.is_volatile = true
+		WITH f, internal_fan_in, count(DISTINCT callee) AS volatile_fan_out, file
+
+		WHERE internal_fan_in > 0 AND volatile_fan_out > 0
+		RETURN f.name as seam, file.file as file, (internal_fan_in * volatile_fan_out) as risk, "pinch-point" as type
+		ORDER BY risk DESC
 		LIMIT 20
 	`
 
@@ -442,7 +456,7 @@ func (p *Neo4jProvider) GetSeams(modulePattern string, layer string) ([]*SeamRes
 	}, neo4j.EagerResultTransformer)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute GetSeams query: %w", err)
+		return nil, fmt.Errorf("failed to execute GetSeams (Pinch Point) query: %w", err)
 	}
 
 	seams := make([]*SeamResult, 0, len(result.Records))
@@ -455,7 +469,7 @@ func (p *Neo4jProvider) GetSeams(modulePattern string, layer string) ([]*SeamRes
 		seamType, _, _ := neo4j.GetRecordValue[string](record, "type")
 
 		var risk float64
-		// risk_score might be nil or integer or float. Handle safely.
+		// risk might be int64 or float64 depending on Cypher result
 		if riskVal, ok := record.Get("risk"); ok && riskVal != nil {
 			switch v := riskVal.(type) {
 			case float64:
