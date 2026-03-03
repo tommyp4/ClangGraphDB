@@ -349,7 +349,7 @@ func (p *Neo4jProvider) GetImpact(nodeID string, depth int) (*ImpactResult, erro
 	query := fmt.Sprintf(`
 		MATCH (n) WHERE n.id = $nodeID OR n.fqn = $nodeID OR n.name = $nodeID
 		MATCH (caller)-[:CALLS*1..%d]->(n) 
-		RETURN DISTINCT caller.name as caller, caller.ui_contaminated as contaminated
+		RETURN DISTINCT caller.name as caller, caller.is_volatile as volatile
 	`, depth)
 
 	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
@@ -366,12 +366,12 @@ func (p *Neo4jProvider) GetImpact(nodeID string, depth int) (*ImpactResult, erro
 		if err != nil {
 			continue
 		}
-		contaminated, _, _ := neo4j.GetRecordValue[bool](record, "contaminated")
+		volatile, _, _ := neo4j.GetRecordValue[bool](record, "volatile")
 
 		node := &graph.Node{
 			Label: label,
 			Properties: map[string]any{
-				"ui_contaminated": contaminated,
+				"is_volatile": volatile,
 			},
 		}
 		callers = append(callers, node)
@@ -423,44 +423,40 @@ func (p *Neo4jProvider) GetGlobals(nodeID string) (*GlobalUsageResult, error) {
 	}, nil
 }
 
-// GetSeams suggests architectural seams (boundaries) where contamination stops.
+// GetSeams suggests architectural seams (boundaries) using Pinch Point detection.
 func (p *Neo4jProvider) GetSeams(modulePattern string, layer string) ([]*SeamResult, error) {
-	// 1. Determine property to filter by (default to ui_contaminated)
-	property := "ui_contaminated"
-	if layer != "" && layer != "all" {
-		property = layer + "_contaminated"
-	}
+	// Pinch Point detection:
+	// Find functions that have high internal fan-in (non-volatile callers)
+	// and high volatile fan-out (volatile callees).
+	// This represents a 'pinch point' or 'chokepoint' between internal and external worlds.
+	query := `
+		MATCH (f:Function)
+		// Filter by module pattern if provided
+		OPTIONAL MATCH (f)-[:DEFINED_IN]->(file:File)
+		WHERE ($pattern = "" OR file.file =~ $pattern)
+		
+		// Internal Fan-In: Non-volatile callers
+		OPTIONAL MATCH (caller:Function)-[:CALLS]->(f)
+		WHERE (caller.is_volatile = false OR caller.is_volatile IS NULL)
+		WITH f, count(DISTINCT caller) AS internal_fan_in, file
 
-	query := fmt.Sprintf(`
-		MATCH (caller:Function)-[:CALLS]->(f:Function)-[:DEFINED_IN]->(file:File)
-		WHERE caller.%s = true AND (f.%s IS NULL OR f.%s = false)
-		  AND file.file =~ $pattern
-		RETURN DISTINCT f.name as seam, file.file as file, f.risk_score as risk, $layer as type
-		ORDER BY f.risk_score DESC
+		// Volatile Fan-Out: Volatile callees
+		OPTIONAL MATCH (f)-[:CALLS]->(callee:Function)
+		WHERE callee.is_volatile = true
+		WITH f, internal_fan_in, count(DISTINCT callee) AS volatile_fan_out, file
+
+		WHERE internal_fan_in > 0 AND volatile_fan_out > 0
+		RETURN f.name as seam, file.file as file, (internal_fan_in * volatile_fan_out) as risk, "pinch-point" as type
+		ORDER BY risk DESC
 		LIMIT 20
-	`, property, property, property)
-
-	if layer == "all" {
-		// Combined query for all contamination types
-		query = `
-			MATCH (caller:Function)-[:CALLS]->(f:Function)-[:DEFINED_IN]->(file:File)
-			WHERE (caller.ui_contaminated = true AND (f.ui_contaminated IS NULL OR f.ui_contaminated = false))
-			   OR (caller.db_contaminated = true AND (f.db_contaminated IS NULL OR f.db_contaminated = false))
-			   OR (caller.io_contaminated = true AND (f.io_contaminated IS NULL OR f.io_contaminated = false))
-			  AND file.file =~ $pattern
-			RETURN DISTINCT f.name as seam, file.file as file, f.risk_score as risk, "all" as type
-			ORDER BY f.risk_score DESC
-			LIMIT 20
-		`
-	}
+	`
 
 	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
 		"pattern": modulePattern,
-		"layer":   layer,
 	}, neo4j.EagerResultTransformer)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute GetSeams query: %w", err)
+		return nil, fmt.Errorf("failed to execute GetSeams (Pinch Point) query: %w", err)
 	}
 
 	seams := make([]*SeamResult, 0, len(result.Records))
@@ -473,7 +469,7 @@ func (p *Neo4jProvider) GetSeams(modulePattern string, layer string) ([]*SeamRes
 		seamType, _, _ := neo4j.GetRecordValue[string](record, "type")
 
 		var risk float64
-		// risk_score might be nil or integer or float. Handle safely.
+		// risk might be int64 or float64 depending on Cypher result
 		if riskVal, ok := record.Get("risk"); ok && riskVal != nil {
 			switch v := riskVal.(type) {
 			case float64:

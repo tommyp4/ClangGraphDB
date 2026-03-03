@@ -1,6 +1,9 @@
 package query
 
-import "graphdb/internal/graph"
+import (
+	"context"
+	"graphdb/internal/graph"
+)
 
 // Direction represents the direction of a relationship traversal.
 type Direction int
@@ -92,6 +95,14 @@ type WhatIfResult struct {
 	SharedState        []*graph.Node `json:"shared_state"`
 }
 
+// SemanticSeamResult represents a structural vs semantic divergence in a class or file.
+type SemanticSeamResult struct {
+	Container  string  `json:"container"`  // File or class name
+	MethodA    string  `json:"method_a"`   // First function/method
+	MethodB    string  `json:"method_b"`   // Second function/method
+	Similarity float64 `json:"similarity"` // Cosine similarity between A and B
+}
+
 // GraphProvider defines the interface for graph database operations.
 type GraphProvider interface {
 	// Lifecycle
@@ -114,14 +125,15 @@ type GraphProvider interface {
 	ExploreDomain(featureID string) (*DomainExplorationResult, error)
 	GetGraphState() (string, error)
 	WhatIf(targets []string) (*WhatIfResult, error)
+	GetSemanticSeams(ctx context.Context, similarityThreshold float64) ([]*SemanticSeamResult, error)
 
 	// Test Coverage Analysis
 	GetCoverage(nodeID string) ([]*graph.Node, error)
 	LinkTests() error
 
-	// Contamination & Risk Analysis
-	SeedContamination(modulePattern string, rules []ContaminationRule) error
-	PropagateContamination(layer string) error
+	// Volatility & Risk Analysis
+	SeedVolatility(modulePattern string, rules []ContaminationRule) error
+	PropagateVolatility() error
 	CalculateRiskScores() error
 	UpdateFileHistory(metrics map[string]FileHistoryMetrics) error
 

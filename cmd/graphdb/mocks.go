@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"graphdb/internal/graph"
 	"graphdb/internal/query"
@@ -27,7 +28,9 @@ func (s *MockSummarizer) Summarize(snippets []string) (string, string, error) {
 }
 
 // MockProvider for testing/dry-run
-type MockProvider struct{}
+type MockProvider struct {
+	GetSemanticSeamsCalled bool
+}
 
 func (m *MockProvider) Close() error { return nil }
 func (m *MockProvider) Traverse(startNodeID string, relationship string, direction query.Direction, depth int) ([]*graph.Path, error) {
@@ -58,16 +61,29 @@ func (m *MockProvider) ExploreDomain(featureID string) (*query.DomainExploration
 	return nil, nil
 }
 func (m *MockProvider) WhatIf(targets []string) (*query.WhatIfResult, error) { return nil, nil }
+func (m *MockProvider) GetSemanticSeams(ctx context.Context, similarityThreshold float64) ([]*query.SemanticSeamResult, error) {
+	m.GetSemanticSeamsCalled = true
+	return []*query.SemanticSeamResult{
+		{
+			Container:  "mock_file.go",
+			MethodA:    "funcA",
+			MethodB:    "funcB",
+			Similarity: 0.1,
+		},
+	}, nil
+}
 
 func (m *MockProvider) GetCoverage(nodeID string) ([]*graph.Node, error) { return nil, nil }
 func (m *MockProvider) LinkTests() error { return nil }
 
-func (m *MockProvider) SeedContamination(modulePattern string, rules []query.ContaminationRule) error {
+func (m *MockProvider) SeedVolatility(modulePattern string, rules []query.ContaminationRule) error {
 	return nil
 }
-func (m *MockProvider) PropagateContamination(layer string) error { return nil }
-func (m *MockProvider) CalculateRiskScores() error               { return nil }
-func (m *MockProvider) UpdateFileHistory(metrics map[string]query.FileHistoryMetrics) error { return nil }
+func (m *MockProvider) PropagateVolatility() error { return nil }
+func (m *MockProvider) CalculateRiskScores() error { return nil }
+func (m *MockProvider) UpdateFileHistory(metrics map[string]query.FileHistoryMetrics) error {
+	return nil
+}
 
 func (m *MockProvider) GetUnextractedFunctions(limit int) ([]*graph.Node, error) { return nil, nil }
 func (m *MockProvider) UpdateAtomicFeatures(id string, features []string) error  { return nil }

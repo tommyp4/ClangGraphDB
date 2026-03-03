@@ -13,10 +13,10 @@ func TestCalculateRiskScores(t *testing.T) {
 	defer cleanup(t, p)
 
 	// Setup fixture
-	// f1: High fan-in, high churn
-	// f2: Low fan-in, low churn
+	// f1: Volatile, high fan-in, high churn
+	// f2: Non-volatile, low fan-in, low churn
 	setupQuery := `
-		CREATE (f1:Function {name: 'Test_HighRisk', id: 'f1'})
+		CREATE (f1:Function {name: 'Test_HighRisk', id: 'f1', is_volatile: true})
 		CREATE (file1:File {file: 'Test_churny.go', id: 'file1', change_frequency: 100})
 		CREATE (f1)-[:DEFINED_IN]->(file1)
 		
@@ -25,7 +25,7 @@ func TestCalculateRiskScores(t *testing.T) {
 		CREATE (caller1)-[:CALLS]->(f1)
 		CREATE (caller2)-[:CALLS]->(f1)
 
-		CREATE (f2:Function {name: 'Test_LowRisk', id: 'f2'})
+		CREATE (f2:Function {name: 'Test_LowRisk', id: 'f2', is_volatile: false})
 		CREATE (file2:File {file: 'Test_stable.go', id: 'file2', change_frequency: 1})
 		CREATE (f2)-[:DEFINED_IN]->(file2)
 	`
@@ -63,5 +63,48 @@ func TestCalculateRiskScores(t *testing.T) {
 	topScore, _, _ := neo4j.GetRecordValue[float64](result.Records[0], "score")
 	if topScore <= 0 {
 		t.Errorf("Expected positive risk score, got %f", topScore)
+	}
+}
+
+func TestPropagateVolatility(t *testing.T) {
+	p := getProvider(t)
+	defer p.Close()
+	cleanup(t, p)
+	defer cleanup(t, p)
+
+	// Setup fixture: UPWARD propagation
+	// caller -> callee (volatile)
+	setupQuery := `
+		CREATE (caller:Function {name: 'Test_Caller', id: 'f1'})
+		CREATE (callee:Function {name: 'Test_Callee', id: 'f2', is_volatile: true})
+		CREATE (caller)-[:CALLS]->(callee)
+	`
+	_, err := neo4j.ExecuteQuery(p.ctx, p.driver, setupQuery, nil, neo4j.EagerResultTransformer)
+	if err != nil {
+		t.Fatalf("Failed to setup fixture: %v", err)
+	}
+
+	err = p.PropagateVolatility()
+	if err != nil {
+		t.Fatalf("PropagateVolatility failed: %v", err)
+	}
+
+	// Verify caller is now volatile
+	verifyQuery := `
+		MATCH (f:Function {name: 'Test_Caller'})
+		RETURN f.is_volatile as is_volatile
+	`
+	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, verifyQuery, nil, neo4j.EagerResultTransformer)
+	if err != nil {
+		t.Fatalf("Failed to verify: %v", err)
+	}
+
+	if len(result.Records) == 0 {
+		t.Fatal("Expected 1 record, got 0")
+	}
+
+	isVolatile, _, _ := neo4j.GetRecordValue[bool](result.Records[0], "is_volatile")
+	if !isVolatile {
+		t.Errorf("Expected caller to be volatile after upward propagation")
 	}
 }
