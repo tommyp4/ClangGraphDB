@@ -82,7 +82,7 @@ ${graphdb_bin} enrich-features -dir .
     *   `-embed-batch-size`: Batch size for embedding generation (default: 100).
 
 **Step 4: Enrich Contamination (Legacy Modernization Analysis):**
-Identifies architectural seams and propagates contamination layers (UI, Database, External I/O) through the call graph. This is essential for finding extraction boundaries and calculating risk scores.
+Identifies architectural volatility (e.g., 3rd-party libraries, external namespaces) and propagates it upwards through the call graph. This is essential for finding extraction boundaries, pinch points, and calculating risk scores.
 ```bash
 ${graphdb_bin} enrich-contamination -module ".*"
 ```
@@ -133,7 +133,8 @@ Structural queries utilize "Fully Qualified Names" (FQN). While the internal dat
 | `what-if` | **Impact Simulation.** Computes the impact of hypothetical node removals (Severed Edges, Orphaned Nodes, etc.) for Strangler Fig planning. | Function Name/ID | `-target2 <Target 2>` |
 | `hotspots` | **Risk Analysis.** Find functions with high complexity that change frequently. | (Ignored) | `-module <regex>` |
 | `globals` | **State Analysis.** Find global variables used by a function. | Function Name | |
-| `seams` | **Architecture.** Identify testing seams at contamination boundaries. | (Ignored) | `-module <regex>`, `-layer <ui|db|io|all>` |
+| `seams` | **Architecture.** Identify Pinch Points (chokepoints with high internal fan-in and high volatile fan-out). | (Ignored) | `-module <regex>` |
+| `semantic-seams` | **Architecture.** Identify SRP violations and conceptual seams within a single file/class using vector embeddings. | (Ignored) | `-similarity <float>` |
 | `locate-usage` | **Trace.** Find path/usage between two functions. | Function 1 | `-target2 <Function 2>` |
 | `fetch-source` | **Read.** Fetch the source code of a function by ID/Name. | Function Name | |
 | `explore-domain` | **Discovery.** Explore the domain model around a concept. | Concept/Entity Name | |
