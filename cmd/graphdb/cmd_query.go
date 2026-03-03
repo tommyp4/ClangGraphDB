@@ -204,6 +204,9 @@ func handleQuery(args []string) {
 			"commit": commit,
 		}
 
+	case "overview":
+		result, err = provider.GetOverview()
+
 	case "semantic-seams":
 		result, err = provider.GetSemanticSeams(context.Background(), *similarityPtr)
 

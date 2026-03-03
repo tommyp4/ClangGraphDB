@@ -123,6 +123,7 @@ type GraphProvider interface {
 	FetchSource(nodeID string) (string, error)
 	LocateUsage(sourceID string, targetID string) (any, error)
 	ExploreDomain(featureID string) (*DomainExplorationResult, error)
+	GetOverview() (*graph.Path, error)
 	GetGraphState() (string, error)
 	WhatIf(targets []string) (*WhatIfResult, error)
 	GetSemanticSeams(ctx context.Context, similarityThreshold float64) ([]*SemanticSeamResult, error)

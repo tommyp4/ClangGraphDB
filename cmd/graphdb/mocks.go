@@ -56,6 +56,7 @@ func (m *MockProvider) GetSeams(modulePattern string, layer string) ([]*query.Se
 func (m *MockProvider) GetHotspots(modulePattern string) ([]*query.HotspotResult, error) { return nil, nil }
 func (m *MockProvider) FetchSource(nodeID string) (string, error)                 { return "", nil }
 func (m *MockProvider) LocateUsage(sourceID string, targetID string) (any, error) { return nil, nil }
+func (m *MockProvider) GetOverview() (*graph.Path, error)                         { return &graph.Path{}, nil }
 func (m *MockProvider) GetGraphState() (string, error)                            { return "", nil }
 func (m *MockProvider) ExploreDomain(featureID string) (*query.DomainExplorationResult, error) {
 	return nil, nil

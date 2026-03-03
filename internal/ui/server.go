@@ -1,7 +1,9 @@
 package ui
 
 import (
+	"embed"
 	"encoding/json"
+	"io/fs"
 	"net/http"
 	"strconv"
 	"strings"
@@ -9,6 +11,9 @@ import (
 	"graphdb/internal/embedding"
 	"graphdb/internal/query"
 )
+
+//go:embed web/*
+var webFiles embed.FS
 
 // Server Struct:
 type Server struct {
@@ -36,8 +41,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (s *Server) routes() {
 	s.mux.HandleFunc("/api/health", s.handleHealth())
 	s.mux.HandleFunc("/api/query", s.handleQuery())
-}
 
+	// Serve embedded static files
+	staticFS, _ := fs.Sub(webFiles, "web")
+	s.mux.Handle("/", http.FileServer(http.FS(staticFS)))
+}
 func (s *Server) handleHealth() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -74,6 +82,13 @@ func (s *Server) handleQuery() http.HandlerFunc {
 			}
 			if req.Limit == 0 {
 				req.Limit = 10
+			}
+
+			if s := r.URL.Query().Get("similarity"); s != "" {
+				req.Similarity, _ = strconv.ParseFloat(s, 64)
+			}
+			if req.Similarity == 0 {
+				req.Similarity = 0.5
 			}
 		}
 
@@ -216,6 +231,8 @@ func (s *Server) handleQuery() http.HandlerFunc {
 				dir = query.Both
 			}
 			result, err = s.provider.Traverse(req.Target, req.EdgeTypes, dir, req.Depth)
+		case "overview":
+			result, err = s.provider.GetOverview()
 		case "status":
 			commit, err := s.provider.GetGraphState()
 			if err != nil {
@@ -225,6 +242,8 @@ func (s *Server) handleQuery() http.HandlerFunc {
 			result = map[string]string{
 				"commit": commit,
 			}
+		case "semantic-seams":
+			result, err = s.provider.GetSemanticSeams(r.Context(), req.Similarity)
 		default:
 			s.error(w, "Unsupported query type: "+req.Type, http.StatusBadRequest)
 			return
@@ -248,15 +267,16 @@ func (s *Server) error(w http.ResponseWriter, message string, code int) {
 
 // QueryRequest maps to the expected parameters for the /api/query endpoint.
 type QueryRequest struct {
-	Type      string `json:"type"`
-	Target    string `json:"target"`
-	Target2   string `json:"target2,omitempty"`
-	Depth     int    `json:"depth,omitempty"`
-	Limit     int    `json:"limit,omitempty"`
-	Module    string `json:"module,omitempty"`
-	Layer     string `json:"layer,omitempty"`
-	EdgeTypes string `json:"edge-types,omitempty"`
-	Direction string `json:"direction,omitempty"`
+	Type       string  `json:"type"`
+	Target     string  `json:"target"`
+	Target2    string  `json:"target2,omitempty"`
+	Depth      int     `json:"depth,omitempty"`
+	Limit      int     `json:"limit,omitempty"`
+	Module     string  `json:"module,omitempty"`
+	Layer      string  `json:"layer,omitempty"`
+	EdgeTypes  string  `json:"edge-types,omitempty"`
+	Direction  string  `json:"direction,omitempty"`
+	Similarity float64 `json:"similarity,omitempty"`
 }
 
 // ErrorResponse normalizes API errors.
