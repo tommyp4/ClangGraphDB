@@ -58,14 +58,14 @@ Phase 1 & 2 Completed ✅
 3.  **Step 4.2.C (The Verification):** Execute tests. ✅
     *   *Action:* Run the new integration test against the local Neo4j instance to ensure the Cypher query executes and correctly identifies the divergent methods.
 
-#### Task 4.3: Expose Semantic Seams in the CLI
-1.  **Step 4.3.A (The Harness):** Create/update CLI tests.
+#### Task 4.3: Expose Semantic Seams in the CLI ✅
+1.  **Step 4.3.A (The Harness):** Create/update CLI tests. ✅
     *   *Action:* Update testing for CLI flags in `cmd/graphdb/cmd_query_test.go` (if it exists) to ensure `-type semantic-seams` parses correctly with its respective thresholds.
-2.  **Step 4.3.B (The Implementation):** Modify `cmd/graphdb/cmd_query.go`.
+2.  **Step 4.3.B (The Implementation):** Modify `cmd/graphdb/cmd_query.go`. ✅
     *   *Action:* Add `"semantic-seams"` to the `switch *typePtr` block.
     *   *Action:* Add a new flag `-similarity` (default `0.5`) to control the cosine similarity threshold (lower means more divergent).
     *   *Action:* Call `provider.GetSemanticSeams(*similarityPtr)` and format the JSON output to clearly show the SRP violations (e.g., displaying the File, the two methods, and their low similarity score).
-3.  **Step 4.3.C (The Verification):** End-to-end test.
+3.  **Step 4.3.C (The Verification):** End-to-end test. ✅
     *   *Action:* Run `go build ./cmd/graphdb` and execute `./graphdb query -type semantic-seams -similarity 0.5`. Verify the output format is readable, accurate, and actionable.
 
 ### Testing Strategy

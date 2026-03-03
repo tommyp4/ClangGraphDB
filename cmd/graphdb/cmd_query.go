@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -13,13 +14,14 @@ import (
 
 func handleQuery(args []string) {
 	fs := flag.NewFlagSet("query", flag.ExitOnError)
-	typePtr := fs.String("type", "", "Query type: search-features, search-similar, hybrid-context, neighbors, impact, globals, coverage, seams, hotspots, explore-domain, what-if")
+	typePtr := fs.String("type", "", "Query type: search-features, search-similar, hybrid-context, neighbors, impact, globals, coverage, seams, hotspots, explore-domain, what-if, status, semantic-seams")
 	targetPtr := fs.String("target", "", "Target function name or query text (comma-separated for what-if)")
 	target2Ptr := fs.String("target2", "", "Second target (e.g. for locate-usage or what-if)")
 	depthPtr := fs.Int("depth", 1, "Traversal depth")
 	limitPtr := fs.Int("limit", 10, "Result limit")
 	modulePtr := fs.String("module", ".*", "Module pattern for seams")
 	layerPtr := fs.String("layer", "ui", "Contamination layer for seams (ui, db, io, all)")
+	similarityPtr := fs.Float64("similarity", 0.5, "Cosine similarity threshold for semantic-seams (lower means more divergent)")
 	edgeTypesPtr := fs.String("edge-types", "", "Comma-separated relationship types for traverse")
 	directionPtr := fs.String("direction", "outgoing", "Traversal direction: incoming, outgoing, both")
 
@@ -202,8 +204,11 @@ func handleQuery(args []string) {
 			"commit": commit,
 		}
 
+	case "semantic-seams":
+		result, err = provider.GetSemanticSeams(context.Background(), *similarityPtr)
+
 	default:
-		log.Fatalf("Unknown or missing query type: %s. Valid types: search-features, search-similar, hybrid-context, neighbors, impact, globals, coverage, seams, hotspots, explore-domain, what-if, status", *typePtr)
+		log.Fatalf("Unknown or missing query type: %s. Valid types: search-features, search-similar, hybrid-context, neighbors, impact, globals, coverage, seams, hotspots, explore-domain, what-if, status, semantic-seams", *typePtr)
 	}
 
 	if err != nil {

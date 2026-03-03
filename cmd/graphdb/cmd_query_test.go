@@ -25,6 +25,22 @@ func TestHandleQuery_Basic(t *testing.T) {
 	handleQuery(args)
 }
 
+func TestHandleQuery_SemanticSeams(t *testing.T) {
+	// 1. Setup Environment for Mocking
+	os.Setenv("GRAPHDB_MOCK_ENABLED", "true")
+	os.Setenv("NEO4J_URI", "bolt://localhost:7687")
+	defer os.Unsetenv("GRAPHDB_MOCK_ENABLED")
+	defer os.Unsetenv("NEO4J_URI")
+
+	// 2. Call handleQuery with semantic-seams type and similarity
+	args := []string{"-type", "semantic-seams", "-similarity", "0.7"}
+
+	// Note: since handleQuery uses flag.ExitOnError, this test will fail if flag parsing fails.
+	// But it should also fail if "semantic-seams" is not handled because it will call log.Fatalf.
+	// In Go tests, log.Fatalf will exit the process, which will make the test fail with an error.
+	handleQuery(args)
+}
+
 func TestMockProvider_GetSemanticSeams(t *testing.T) {
 	// Task 4.1 requirement: verify the mock provider can execute and return results for semantic seam detection.
 	mock := &MockProvider{}

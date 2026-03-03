@@ -32,7 +32,7 @@ func (p *Neo4jProvider) GetSemanticSeams(ctx context.Context, similarityThreshol
 		return nil, fmt.Errorf("failed to get semantic seams: %w", err)
 	}
 
-	var results []*SemanticSeamResult
+	results := []*SemanticSeamResult{}
 	for _, record := range res.Records {
 		container, _, _ := neo4j.GetRecordValue[string](record, "container")
 		methodA, _, _ := neo4j.GetRecordValue[string](record, "methodA")
