@@ -258,11 +258,11 @@
 
 ### Campaign 11.5: Feathers Remediation (Volatility & Pinch Points)
 **Goal:** Deprecate the rigid UI/DB/IO layer contamination logic introduced in Campaign 8 and replace it with a more robust Volatility detection system based on Michael Feathers' definition of true legacy seams (Pinch Points and Semantic Seams).
-**Status:** Pending
+**Status:** In Progress (Phase 1 & 2 Complete)
 **Plan:** Ref: `plans/11_CAMPAIGN_11_FEATHERS_REMEDIATION.md`
 **Key Deliverables:**
-- [ ] **Deprecation:** Remove `ui_contaminated`, `db_contaminated`, `io_contaminated` from graph schema and CLI logic.
-- [ ] **Volatility Propagation:** Seed `is_volatile` flags based on global state/3rd-party dependencies and propagate UPWARDS.
+- [x] **Deprecation:** Remove `ui_contaminated`, `db_contaminated`, `io_contaminated` from graph schema and CLI logic.
+- [x] **Volatility Propagation:** Seed `is_volatile` flags based on global state/3rd-party dependencies and propagate UPWARDS.
 - [ ] **Pinch Point Detection:** Rewrite `seams` query to find structural hourglass bottlenecks.
 - [ ] **Semantic Seams:** Introduce new query to find cohesive structures with divergent vector embeddings (SRP violations).
 
