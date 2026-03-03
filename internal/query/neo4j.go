@@ -349,7 +349,7 @@ func (p *Neo4jProvider) GetImpact(nodeID string, depth int) (*ImpactResult, erro
 	query := fmt.Sprintf(`
 		MATCH (n) WHERE n.id = $nodeID OR n.fqn = $nodeID OR n.name = $nodeID
 		MATCH (caller)-[:CALLS*1..%d]->(n) 
-		RETURN DISTINCT caller.name as caller, caller.ui_contaminated as contaminated
+		RETURN DISTINCT caller.name as caller, caller.is_volatile as volatile
 	`, depth)
 
 	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
@@ -366,12 +366,12 @@ func (p *Neo4jProvider) GetImpact(nodeID string, depth int) (*ImpactResult, erro
 		if err != nil {
 			continue
 		}
-		contaminated, _, _ := neo4j.GetRecordValue[bool](record, "contaminated")
+		volatile, _, _ := neo4j.GetRecordValue[bool](record, "volatile")
 
 		node := &graph.Node{
 			Label: label,
 			Properties: map[string]any{
-				"ui_contaminated": contaminated,
+				"is_volatile": volatile,
 			},
 		}
 		callers = append(callers, node)
@@ -423,40 +423,22 @@ func (p *Neo4jProvider) GetGlobals(nodeID string) (*GlobalUsageResult, error) {
 	}, nil
 }
 
-// GetSeams suggests architectural seams (boundaries) where contamination stops.
+// GetSeams suggests architectural seams (boundaries).
+// Deprecated: Will be replaced by Pinch Point detection in Phase 3.
 func (p *Neo4jProvider) GetSeams(modulePattern string, layer string) ([]*SeamResult, error) {
-	// 1. Determine property to filter by (default to ui_contaminated)
-	property := "ui_contaminated"
-	if layer != "" && layer != "all" {
-		property = layer + "_contaminated"
-	}
-
-	query := fmt.Sprintf(`
+	// Transitionary implementation using is_volatile.
+	// Seams are where volatile callers meet non-volatile callees.
+	query := `
 		MATCH (caller:Function)-[:CALLS]->(f:Function)-[:DEFINED_IN]->(file:File)
-		WHERE caller.%s = true AND (f.%s IS NULL OR f.%s = false)
+		WHERE caller.is_volatile = true AND (f.is_volatile IS NULL OR f.is_volatile = false)
 		  AND file.file =~ $pattern
-		RETURN DISTINCT f.name as seam, file.file as file, f.risk_score as risk, $layer as type
+		RETURN DISTINCT f.name as seam, file.file as file, f.risk_score as risk, "volatility" as type
 		ORDER BY f.risk_score DESC
 		LIMIT 20
-	`, property, property, property)
-
-	if layer == "all" {
-		// Combined query for all contamination types
-		query = `
-			MATCH (caller:Function)-[:CALLS]->(f:Function)-[:DEFINED_IN]->(file:File)
-			WHERE (caller.ui_contaminated = true AND (f.ui_contaminated IS NULL OR f.ui_contaminated = false))
-			   OR (caller.db_contaminated = true AND (f.db_contaminated IS NULL OR f.db_contaminated = false))
-			   OR (caller.io_contaminated = true AND (f.io_contaminated IS NULL OR f.io_contaminated = false))
-			  AND file.file =~ $pattern
-			RETURN DISTINCT f.name as seam, file.file as file, f.risk_score as risk, "all" as type
-			ORDER BY f.risk_score DESC
-			LIMIT 20
-		`
-	}
+	`
 
 	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
 		"pattern": modulePattern,
-		"layer":   layer,
 	}, neo4j.EagerResultTransformer)
 
 	if err != nil {

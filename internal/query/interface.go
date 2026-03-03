@@ -119,9 +119,9 @@ type GraphProvider interface {
 	GetCoverage(nodeID string) ([]*graph.Node, error)
 	LinkTests() error
 
-	// Contamination & Risk Analysis
-	SeedContamination(modulePattern string, rules []ContaminationRule) error
-	PropagateContamination(layer string) error
+	// Volatility & Risk Analysis
+	SeedVolatility(modulePattern string, rules []ContaminationRule) error
+	PropagateVolatility() error
 	CalculateRiskScores() error
 	UpdateFileHistory(metrics map[string]FileHistoryMetrics) error
 

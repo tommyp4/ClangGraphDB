@@ -39,10 +39,10 @@ func (m *MockGraphProvider) WhatIf(targets []string) (*query.WhatIfResult, error
 func (m *MockGraphProvider) GetCoverage(nodeID string) ([]*graph.Node, error) { return nil, nil }
 func (m *MockGraphProvider) LinkTests() error { return nil }
 
-func (m *MockGraphProvider) SeedContamination(modulePattern string, rules []query.ContaminationRule) error {
+func (m *MockGraphProvider) SeedVolatility(modulePattern string, rules []query.ContaminationRule) error {
 	return nil
 }
-func (m *MockGraphProvider) PropagateContamination(layer string) error { return nil }
+func (m *MockGraphProvider) PropagateVolatility() error { return nil }
 func (m *MockGraphProvider) CalculateRiskScores() error               { return nil }
 func (m *MockGraphProvider) UpdateFileHistory(metrics map[string]query.FileHistoryMetrics) error { return nil }
 

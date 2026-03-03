@@ -4,7 +4,7 @@
 Deprecate the rigid UI/DB/IO layer contamination logic introduced in Campaign 8 and replace it with a more robust Volatility detection system based on Michael Feathers' definition of true legacy seams. This includes implementing Volatility Gradients, Upward Propagation, Pinch Point Detection, and Semantic Seam identification.
 
 ## Status
-Pending
+Phase 1 & 2 Completed ✅
 
 ## Pre-requisites
 - Neo4j database connection
@@ -12,21 +12,21 @@ Pending
 
 ## Implementation Plan
 
-### Phase 1: Deprecate Legacy Layer Logic
+### Phase 1: Deprecate Legacy Layer Logic ✅
 - **Objective:** Remove the hardcoded `ui_contaminated`, `db_contaminated`, and `io_contaminated` fields.
 - **Tasks:**
-  - Update `internal/query/neo4j_contamination.go` to remove old seeding and propagation logic for these specific layers.
-  - Update `cmd/graphdb/cmd_enrich_contamination.go` to remove default heuristic rules for UI, DB, and IO layers.
-  - Update the `CalculateRiskScores` logic to depend on the new volatility metrics rather than layer counts.
-  - Create a migration/cypher script to drop these properties from existing nodes if necessary.
+  - [x] Update `internal/query/neo4j_contamination.go` to remove old seeding and propagation logic for these specific layers. ✅
+  - [x] Update `cmd/graphdb/cmd_enrich_contamination.go` to remove default heuristic rules for UI, DB, and IO layers. ✅
+  - [x] Update the `CalculateRiskScores` logic to depend on the new volatility metrics rather than layer counts. ✅
+  - [x] Create a migration/cypher script to drop these properties from existing nodes if necessary. ✅ (Implemented as cleanup in `SeedVolatility`)
 
-### Phase 2: Implement Volatility and Upward Propagation
+### Phase 2: Implement Volatility and Upward Propagation ✅
 - **Objective:** Introduce the `is_volatile` flag and ensure dependencies point correctly.
 - **Tasks:**
-  - Define new default heuristic rules for volatility (e.g., matching external namespaces like `System.Net`, 3rd-party libraries, unmanaged code, non-deterministic functions like `DateTime.Now`).
-  - Implement `SeedVolatility` to set `is_volatile = true` on nodes matching the heuristics.
-  - Rewrite `PropagateContamination` as `PropagateVolatility`. **Crucially, change the propagation direction to UPWARD** (from Callee to Caller): `MATCH (caller)-[:CALLS]->(callee {is_volatile: true}) SET caller.is_volatile = true`.
-  - Calculate a `volatility_score` based on distance to volatile boundaries and degree of contamination.
+  - [x] Define new default heuristic rules for volatility (e.g., matching external namespaces like `System.Net`, 3rd-party libraries, unmanaged code, non-deterministic functions like `DateTime.Now`). ✅
+  - [x] Implement `SeedVolatility` to set `is_volatile = true` on nodes matching the heuristics. ✅
+  - [x] Rewrite `PropagateContamination` as `PropagateVolatility`. **Crucially, change the propagation direction to UPWARD** (from Callee to Caller): `MATCH (caller)-[:CALLS]->(callee {is_volatile: true}) SET caller.is_volatile = true`. ✅
+  - [x] Calculate a `volatility_score` based on distance to volatile boundaries and degree of contamination. ✅
 
 ### Phase 3: Rewrite Seams to Detect Pinch Points
 - **Objective:** Replace the broken "where contamination stops" seam query with a Pinch Point query.

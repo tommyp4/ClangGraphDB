@@ -120,7 +120,7 @@ func TestGetImpact(t *testing.T) {
 	defer cleanup(t, p)
 
 	setupQuery := `
-		CREATE (caller:Function {name: 'TestDeepCaller', id: 'TestDeepCaller', ui_contaminated: true})
+		CREATE (caller:Function {name: 'TestDeepCaller', id: 'TestDeepCaller', is_volatile: true})
 		CREATE (mid:Function {name: 'TestMid', id: 'TestMid'})
 		CREATE (target:Function {name: 'TestTarget', id: 'TestTarget'})
 		CREATE (caller)-[:CALLS]->(mid)
@@ -144,8 +144,8 @@ func TestGetImpact(t *testing.T) {
 	for _, c := range result.Callers {
 		if c.Label == "TestDeepCaller" {
 			foundCaller = true
-			if val, ok := c.Properties["ui_contaminated"].(bool); !ok || !val {
-				t.Error("Expected TestDeepCaller to be contaminated")
+			if val, ok := c.Properties["is_volatile"].(bool); !ok || !val {
+				t.Error("Expected TestDeepCaller to be volatile")
 			}
 		}
 		if c.Label == "TestMid" {
@@ -198,8 +198,8 @@ func TestGetSeams(t *testing.T) {
 	defer cleanup(t, p)
 
 	setupQuery := `
-		CREATE (caller:Function {name: 'ContaminatedCaller', id: 'ContaminatedCaller', ui_contaminated: true})
-		CREATE (seam:Function {name: 'SeamFunc', id: 'SeamFunc', ui_contaminated: false, risk_score: 0.8})
+		CREATE (caller:Function {name: 'ContaminatedCaller', id: 'ContaminatedCaller', is_volatile: true})
+		CREATE (seam:Function {name: 'SeamFunc', id: 'SeamFunc', is_volatile: false, risk_score: 0.8})
 		CREATE (file:File {id: 'test_fixture.go', file: 'test_fixture.go'})
 		CREATE (caller)-[:CALLS]->(seam)
 		CREATE (seam)-[:DEFINED_IN]->(file)

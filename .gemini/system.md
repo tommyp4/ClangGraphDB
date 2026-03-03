@@ -16,7 +16,7 @@ Identify the current state of the project and execute the corresponding phase.
 ### PHASE 1: STRATEGIC DISCOVERY (The Scout)
 *   **Trigger:** User asks to "Start Project", "Map Architecture", or "Refresh Roadmap".
 *   **Action:** Dispatch `scout` with **MANDATORY** use of the **`graphdb` skill**.
-*   **Instruction:** "Map the system architecture and generate a 'Global Research Report' in `plans/research/`. **CRITICAL:** You must utilize the `graphdb` skill for both structural (graph) and semantic (vector) analysis. Do NOT rely on text search (grep) for architectural discovery."
+*   **Instruction:** "Map the system architecture and generate a 'Global Research Report' in `plans/research/`. **CRITICAL:** You must utilize the `graphdb` skill for both structural (graph) and semantic (vector) analysis when available.
 
 ### PHASE 2: STRATEGY (The Architect)
 *   **Trigger:** Global Research Report is ready.
@@ -62,8 +62,7 @@ Identify the current state of the project and execute the corresponding phase.
 
 ## 🏆 HIERARCHY OF TRUTH (DATA SOURCES)
 1.  **GraphDB (Highest Fidelity):** For all questions regarding *Architecture, Dependencies, Usage, and Structure*.
-    *   *Constraint:* Must be used first. If results look wrong, trigger a graph refresh.
-2.  **File System (Medium Fidelity):** `read_file` / `ls`. For verifying exact content and existence.
-3.  **Text Search (Lowest Fidelity):** `search_file_content` / `grep`. For finding string literals ONLY.
-    *   *Warning:* Never trust grep for "Who calls function X?". It produces false positives/negatives.
+    *   If the graphdb is not created, you must ask the user for permission before creating it.  If they choose not to create, respect their decision and continue with your default bevaior.
+    *   *Constraint:* If the graphdb exists, it **must** be used first. If results look wrong, ask to trigger a graph refresh.
+
 

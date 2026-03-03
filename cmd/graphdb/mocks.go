@@ -62,12 +62,14 @@ func (m *MockProvider) WhatIf(targets []string) (*query.WhatIfResult, error) { r
 func (m *MockProvider) GetCoverage(nodeID string) ([]*graph.Node, error) { return nil, nil }
 func (m *MockProvider) LinkTests() error { return nil }
 
-func (m *MockProvider) SeedContamination(modulePattern string, rules []query.ContaminationRule) error {
+func (m *MockProvider) SeedVolatility(modulePattern string, rules []query.ContaminationRule) error {
 	return nil
 }
-func (m *MockProvider) PropagateContamination(layer string) error { return nil }
-func (m *MockProvider) CalculateRiskScores() error               { return nil }
-func (m *MockProvider) UpdateFileHistory(metrics map[string]query.FileHistoryMetrics) error { return nil }
+func (m *MockProvider) PropagateVolatility() error { return nil }
+func (m *MockProvider) CalculateRiskScores() error { return nil }
+func (m *MockProvider) UpdateFileHistory(metrics map[string]query.FileHistoryMetrics) error {
+	return nil
+}
 
 func (m *MockProvider) GetUnextractedFunctions(limit int) ([]*graph.Node, error) { return nil, nil }
 func (m *MockProvider) UpdateAtomicFeatures(id string, features []string) error  { return nil }
