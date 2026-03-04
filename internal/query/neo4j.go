@@ -698,8 +698,8 @@ func (p *Neo4jProvider) ExploreDomain(featureID string) (*DomainExplorationResul
 		OPTIONAL MATCH (parent)-[:PARENT_OF]->(sibling:Feature)
 		WHERE sibling.id <> f.id
 
-		// Optional: implementing functions
-		OPTIONAL MATCH (fn:Function)-[:IMPLEMENTS]->(f)
+		// Optional: implementing functions (direct or via descendants)
+		OPTIONAL MATCH (f)-[:PARENT_OF*0..]->(desc:Feature)<-[:IMPLEMENTS]-(fn:Function)
 
 		RETURN properties(f) as feature, f.id as fid,
 		       properties(parent) as parent, parent.id as pid,

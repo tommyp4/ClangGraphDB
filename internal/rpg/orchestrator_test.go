@@ -82,6 +82,8 @@ func (m *MockGraphProvider) UpdateFeatureSummary(id string, name string, summary
 	if m.UpdateFeatureSummaryFn != nil { return m.UpdateFeatureSummaryFn(id, name, summary) }
 	return nil
 }
+func (m *MockGraphProvider) GetOverview() (*graph.Path, error) { return nil, nil }
+
 func (m *MockGraphProvider) GetFunctionMetadata() ([]*graph.Node, error) {
 	if m.GetFunctionMetadataFn != nil { return m.GetFunctionMetadataFn() }
 	return nil, nil

@@ -141,11 +141,11 @@ func (p *Neo4jProvider) GetEmbeddingsOnly() (map[string][]float32, error) {
 	return embeddings, nil
 }
 
-// GetFunctionMetadata returns all functions with minimal properties (id, file) for clustering.
+// GetFunctionMetadata returns all functions with minimal properties (id, file, line, end_line, atomic_features) for clustering.
 func (p *Neo4jProvider) GetFunctionMetadata() ([]*graph.Node, error) {
 	query := `
 		MATCH (n:Function)
-		RETURN n.id as id, n.file as file
+		RETURN n.id as id, n.file as file, n.line as line, n.end_line as end_line, n.atomic_features as atomic_features
 	`
 	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, nil, neo4j.EagerResultTransformer)
 
@@ -157,12 +157,28 @@ func (p *Neo4jProvider) GetFunctionMetadata() ([]*graph.Node, error) {
 	for _, record := range result.Records {
 		id, _, _ := neo4j.GetRecordValue[string](record, "id")
 		file, _, _ := neo4j.GetRecordValue[string](record, "file")
+		line, _, _ := neo4j.GetRecordValue[int64](record, "line")
+		endLine, _, _ := neo4j.GetRecordValue[int64](record, "end_line")
+		
+		var atomicFeatures []string
+		if val, found := record.Get("atomic_features"); found && val != nil {
+			if rawAf, ok := val.([]any); ok {
+				for _, v := range rawAf {
+					if s, okStr := v.(string); okStr {
+						atomicFeatures = append(atomicFeatures, s)
+					}
+				}
+			}
+		}
 
 		nodes = append(nodes, &graph.Node{
 			ID:    id,
 			Label: "Function",
 			Properties: map[string]any{
-				"file": file,
+				"file":            file,
+				"line":            line,
+				"end_line":        endLine,
+				"atomic_features": atomicFeatures,
 			},
 		})
 	}
@@ -173,7 +189,7 @@ func (p *Neo4jProvider) GetFunctionMetadata() ([]*graph.Node, error) {
 func (p *Neo4jProvider) GetUnnamedFeatures(limit int) ([]*graph.Node, error) {
 	query := `
 		MATCH (n:Feature)
-		WHERE n.name IS NULL OR n.name = ''
+		WHERE coalesce(n.name, '') = '' OR coalesce(n.name, '') STARTS WITH 'Unknown Feature' OR coalesce(n.name, '') STARTS WITH 'Unknown Domain'
 		RETURN n.id as id, properties(n) as props
 		LIMIT $limit
 	`
