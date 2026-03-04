@@ -272,7 +272,7 @@
 Plan: Ref: `plans/12_CAMPAIGN_D3_VISUALIZER.md`
 **Key Deliverables:**
 - [ ] **API Gateway / Backend Service:** Expose existing `internal/query` Go packages via REST/GraphQL HTTP endpoints.
-- [ ] **D3 Frontend:** Web application with Force-directed graphs and Hierarchical layouts.
+- [x] **D3 Frontend:** Web application with Force-directed graphs and Hierarchical layouts.
 - [ ] **Semantic Search View:** Map `search-similar` and `search-features` to a search UI.
 - [ ] **Neighborhood Navigation:** Interactive expansion of node dependencies (`hybrid-context`, `neighbors`).
 - [ ] **Refactoring Risk Analysis View:** Visual representation of `impact` and `what-if` queries.

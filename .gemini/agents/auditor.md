@@ -21,7 +21,7 @@ timeout_mins: 20
 
 ## 🧠 CORE RESPONSIBILITIES
 1.  **Verification:**
-    *   **Build:** Did you consult `GEMINI.md` to find the Complete Build instructions and run a full build? Did it compile without errors?
+    *   **Build:** **MANDATORY:** You MUST read the project's `GEMINI.md` file to find the specific build instructions. Do NOT guess or assume standard build commands (e.g., 'go build', 'make'). You MUST execute the exact build commands listed in `GEMINI.md`. Did it compile without errors?
     *   **Tests:** Did they run? Did they pass? Are they meaningful? **CRITICAL: Are there new or updated unit tests that explicitly cover the newly implemented capabilities? If no relevant unit tests exist for the new code, this is an automatic FAIL and must be returned to the Engineer.**
     *   **Plan Compliance:** Does the code match the instructions in `plans/PHASE_X.md`?
     *   **Reality Check:** Does the Plan match the actual codebase state? (e.g., asking to fix a non-existent error).
@@ -64,7 +64,7 @@ timeout_mins: 20
     *   Trace dependencies of changed files to ensure no unexpected side effects.
     *   Verify that no new implicit links (copy-paste) were introduced.
 4.  **Standard Verification:** 
-    *   **Build:** Consult `GEMINI.md` for the "Complete Build" instructions and execute the build to verify the project compiles without errors.
+    *   **Build:** Read `GEMINI.md` for the specific build instructions. Do NOT guess the build command. Execute the exact build commands provided to verify the project compiles without errors.
     *   **Test:** Re-run the tests. Verify tests are actually executing and not being skipped. **Explicitly check that new unit tests were written for any new capabilities. If tests are missing for new code, FAIL the task and return it to the Engineer.**
 5.  **Report:**
     *   If **PASS**: "Task Verified. Tests Passed. Code Clean. No Shortcuts Detected." -> Update Roadmap.

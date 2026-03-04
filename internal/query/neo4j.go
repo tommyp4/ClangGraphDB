@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
+	"github.com/neo4j/neo4j-go-driver/v5/neo4j/dbtype"
 )
 
 // Neo4jProvider implements GraphProvider using the official Neo4j Go driver.
@@ -569,6 +570,117 @@ func (p *Neo4jProvider) LocateUsage(sourceID string, targetID string) (any, erro
 	return snippet.FindPatternInScope(content, targetName, 0, int(start))
 }
 
+// GetOverview returns a high-level graph of all Feature nodes.
+func (p *Neo4jProvider) GetOverview() (*graph.Path, error) {
+	query := `
+		MATCH (n:Feature)
+		OPTIONAL MATCH p = (n)-[r:PARENT_OF]->(m:Feature)
+		RETURN n, p
+	`
+	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, nil, neo4j.EagerResultTransformer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute GetOverview query: %w", err)
+	}
+
+	outPath := &graph.Path{
+		Nodes: make([]*graph.Node, 0),
+		Edges: make([]*graph.Edge, 0),
+	}
+	
+	nodeMap := make(map[string]bool)
+	edgeMap := make(map[string]bool)
+
+	for _, record := range result.Records {
+		// Single isolated nodes
+		if rawN, ok, _ := neo4j.GetRecordValue[neo4j.Node](record, "n"); ok {
+			id := rawN.ElementId
+			if idProp, hasId := rawN.Props["id"].(string); hasId {
+				id = idProp
+			}
+			if !nodeMap[id] {
+				nodeMap[id] = true
+				outPath.Nodes = append(outPath.Nodes, &graph.Node{
+					ID: id,
+					Label: "Feature",
+					Properties: sanitizeProperties(rawN.Props),
+				})
+			}
+		} else if rawAny, ok := record.Get("n"); ok {
+            if node, ok := rawAny.(neo4j.Node); ok {
+                id := node.ElementId
+                if idProp, hasId := node.Props["id"].(string); hasId {
+                    id = idProp
+                }
+                if !nodeMap[id] {
+                    nodeMap[id] = true
+                    outPath.Nodes = append(outPath.Nodes, &graph.Node{
+                        ID: id,
+                        Label: "Feature",
+                        Properties: sanitizeProperties(node.Props),
+                    })
+                }
+            } else if dbnode, ok := rawAny.(dbtype.Node); ok {
+                id := dbnode.ElementId
+                if idProp, hasId := dbnode.Props["id"].(string); hasId {
+                    id = idProp
+                }
+                if !nodeMap[id] {
+                    nodeMap[id] = true
+                    outPath.Nodes = append(outPath.Nodes, &graph.Node{
+                        ID: id,
+                        Label: "Feature",
+                        Properties: sanitizeProperties(dbnode.Props),
+                    })
+                }
+            }
+        }
+
+		// Paths (if they exist)
+		if rawP, ok, _ := neo4j.GetRecordValue[neo4j.Path](record, "p"); ok {
+			for _, n := range rawP.Nodes {
+				id := n.ElementId
+				if idProp, hasId := n.Props["id"].(string); hasId {
+					id = idProp
+				}
+				if !nodeMap[id] {
+					nodeMap[id] = true
+					outPath.Nodes = append(outPath.Nodes, &graph.Node{
+						ID: id,
+						Label: "Feature",
+						Properties: sanitizeProperties(n.Props),
+					})
+				}
+			}
+			for _, r := range rawP.Relationships {
+				// We need string IDs for source and target which match the Node IDs
+				// Path in Neo4j-Go driver doesn't give us the string ID directly for endpoints unless we look them up in the path nodes
+				
+				sourceId := ""
+				targetId := ""
+				for _, n := range rawP.Nodes {
+					if n.ElementId == r.StartElementId {
+						if p, has := n.Props["id"].(string); has { sourceId = p } else { sourceId = n.ElementId }
+					}
+					if n.ElementId == r.EndElementId {
+						if p, has := n.Props["id"].(string); has { targetId = p } else { targetId = n.ElementId }
+					}
+				}
+				
+				edgeKey := fmt.Sprintf("%s-%s-%s", sourceId, targetId, r.Type)
+				if !edgeMap[edgeKey] && sourceId != "" && targetId != "" {
+					edgeMap[edgeKey] = true
+					outPath.Edges = append(outPath.Edges, &graph.Edge{
+						SourceID: sourceId,
+						TargetID: targetId,
+						Type: r.Type,
+					})
+				}
+			}
+		}
+	}
+	return outPath, nil
+}
+
 // ExploreDomain returns the hierarchy context for a Feature node:
 // the feature itself, its parent, children, siblings, and implementing functions.
 func (p *Neo4jProvider) ExploreDomain(featureID string) (*DomainExplorationResult, error) {
@@ -586,8 +698,8 @@ func (p *Neo4jProvider) ExploreDomain(featureID string) (*DomainExplorationResul
 		OPTIONAL MATCH (parent)-[:PARENT_OF]->(sibling:Feature)
 		WHERE sibling.id <> f.id
 
-		// Optional: implementing functions
-		OPTIONAL MATCH (fn:Function)-[:IMPLEMENTS]->(f)
+		// Optional: implementing functions (direct or via descendants)
+		OPTIONAL MATCH (f)-[:PARENT_OF*0..]->(desc:Feature)<-[:IMPLEMENTS]-(fn:Function)
 
 		RETURN properties(f) as feature, f.id as fid,
 		       properties(parent) as parent, parent.id as pid,

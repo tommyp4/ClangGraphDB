@@ -64,10 +64,9 @@ cd ../..
 ```
 
 **2. Run the Full Build**
-Ensure Zig is in your path, then use the Makefile from the project root to build both Linux and Windows binaries. The Makefile will automatically handle the complex `CGO_ENABLED` and target flags for the Windows build.
+Use the Makefile from the project root to build both Linux and Windows binaries. The Makefile will automatically handle the local Zig path, complex `CGO_ENABLED`, and target flags for the Windows build.
 
 ```bash
-export PATH=$PWD/.gemini/tools/zig-linux-x86_64-0.13.0:$PATH
 make build-all
 ```
 

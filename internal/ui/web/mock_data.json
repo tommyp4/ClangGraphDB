@@ -1,0 +1,32 @@
+[
+    {
+        "id": "func_1",
+        "name": "authenticateUser",
+        "type": "Function",
+        "file": "auth.go",
+        "properties": {
+            "volatility_score": 0.1
+        },
+        "similarity": 0.95
+    },
+    {
+        "id": "func_2",
+        "name": "validateToken",
+        "type": "Function",
+        "file": "auth.go",
+        "properties": {
+            "volatility_score": 0.2
+        },
+        "similarity": 0.88
+    },
+    {
+        "id": "func_3",
+        "name": "checkPermissions",
+        "type": "Function",
+        "file": "auth.go",
+        "properties": {
+            "volatility_score": 0.5
+        },
+        "similarity": 0.82
+    }
+]

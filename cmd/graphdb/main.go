@@ -39,6 +39,8 @@ func main() {
 		handleEnrichTests(os.Args[2:])
 	case "import":
 		importCmd(os.Args[2:])
+	case "serve":
+		handleServe(os.Args[2:])
 	case "build-all":
 		handleBuildAll(os.Args[2:])
 	case "version", "--version", "-v":
@@ -63,6 +65,7 @@ func printUsage() {
 	fmt.Println("  enrich-tests           Link tests to production functions")
 	fmt.Println("  import                 Import JSONL files into Neo4j")
 	fmt.Println("  query                  Query the graph (structural or semantic)")
+	fmt.Println("  serve                  Start the HTTP server and D3 visualizer")
 	fmt.Println("  build-all              One-shot: Ingest -> Enrich -> Import")
 	fmt.Println("  version                Show version info")
 	fmt.Println("\nRun 'graphdb <command> --help' for command-specific options.")
