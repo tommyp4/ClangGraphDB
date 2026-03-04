@@ -10,9 +10,12 @@ import (
 var Version = "dev"
 
 var (
-	ingestCmd = handleIngest
-	enrichCmd = handleEnrichFeatures
-	importCmd = handleImport
+	ingestCmd              = handleIngest
+	enrichCmd              = handleEnrichFeatures
+	importCmd              = handleImport
+	enrichHistoryCmd       = handleEnrichHistory
+	enrichContaminationCmd = handleEnrichContamination
+	enrichTestsCmd         = handleEnrichTests
 )
 
 func main() {

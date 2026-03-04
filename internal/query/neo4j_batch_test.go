@@ -30,7 +30,7 @@ func TestNeo4jBatchOperations(t *testing.T) {
 		CREATE (f3:Function {id: 'batch-test-f3', file: 'f3.go', line: 21, start_line: 21, end_line: 30, content: 'func f3() {}', atomic_features: ['feature1']})
 		CREATE (feat1:Feature {id: 'batch-test-feat1'})
 		CREATE (feat2:Feature {id: 'batch-test-feat2', name: 'Existing Name', summary: 'Existing Summary'})
-		CREATE (feat3:Feature {id: 'batch-test-feat-unknown', name: 'Unknown Feature-cluster-1'})
+		CREATE (feat3:Feature {id: 'batch-test-feat-unknown', name: 'Feature-cluster-1'})
 	`
 	_, err := neo4j.ExecuteQuery(p.ctx, p.driver, setupQuery, nil, neo4j.EagerResultTransformer)
 	if err != nil {
@@ -116,7 +116,7 @@ func TestNeo4jBatchOperations(t *testing.T) {
 		t.Errorf("Expected to find batch-test-feat1 in unnamed features")
 	}
 	if !foundFeatUnknown {
-		t.Errorf("Expected to find batch-test-feat-unknown in unnamed features due to 'Unknown Feature' name")
+		t.Errorf("Expected to find batch-test-feat-unknown in unnamed features due to 'Feature-' prefix")
 	}
 
 	// 6.5 Test GetFunctionMetadata

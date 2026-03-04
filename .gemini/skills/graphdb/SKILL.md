@@ -40,7 +40,7 @@ The tool automatically inherits the following environment variables. Assume they
 ## Workflows
 
 ### 1. The "One-Shot" Build (Recommended)
-To rebuild the entire graph from scratch (Ingest -> Import -> Enrich), use the `build-all` command. This handles all phases sequentially and ensures the database is synchronized with the latest code state.
+To rebuild the entire graph from scratch (Ingest -> Import -> All Enrichment Phases), use the `build-all` command. This single command handles all 6 steps sequentially, building structural nodes, semantic embeddings, contamination models, git history analysis, and test linkages.
 ```bash
 ${graphdb_bin} build-all -dir .
 ```
@@ -48,7 +48,7 @@ ${graphdb_bin} build-all -dir .
     *   `-clean`: Wipe the database before importing (default: true).
 
 ### 2. Manual Pipeline
-If you need granular control over each step, follow this sequence:
+If you need granular control over each step (or if a specific enrichment step fails and needs to be re-run), follow this sequence. Note that `build-all` automatically runs all 6 of these steps.
 
 **Step 0: Check Sync Status**
 1. Get local commit: `git rev-parse HEAD`

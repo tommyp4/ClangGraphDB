@@ -29,10 +29,25 @@ func handleBuildAll(args []string) {
 	}
 	importCmd(importArgs1)
 
-	// 3. Enrich
-	fmt.Println("\n[Phase 3/3] Enriching Features (in-database)...")
+	// 3. Enrich Features
+	fmt.Println("\n[Phase 3/6] Enriching Features (in-database)...")
 	enrichArgs := []string{"-dir", *dirPtr}
 	enrichCmd(enrichArgs)
+
+	// 4. Enrich History
+	fmt.Println("\n[Phase 4/6] Enriching Git History...")
+	historyArgs := []string{"-dir", *dirPtr}
+	enrichHistoryCmd(historyArgs)
+
+	// 5. Enrich Contamination
+	fmt.Println("\n[Phase 5/6] Enriching Contamination/Risk...")
+	contaminationArgs := []string{"-module", ".*"}
+	enrichContaminationCmd(contaminationArgs)
+
+	// 6. Enrich Tests
+	fmt.Println("\n[Phase 6/6] Linking Tests...")
+	testArgs := []string{}
+	enrichTestsCmd(testArgs)
 
 	fmt.Println("\n✅ Build-All Sequence Complete!")
 }

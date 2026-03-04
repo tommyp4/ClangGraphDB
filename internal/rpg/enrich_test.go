@@ -3,6 +3,7 @@ package rpg
 import (
 	"fmt"
 	"graphdb/internal/graph"
+	"strings"
 	"testing"
 )
 
@@ -16,7 +17,7 @@ func (m *MockSummarizer) Summarize(snippets []string) (string, string, error) {
 	}
 
 	if len(snippets) == 0 {
-		return "Unknown Feature", "No code snippets provided for analysis.", nil
+		return "Feature-" + GenerateShortUUID(), "No code snippets provided for analysis.", nil
 	}
 	// Verify that we got the content we expected
 	foundLogin := false
@@ -154,8 +155,8 @@ func TestEnricher_Enrich_MissingProps(t *testing.T) {
 		t.Fatalf("Enrich failed: %v", err)
 	}
 	// Should be unknown feature because snippets are empty
-	if feature.Name != "Unknown Feature" {
-		t.Errorf("Expected 'Unknown Feature', got '%s'", feature.Name)
+	if !strings.HasPrefix(feature.Name, "Feature-") {
+		t.Errorf("Expected name starting with 'Feature-', got '%s'", feature.Name)
 	}
 }
 

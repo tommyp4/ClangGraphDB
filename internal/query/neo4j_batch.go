@@ -189,7 +189,7 @@ func (p *Neo4jProvider) GetFunctionMetadata() ([]*graph.Node, error) {
 func (p *Neo4jProvider) GetUnnamedFeatures(limit int) ([]*graph.Node, error) {
 	query := `
 		MATCH (n:Feature)
-		WHERE coalesce(n.name, '') = '' OR coalesce(n.name, '') STARTS WITH 'Unknown Feature' OR coalesce(n.name, '') STARTS WITH 'Unknown Domain'
+		WHERE coalesce(n.name, '') = '' OR coalesce(n.name, '') STARTS WITH 'Feature-' OR coalesce(n.name, '') STARTS WITH 'Domain-'
 		RETURN n.id as id, properties(n) as props
 		LIMIT $limit
 	`
