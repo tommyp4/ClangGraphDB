@@ -3,6 +3,10 @@
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS := -ldflags "-X main.Version=$(VERSION)"
 
+# Ensure local zig is in PATH for cross-compilation
+LOCAL_ZIG := $(abspath .gemini/tools/zig-linux-x86_64-0.13.0)
+export PATH := $(LOCAL_ZIG):$(PATH)
+
 build: build-linux
 
 build-all: build-linux build-windows
