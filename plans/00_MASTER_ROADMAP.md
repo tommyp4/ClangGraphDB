@@ -281,6 +281,30 @@ Plan: Ref: `plans/12_CAMPAIGN_D3_VISUALIZER.md`
 
 ## 🏗️ Platform Infrastructure (Deferred)
 
+### Campaign 12.1: UI Feedback Remediation (UX Polish)
+**Goal:** Address initial user feedback regarding view initialization, viewport centering, layer filtering, and visual clarity (risk scores, legends).
+**Status:** Completed
+**Plan:** Ref: `plans/15_CAMPAIGN_UI_FEEDBACK_REMEDIATION.md`
+**Key Deliverables:**
+- [x] **Top-Level View:** Default `overview` to semantic Domains.
+- [x] **Viewport Navigation:** Auto-center nodes on search and expansion.
+- [x] **Risk Normalization:** Provide dynamic 0-100 scales for volatility.
+- [x] **Semantic Filtering:** Fix layer toggle behaviors and add node-label coloring/legends.
+### Campaign 16: Critical UX Rescue (Physics & LLM Fixes)
+
+**Goal:** Resolve two critical regressions preventing effective use of the visualizer and semantic features: missing LLM domain naming due to metadata omissions in the streaming pipeline, and severe D3 physics instability during dynamic graph expansion.
+
+**Status:** Planned
+
+**Plan:** Ref: `plans/16_CAMPAIGN_CRITICAL_UX_RESCUE.md`
+
+**Key Deliverables:**
+
+- [ ] **LLM Domain Naming:** Fix `GetFunctionMetadata` to return line numbers and `atomic_features` so the Summarizer receives valid snippets.
+
+- [ ] **D3 Physics Stabilization:** Replace violent `forceCenter` with gentle positional forces and implement coordinated node spawning.
+
+
 ### Campaign 13: The Spanner Backend (Storage Swap)
 **Goal:** Establish the multi-tenant, immutable storage layer using Google Spanner Graph by swapping the storage implementation.
 **Status:** Pending

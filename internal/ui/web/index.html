@@ -1,51 +1,42 @@
 <!DOCTYPE html>
-<html lang="en">
+<html class="dark" lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>GraphDB D3 Visualizer</title>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>GraphDB | Architecture Archeology</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#137fec",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                        "semantic-purple": "#a855f7",
+                        "semantic-teal": "#2dd4bf",
+                        "physical-blue": "#0ea5e9",
+                        "impact-high": "#ef4444",
+                        "impact-medium": "#f97316"
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
     <style>
-        body {
-            font-family: sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f4f4f9;
-        }
-        #search-container {
-            margin-bottom: 20px;
-        }
-        #search-input {
-            padding: 8px;
-            width: 300px;
-            font-size: 16px;
-        }
-        #search-button {
-            padding: 8px 16px;
-            font-size: 16px;
-            cursor: pointer;
-        }
-        #main-layout {
-            display: flex;
-            gap: 20px;
-        }
-        #graph-container {
-            flex: 2;
-            height: 800px;
-            background-color: white;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            overflow: hidden;
-            position: relative;
-        }
-        #impact-panel {
-            flex: 1;
-            height: 800px;
-            background-color: white;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            overflow-y: auto;
-            padding: 10px;
-            display: none;
+        body { font-family: 'Space Grotesk', sans-serif; }
+        .node-glow { filter: drop-shadow(0 0 8px currentColor); }
+        .canvas-grid {
+            background-image: radial-gradient(circle, rgba(19, 127, 236, 0.1) 1px, transparent 1px);
+            background-size: 40px 40px;
         }
         .node {
             cursor: pointer;
@@ -62,9 +53,17 @@
             stroke-dasharray: 4;
         }
         .node-label {
-            font-size: 12px;
+            font-family: system-ui, -apple-system, sans-serif;
+            font-size: 11px;
+            font-weight: 500;
             pointer-events: none;
-            text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
+            fill: #1e293b;
+            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+            transition: opacity 0.3s ease-in-out;
+        }
+        .dark .node-label {
+            fill: #f1f5f9;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
         }
         #context-menu {
             display: none;
@@ -82,28 +81,177 @@
         #context-menu ul li {
             padding: 8px 12px;
             cursor: pointer;
+            color: black;
         }
         #context-menu ul li:hover {
             background-color: #f0f0f0;
         }
     </style>
 </head>
-<body>
-    <h1>GraphDB Visualizer</h1>
-    <div id="search-container">
-        <input type="text" id="search-input" placeholder="Search for features or functions...">
-        <button id="search-button">Search</button>
-        <button id="pinch-points-button">Show Pinch Points</button>
-        <button id="semantic-seams-button">Show Semantic Disconnects</button>
-    </div>
-    
-    <div id="main-layout">
-        <div id="graph-container"></div>
-        <div id="impact-panel">
-            <h2>Extraction Impact</h2>
-            <div id="impact-content"></div>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 overflow-hidden h-screen flex flex-col">
+    <header class="h-16 border-b border-primary/20 bg-background-light/50 dark:bg-background-dark/50 backdrop-blur-md flex items-center justify-between px-6 z-50">
+        <div class="flex items-center gap-6">
+            <div class="flex items-center gap-2 text-primary">
+                <span class="material-symbols-outlined text-3xl font-bold">hub</span>
+                <h1 class="text-xl font-bold tracking-tight">GraphDB <span class="text-xs font-light text-slate-500 uppercase tracking-widest ml-1">Archeologist</span></h1>
+            </div>
+            <div class="h-10 w-[600px] flex gap-2">
+                <div class="relative group flex-1">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <span class="material-symbols-outlined text-slate-400 group-focus-within:text-primary transition-colors">search</span>
+                    </div>
+                    <input id="search-input" class="block w-full h-full pl-10 pr-3 py-2 border-0 bg-slate-200/50 dark:bg-slate-800/50 rounded-lg text-sm focus:ring-2 focus:ring-primary/50 placeholder:text-slate-500 transition-all text-slate-900 dark:text-slate-100" placeholder="Search semantic intent (e.g., 'Where do we validate credit cards?')" type="text"/>
+                </div>
+                <button id="search-button" class="px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold hover:bg-primary/90 transition-colors">Search</button>
+            </div>
         </div>
-    </div>
+        <div class="flex items-center gap-4">
+            <div class="flex bg-slate-200 dark:bg-slate-800 p-1 rounded-lg text-slate-900 dark:text-slate-100">
+                <button id="btn-physical-layer" title="Toggle Physical Layer (Files, Functions, Classes). Toggling ON will fetch associated physical components for visible semantic nodes." class="px-4 py-1.5 text-xs font-medium rounded-md bg-white dark:bg-slate-700 shadow-sm flex items-center gap-2">
+                    <span class="size-2 rounded-full bg-physical-blue"></span>
+                    Physical Layer
+                </button>
+                <button id="btn-semantic-layer" title="Toggle Semantic Layer (Domains, Features). Toggling ON will fetch associated semantic context for visible physical nodes." class="px-4 py-1.5 text-xs font-medium rounded-md bg-white dark:bg-slate-700 shadow-sm flex items-center gap-2">
+                    <span class="size-2 rounded-full bg-semantic-purple"></span>
+                    Semantic Layer
+                </button>
+            </div>
+            <div class="h-8 w-px bg-slate-700 mx-2"></div>
+            <button class="p-2 hover:bg-slate-800 rounded-lg transition-colors">
+                <span class="material-symbols-outlined">settings</span>
+            </button>
+            <div class="size-10 rounded-full border border-primary/30 p-0.5">
+                <img alt="User profile" class="rounded-full bg-slate-800" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCyl5uCksbVTtKE7p7vIDEmPy_8Nn54O-sj3TXuEeBPgHjQIXRw2_FSO9grNDo6iK1dCE4D41e3SclTmetoz93kcE6Tdf4BUwN15UPdX9vA4LltaEYZCmBJyDcnJ_c_gd6Wlx-JmMX7GTeOPK2tiNxONETinrMxlX4KkRg7y-dxlqOEqKp6r824b0LP3xf3LOvTt2Mbg65un9pGm2MXyEJIKm1RXPg_-i6IQbMPcAICNXbGBPRHBFve_fvF9DZ62SheHg_9XEARF3e7"/>
+            </div>
+        </div>
+    </header>
+    <main class="flex-1 flex overflow-hidden relative">
+        <div id="graph-container" class="flex-1 relative bg-background-dark canvas-grid overflow-hidden">
+            <!-- Visualization Controls Overlay -->
+            <div class="absolute bottom-6 right-6 flex flex-col gap-3 z-30">
+                <div class="flex flex-col bg-slate-100 dark:bg-slate-800 rounded-lg shadow-2xl border border-slate-200 dark:border-slate-700">
+                    <button id="zoom-in" title="Zoom In" class="p-3 border-b border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors rounded-t-lg">
+                        <span class="material-symbols-outlined">add</span>
+                    </button>
+                    <button id="zoom-out" title="Zoom Out" class="p-3 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors rounded-b-lg">
+                        <span class="material-symbols-outlined">remove</span>
+                    </button>
+                </div>
+                <button id="reset-view" title="Reset View" class="p-3 bg-slate-100 dark:bg-slate-800 rounded-lg shadow-2xl border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                    <span class="material-symbols-outlined">near_me</span>
+                </button>
+            </div>
+            <!-- Legend Overlay -->
+            <div id="dynamic-legend" class="absolute bottom-6 left-6 p-4 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md rounded-xl border border-slate-200 dark:border-slate-800 shadow-xl z-30">
+                <!-- Legend content will be injected by app.js -->
+            </div>
+            <!-- D3 will inject SVG here -->
+        </div>
+        <aside id="impact-panel" class="w-80 border-l border-primary/20 bg-background-light dark:bg-background-dark flex flex-col z-40 shadow-2xl transition-all" style="display: none;">
+            <div class="p-5 border-b border-primary/10">
+                <div class="flex items-center justify-between mb-1">
+                    <h3 class="text-lg font-bold text-slate-900 dark:text-slate-100">Impact Summary</h3>
+                    <button onclick="document.getElementById('impact-panel').style.display='none'" class="text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+                <div class="flex items-center gap-2 mb-1">
+                    <span id="impact-node-type" class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest bg-primary/20 text-primary border border-primary/30">Node</span>
+                </div>
+                <p id="impact-node-name" class="text-xs text-slate-500 truncate italic">Analysis for selection</p>
+                <div class="mt-2 flex items-center gap-1 text-[10px] text-slate-400">
+                    <span class="material-symbols-outlined text-[12px]">mouse</span>
+                    <span>Double-click node to expand relationships</span>
+                </div>
+            </div>
+            
+            <div id="impact-scroll-container" class="flex-1 overflow-y-auto">
+                <div id="impact-content" class="p-5 flex flex-col gap-6 text-slate-900 dark:text-slate-100 font-display">
+                    <!-- Default state / Placeholder -->
+                    <div id="impact-placeholder" class="p-4 rounded-xl bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center h-48 text-center gap-3">
+                        <span class="material-symbols-outlined text-4xl text-slate-600">query_stats</span>
+                        <p class="text-xs text-slate-500 px-4 font-medium italic">Select a node and click "Simulate Extraction" from the context menu to begin analysis.</p>
+                    </div>
+
+                    <!-- Template structure (Hidden by default or populated by app.js) -->
+                    <div id="impact-details" class="hidden flex flex-col gap-6">
+                        <!-- Risk Indicator Card -->
+                        <div id="risk-card" class="p-4 rounded-xl bg-impact-high/10 border border-impact-high/30 flex flex-col gap-2">
+                            <div class="flex justify-between items-center" title="Risk Level is a categorical assessment of the potential impact of changes to this component.">
+                                <span class="text-xs font-bold text-impact-high uppercase tracking-wide">Risk Level</span>
+                                <span id="risk-label" class="px-2 py-0.5 rounded bg-impact-high text-white text-[10px] font-bold">CALCULATING</span>
+                            </div>
+                            <div id="risk-score" class="text-2xl font-bold text-impact-high" title="Risk Score is a normalized value representing the potential impact of changes to this component, calculated based on its volatility and centrality.">--/100</div>
+                            <div class="w-full bg-impact-high/20 rounded-full h-1.5 mt-1">
+                                <div id="risk-bar" class="bg-impact-high h-1.5 rounded-full" style="width: 0%"></div>
+                            </div>
+                            <p id="risk-description" class="text-[10px] text-impact-high/80 mt-1 italic italic">Running blast radius simulation...</p>
+                        </div>
+
+                        <!-- Statistics -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="p-3 bg-slate-100 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
+                                <div class="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Impacted Nodes</div>
+                                <div id="stat-nodes" class="text-xl font-bold">--</div>
+                            </div>
+                            <div class="p-3 bg-slate-100 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
+                                <div class="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Max Depth</div>
+                                <div id="stat-depth" class="text-xl font-bold">--</div>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col gap-3">
+                        <h4 class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Properties</h4>
+                        <div id="impact-properties" class="flex flex-col gap-2 text-xs text-slate-300">
+                            <!-- Properties injected here -->
+                        </div>
+                    </div>
+                    
+                    <div class="flex flex-col gap-3">
+                        <h4 class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Actions</h4>
+                        <button id="btn-expand-node" class="w-full py-2 px-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded text-xs font-medium text-slate-200 transition-colors flex items-center justify-center gap-2">
+                            <span class="material-symbols-outlined text-[14px]">open_in_full</span>
+                            Expand Relationships
+                        </button>
+                        <button id="btn-trace-intent" class="w-full py-2 px-3 bg-semantic-purple/10 hover:bg-semantic-purple/20 border border-semantic-purple/30 rounded text-xs font-medium text-semantic-purple transition-colors flex items-center justify-center gap-2">
+                            <span class="material-symbols-outlined text-[14px]">psychology_alt</span>
+                            Trace Intent Hierarchy
+                        </button>
+                        <button id="btn-simulate-extraction" class="w-full py-2 px-3 bg-primary/10 hover:bg-primary/20 border border-primary/30 rounded text-xs font-medium text-primary transition-colors flex items-center justify-center gap-2">
+                            <span class="material-symbols-outlined text-[14px]">warning</span>
+                            Simulate Extraction
+                        </button>
+                    </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </main>
+    <footer class="h-14 border-t border-primary/20 bg-background-light dark:bg-background-dark/90 flex items-center px-6 gap-6 z-50">
+        <div class="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+            <span class="material-symbols-outlined text-sm">analytics</span>
+            Analysis Tools
+        </div>
+        <div class="h-8 w-px bg-slate-800"></div>
+        <div class="flex gap-2">
+            <button id="blast-radius-button" title="Analyze the cascading impact of modifying a specific node" class="flex items-center gap-2 px-4 py-1.5 rounded-lg border border-slate-700 hover:bg-slate-800 hover:border-primary/50 transition-all text-sm font-medium">
+                <span class="material-symbols-outlined text-orange-500">warning</span>
+                Blast Radius
+            </button>
+            <button id="pinch-points-button" title="Discover critical bottleneck nodes that bridge different system domains" class="flex items-center gap-2 px-4 py-1.5 rounded-lg border border-slate-700 hover:bg-slate-800 hover:border-primary/50 transition-all text-sm font-medium">
+                <span class="material-symbols-outlined text-primary">filter_center_focus</span>
+                Pinch Point Discovery
+            </button>
+            <button id="semantic-seams-button" title="Identify areas where logic is shared but semantic meanings have diverged" class="flex items-center gap-2 px-4 py-1.5 rounded-lg border border-slate-700 hover:bg-slate-800 hover:border-primary/50 transition-all text-sm font-medium">
+                <span class="material-symbols-outlined text-semantic-purple">scuba_diving</span>
+                Semantic Disconnects
+            </button>
+        </div>
+        <div class="ml-auto flex items-center gap-4 text-[10px] font-mono text-slate-500">
+            <span>INDEXED: 124,092 NODES</span>
+            <span class="flex items-center gap-1"><span class="size-1.5 rounded-full bg-green-500 animate-pulse"></span> LIVE SYNC</span>
+        </div>
+    </footer>
 
     <div id="context-menu">
         <ul>

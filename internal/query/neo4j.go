@@ -145,12 +145,90 @@ func (p *Neo4jProvider) Traverse(startNodeID string, relationship string, direct
 	return paths, nil
 }
 
+// SemanticTrace executes a targeted hierarchical query from Domain down to File.
+func (p *Neo4jProvider) SemanticTrace(nodeID string) ([]*graph.Path, error) {
+	// targeted hierarchy: [Domain] --(PARENT_OF)--> [Feature] --(IMPLEMENTS)--> [Function] --(DEFINED_IN)--> [File]
+	query := `
+		MATCH (func:Function) WHERE func.id = $targetId OR func.fqn = $targetId OR func.name = $targetId
+		MATCH path = (d:Domain)-[:PARENT_OF*0..1]->(feat:Feature)-[:IMPLEMENTS*0..1]->(func)-[:DEFINED_IN*0..1]->(file:File)
+		RETURN path
+	`
+
+	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
+		"targetId": nodeID,
+	}, neo4j.EagerResultTransformer)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute SemanticTrace query: %w", err)
+	}
+
+	paths := make([]*graph.Path, 0, len(result.Records))
+	for _, record := range result.Records {
+		rawPath, _, err := neo4j.GetRecordValue[neo4j.Path](record, "path")
+		if err != nil {
+			continue
+		}
+
+		gPath := &graph.Path{
+			Nodes: make([]*graph.Node, len(rawPath.Nodes)),
+			Edges: make([]*graph.Edge, len(rawPath.Relationships)),
+		}
+
+		for i, n := range rawPath.Nodes {
+			label := ""
+			if len(n.Labels) > 0 {
+				label = n.Labels[0]
+			}
+			id := ""
+			if idVal, ok := n.Props["id"].(string); ok {
+				id = idVal
+			} else if nameVal, ok := n.Props["name"].(string); ok {
+				id = nameVal
+			}
+			gPath.Nodes[i] = &graph.Node{
+				ID:         id,
+				Label:      label,
+				Properties: sanitizeProperties(n.Props),
+			}
+		}
+
+		for i, r := range rawPath.Relationships {
+			sourceID := ""
+			targetID := ""
+			for _, n := range rawPath.Nodes {
+				if n.ElementId == r.StartElementId {
+					if idVal, ok := n.Props["id"].(string); ok {
+						sourceID = idVal
+					} else if nameVal, ok := n.Props["name"].(string); ok {
+						sourceID = nameVal
+					}
+				}
+				if n.ElementId == r.EndElementId {
+					if idVal, ok := n.Props["id"].(string); ok {
+						targetID = idVal
+					} else if nameVal, ok := n.Props["name"].(string); ok {
+						targetID = nameVal
+					}
+				}
+			}
+			gPath.Edges[i] = &graph.Edge{
+				SourceID: sourceID,
+				TargetID: targetID,
+				Type:     r.Type,
+			}
+		}
+		paths = append(paths, gPath)
+	}
+
+	return paths, nil
+}
+
 // SearchSimilarFunctions searches for function nodes using vector embeddings.
 func (p *Neo4jProvider) SearchSimilarFunctions(embedding []float32, limit int) ([]*FeatureResult, error) {
 	query := `
 		CALL db.index.vector.queryNodes('function_embeddings', $limit, $embedding)
 		YIELD node, score
-		RETURN node.name as label, score, properties(node) as props
+		RETURN node.id as id, labels(node)[0] as label, score, properties(node) as props
 	`
 
 	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
@@ -164,14 +242,14 @@ func (p *Neo4jProvider) SearchSimilarFunctions(embedding []float32, limit int) (
 
 	features := make([]*FeatureResult, 0, len(result.Records))
 	for _, record := range result.Records {
-		label, _, err := neo4j.GetRecordValue[string](record, "label")
+		id, _, err := neo4j.GetRecordValue[string](record, "id")
 		if err != nil {
 			continue
 		}
+		label, _, _ := neo4j.GetRecordValue[string](record, "label")
 		score, _, _ := neo4j.GetRecordValue[float64](record, "score")
 		props, _, _ := neo4j.GetRecordValue[map[string]any](record, "props")
 		propsMap := sanitizeProperties(props)
-		id, _ := propsMap["id"].(string)
 
 		// Reconstruct node
 		node := &graph.Node{
@@ -194,7 +272,7 @@ func (p *Neo4jProvider) SearchFeatures(embedding []float32, limit int) ([]*Featu
 	query := `
 		CALL db.index.vector.queryNodes('feature_embeddings', $limit, $embedding)
 		YIELD node, score
-		RETURN node.id as id, score, properties(node) as props
+		RETURN node.id as id, labels(node)[0] as label, score, properties(node) as props
 	`
 
 	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
@@ -570,12 +648,11 @@ func (p *Neo4jProvider) LocateUsage(sourceID string, targetID string) (any, erro
 	return snippet.FindPatternInScope(content, targetName, 0, int(start))
 }
 
-// GetOverview returns a high-level graph of all Feature nodes.
+// GetOverview returns a high-level graph of top-level semantic nodes.
 func (p *Neo4jProvider) GetOverview() (*graph.Path, error) {
 	query := `
-		MATCH (n:Feature)
-		OPTIONAL MATCH p = (n)-[r:PARENT_OF]->(m:Feature)
-		RETURN n, p
+		MATCH (n) WHERE n:Domain OR (n:Feature AND NOT ()-[]->(n)) 
+		RETURN n, null as p
 	`
 	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, nil, neo4j.EagerResultTransformer)
 	if err != nil {
@@ -597,43 +674,56 @@ func (p *Neo4jProvider) GetOverview() (*graph.Path, error) {
 			if idProp, hasId := rawN.Props["id"].(string); hasId {
 				id = idProp
 			}
+			
+			label := "Unknown"
+			if len(rawN.Labels) > 0 {
+				label = rawN.Labels[0]
+			}
+
 			if !nodeMap[id] {
 				nodeMap[id] = true
 				outPath.Nodes = append(outPath.Nodes, &graph.Node{
-					ID: id,
-					Label: "Feature",
+					ID:         id,
+					Label:      label,
 					Properties: sanitizeProperties(rawN.Props),
 				})
 			}
 		} else if rawAny, ok := record.Get("n"); ok {
-            if node, ok := rawAny.(neo4j.Node); ok {
-                id := node.ElementId
-                if idProp, hasId := node.Props["id"].(string); hasId {
-                    id = idProp
-                }
-                if !nodeMap[id] {
-                    nodeMap[id] = true
-                    outPath.Nodes = append(outPath.Nodes, &graph.Node{
-                        ID: id,
-                        Label: "Feature",
-                        Properties: sanitizeProperties(node.Props),
-                    })
-                }
-            } else if dbnode, ok := rawAny.(dbtype.Node); ok {
-                id := dbnode.ElementId
-                if idProp, hasId := dbnode.Props["id"].(string); hasId {
-                    id = idProp
-                }
-                if !nodeMap[id] {
-                    nodeMap[id] = true
-                    outPath.Nodes = append(outPath.Nodes, &graph.Node{
-                        ID: id,
-                        Label: "Feature",
-                        Properties: sanitizeProperties(dbnode.Props),
-                    })
-                }
-            }
-        }
+			var id, label string
+			var props map[string]any
+
+			if node, ok := rawAny.(neo4j.Node); ok {
+				id = node.ElementId
+				if idProp, hasId := node.Props["id"].(string); hasId {
+					id = idProp
+				}
+				if len(node.Labels) > 0 {
+					label = node.Labels[0]
+				}
+				props = node.Props
+			} else if dbnode, ok := rawAny.(dbtype.Node); ok {
+				id = dbnode.ElementId
+				if idProp, hasId := dbnode.Props["id"].(string); hasId {
+					id = idProp
+				}
+				if len(dbnode.Labels) > 0 {
+					label = dbnode.Labels[0]
+				}
+				props = dbnode.Props
+			}
+
+			if id != "" && !nodeMap[id] {
+				nodeMap[id] = true
+				if label == "" {
+					label = "Unknown"
+				}
+				outPath.Nodes = append(outPath.Nodes, &graph.Node{
+					ID:         id,
+					Label:      label,
+					Properties: sanitizeProperties(props),
+				})
+			}
+		}
 
 		// Paths (if they exist)
 		if rawP, ok, _ := neo4j.GetRecordValue[neo4j.Path](record, "p"); ok {
@@ -642,11 +732,17 @@ func (p *Neo4jProvider) GetOverview() (*graph.Path, error) {
 				if idProp, hasId := n.Props["id"].(string); hasId {
 					id = idProp
 				}
+				
+				label := "Unknown"
+				if len(n.Labels) > 0 {
+					label = n.Labels[0]
+				}
+
 				if !nodeMap[id] {
 					nodeMap[id] = true
 					outPath.Nodes = append(outPath.Nodes, &graph.Node{
-						ID: id,
-						Label: "Feature",
+						ID:         id,
+						Label:      label,
 						Properties: sanitizeProperties(n.Props),
 					})
 				}

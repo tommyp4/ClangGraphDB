@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"graphdb/internal/embedding"
+	"graphdb/internal/graph"
 	"graphdb/internal/query"
 )
 
@@ -46,7 +47,8 @@ type mockGraphProvider struct {
 	getNeighborsFunc           func(target string, depth int) (*query.NeighborResult, error)
 	SearchSimilarFunctionsFunc func(embedding []float32, limit int) ([]*query.FeatureResult, error)
 	WhatIfFunc                 func(targets []string) (*query.WhatIfResult, error)
-}
+	SemanticTraceFunc          func(target string) ([]*graph.Path, error)
+	}
 
 func (m *mockGraphProvider) GetNeighbors(target string, depth int) (*query.NeighborResult, error) {
 	if m.getNeighborsFunc != nil {
@@ -65,6 +67,13 @@ func (m *mockGraphProvider) SearchSimilarFunctions(embedding []float32, limit in
 func (m *mockGraphProvider) WhatIf(targets []string) (*query.WhatIfResult, error) {
 	if m.WhatIfFunc != nil {
 		return m.WhatIfFunc(targets)
+	}
+	return nil, nil
+}
+
+func (m *mockGraphProvider) SemanticTrace(target string) ([]*graph.Path, error) {
+	if m.SemanticTraceFunc != nil {
+		return m.SemanticTraceFunc(target)
 	}
 	return nil, nil
 }
@@ -193,5 +202,29 @@ func TestQueryWhatIf(t *testing.T) {
 	err = json.Unmarshal(rr.Body.Bytes(), &response)
 	if err != nil {
 		t.Fatalf("handler returned invalid json: %v", err)
+	}
+}
+
+func TestQuerySemanticTrace(t *testing.T) {
+	mockProvider := &mockGraphProvider{
+		SemanticTraceFunc: func(target string) ([]*graph.Path, error) {
+			if target != "func1" {
+				t.Errorf("expected target 'func1', got %s", target)
+			}
+			return []*graph.Path{}, nil
+		},
+	}
+	s := NewServer(mockProvider, nil)
+
+	req, err := http.NewRequest("GET", "/api/query?type=semantic-trace&target=func1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rr := httptest.NewRecorder()
+	s.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
 	}
 }

@@ -123,6 +123,7 @@ type GraphProvider interface {
 	FetchSource(nodeID string) (string, error)
 	LocateUsage(sourceID string, targetID string) (any, error)
 	ExploreDomain(featureID string) (*DomainExplorationResult, error)
+	SemanticTrace(nodeID string) ([]*graph.Path, error)
 	GetOverview() (*graph.Path, error)
 	GetGraphState() (string, error)
 	WhatIf(targets []string) (*WhatIfResult, error)

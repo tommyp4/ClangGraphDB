@@ -286,8 +286,8 @@ func TestSearchSimilarFunctions(t *testing.T) {
 	}
 
 	if len(results) > 0 {
-		if results[0].Node.Label != "TestSim1" {
-			t.Errorf("Expected TestSim1, got %s (Score: %f)", results[0].Node.Label, results[0].Score)
+		if results[0].Node.ID != "TestSim1" {
+			t.Errorf("Expected TestSim1, got %s (Score: %f)", results[0].Node.ID, results[0].Score)
 		}
 	} else {
 		t.Log("No results found (index might be building)")

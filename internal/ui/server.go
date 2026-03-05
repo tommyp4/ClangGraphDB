@@ -231,6 +231,12 @@ func (s *Server) handleQuery() http.HandlerFunc {
 				dir = query.Both
 			}
 			result, err = s.provider.Traverse(req.Target, req.EdgeTypes, dir, req.Depth)
+		case "semantic-trace":
+			if req.Target == "" {
+				s.error(w, "Missing target for semantic-trace query", http.StatusBadRequest)
+				return
+			}
+			result, err = s.provider.SemanticTrace(req.Target)
 		case "overview":
 			result, err = s.provider.GetOverview()
 		case "status":

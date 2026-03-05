@@ -61,6 +61,9 @@ func (m *MockProvider) GetGraphState() (string, error)                          
 func (m *MockProvider) ExploreDomain(featureID string) (*query.DomainExplorationResult, error) {
 	return nil, nil
 }
+func (m *MockProvider) SemanticTrace(nodeID string) ([]*graph.Path, error) {
+	return nil, nil
+}
 func (m *MockProvider) WhatIf(targets []string) (*query.WhatIfResult, error) { return nil, nil }
 func (m *MockProvider) GetSemanticSeams(ctx context.Context, similarityThreshold float64) ([]*query.SemanticSeamResult, error) {
 	m.GetSemanticSeamsCalled = true
