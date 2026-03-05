@@ -27,10 +27,11 @@ Switches the active database.
 ### 3. Start Neo4j Container
 Bootstraps and starts a local Neo4j instance using Podman. The container (`neo4j-graphdb`) must be running before you can use the database management commands above.
 
+*   **Actionable Instruction:** **DO NOT `cat` or read the script contents before running it.** It is a fully self-contained bootstrap script. Execute it directly.
 *   **Command:** `bash .gemini/skills/neo4j-manager/scripts/start_neo4j_container.sh`
-*   **Arguments/Usage:** Takes no arguments.
+*   **Arguments/Usage:** Takes no arguments. If a `.env` file is missing, the script will handle it automatically by prompting the user interactively in the terminal.
 *   **Prerequisites:** Requires `podman` to be installed and available in the environment.
-*   **Environment:** Starts a Neo4j 5.26.0 container with APOC plugins on ports 7474 (HTTP) and 7687 (Bolt). Credentials are set to `neo4j` / `password`. Data is persisted locally in `.gemini/graph_data/neo4j`.
+*   **Environment:** Starts a Neo4j 5.26.0 container with APOC plugins on ports 7474 (HTTP) and 7687 (Bolt). Credentials are set to `neo4j` and the password defined in the `.env` file (if no `.env` file exists, you will be prompted to set an initial password). Data is persisted locally in `.gemini/graph_data/neo4j`.
 
 ## Setup
 
