@@ -30,17 +30,17 @@ func GenerateDomainName(lca string, nodes []graph.Node) string {
 
 	// 3. If Strong, use it
 	if !isWeak {
-		return "domain-" + strings.ToLower(base)
+		return strings.ToLower(base)
 	}
 
 	// 4. If Weak, try to extract a dominant term from nodes
 	term := findDominantTerm(nodes)
 	if term != "" {
-		return "domain-" + term
+		return term
 	}
 
 	// 5. Fallback
-	return "domain-generic-" + GenerateShortUUID()
+	return ""
 }
 
 func findDominantTerm(nodes []graph.Node) string {
