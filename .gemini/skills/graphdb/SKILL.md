@@ -45,7 +45,7 @@ To rebuild the entire graph from scratch (Ingest -> Import -> All Enrichment Pha
 ${graphdb_bin} build-all -dir .
 ```
 *   *Options:*
-    *   `-clean`: Wipe the database before importing (default: true).
+    *   `-clean`: Wipe the database before importing (default: `true`).
 
 ### 2. Manual Pipeline
 If you need granular control over each step (or if a specific enrichment step fails and needs to be re-run), follow this sequence. Note that `build-all` automatically runs all 6 of these steps.

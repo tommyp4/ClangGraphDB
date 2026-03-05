@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
 )
 
 func handleBuildAll(args []string) {
@@ -17,17 +18,26 @@ func handleBuildAll(args []string) {
 	fs.Parse(args)
 
 	// 1. Ingest
-	fmt.Println("\n[Phase 1/3] Ingesting Codebase...")
+	fmt.Println("\n[Phase 1/6] Ingesting Codebase...")
 	ingestArgs := []string{"-dir", *dirPtr, "-nodes", *nodesPtr, "-edges", *edgesPtr}
 	ingestCmd(ingestArgs)
 
 	// 2. Import Structural Graph
-	fmt.Println("\n[Phase 2/3] Importing to Neo4j...")
+	fmt.Println("\n[Phase 2/6] Importing to Neo4j...")
 	importArgs1 := []string{"-nodes", *nodesPtr, "-edges", *edgesPtr}
 	if *cleanPtr {
 		importArgs1 = append(importArgs1, "-clean")
 	}
 	importCmd(importArgs1)
+
+	// 2.5 Cleanup intermediate files
+	fmt.Println("\nCleaning up intermediate JSONL files...")
+	if err := os.Remove(*nodesPtr); err != nil && !os.IsNotExist(err) {
+		fmt.Printf("Warning: failed to remove %s: %v\n", *nodesPtr, err)
+	}
+	if err := os.Remove(*edgesPtr); err != nil && !os.IsNotExist(err) {
+		fmt.Printf("Warning: failed to remove %s: %v\n", *edgesPtr, err)
+	}
 
 	// 3. Enrich Features
 	fmt.Println("\n[Phase 3/6] Enriching Features (in-database)...")

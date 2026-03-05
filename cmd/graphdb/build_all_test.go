@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"reflect"
 	"testing"
 )
@@ -139,5 +140,59 @@ func TestHandleBuildAll_RespectsCleanFlag(t *testing.T) {
 	expectedImport1 := []string{"-nodes", "nodes.jsonl", "-edges", "edges.jsonl"}
 	if !reflect.DeepEqual(importCalls[0], expectedImport1) {
 		t.Errorf("First import call mismatch (clean=false).\nGot: %v\nWant: %v", importCalls[0], expectedImport1)
+	}
+}
+
+func TestHandleBuildAll_CleansUpIntermediateFiles(t *testing.T) {
+	// Setup Mocks
+	originalIngest := ingestCmd
+	originalEnrich := enrichCmd
+	originalImport := importCmd
+	originalEnrichHistory := enrichHistoryCmd
+	originalEnrichContamination := enrichContaminationCmd
+	originalEnrichTests := enrichTestsCmd
+
+	defer func() {
+		ingestCmd = originalIngest
+		enrichCmd = originalEnrich
+		importCmd = originalImport
+		enrichHistoryCmd = originalEnrichHistory
+		enrichContaminationCmd = originalEnrichContamination
+		enrichTestsCmd = originalEnrichTests
+	}()
+
+	ingestCmd = func(args []string) {}
+	enrichCmd = func(args []string) {}
+	importCmd = func(args []string) {}
+	enrichHistoryCmd = func(args []string) {}
+	enrichContaminationCmd = func(args []string) {}
+	enrichTestsCmd = func(args []string) {}
+
+	// Create dummy JSONL files
+	nodesFile := "test_nodes.jsonl"
+	edgesFile := "test_edges.jsonl"
+
+	if err := os.WriteFile(nodesFile, []byte("{}"), 0644); err != nil {
+		t.Fatalf("Failed to create %s: %v", nodesFile, err)
+	}
+	if err := os.WriteFile(edgesFile, []byte("{}"), 0644); err != nil {
+		t.Fatalf("Failed to create %s: %v", edgesFile, err)
+	}
+
+	defer func() {
+		os.Remove(nodesFile)
+		os.Remove(edgesFile)
+	}()
+
+	// Run handleBuildAll
+	args := []string{"-nodes", nodesFile, "-edges", edgesFile}
+	handleBuildAll(args)
+
+	// Assert that files are gone
+	if _, err := os.Stat(nodesFile); !os.IsNotExist(err) {
+		t.Errorf("Expected %s to be deleted, but it still exists", nodesFile)
+	}
+	if _, err := os.Stat(edgesFile); !os.IsNotExist(err) {
+		t.Errorf("Expected %s to be deleted, but it still exists", edgesFile)
 	}
 }
