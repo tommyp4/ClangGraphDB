@@ -33,6 +33,14 @@ Bootstraps and starts a local Neo4j instance using Podman. The container (`neo4j
 *   **Prerequisites:** Requires `podman` to be installed and available in the environment.
 *   **Environment:** Starts a Neo4j 5.26.0 container with APOC plugins on ports 7474 (HTTP) and 7687 (Bolt). Credentials are set to `neo4j` and the password defined in the `.env` file (if no `.env` file exists, you will be prompted to set an initial password). Data is persisted locally in `.gemini/graph_data/neo4j`.
 
+### 4. Delete Neo4j Container
+Stops and removes the active local Neo4j container (`neo4j-graphdb`). 
+
+*   **Command:** `bash .gemini/skills/neo4j-manager/scripts/delete_neo4j_container.sh`
+*   **Arguments/Usage:** 
+    *   (No arguments): Stops and removes the container but **leaves the data intact** in `.gemini/graph_data/neo4j`. Starting the container again will restore your databases.
+    *   `--wipe-data`: Stops the container, removes it, and **deletes all local graph data** from disk. Use this when you want to start from a completely clean slate.
+
 ## Setup
 
 1.  **Dependencies:**
