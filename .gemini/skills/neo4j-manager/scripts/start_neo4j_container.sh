@@ -63,20 +63,20 @@ if podman ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
     fi
 else
     echo "Creating and starting new container '${CONTAINER_NAME}'..."
-    # Launch with exact configuration from previous 'podman inspect'
+    # Launch using a custom entrypoint script to bypass rootless chown issues
+    # while still correctly setting the initial password (avoiding "must change" prompt)
+    # and installing the APOC plugin.
     podman run -d \
         --user 0:0 \
-        --entrypoint neo4j \
+        --entrypoint bash \
         --name "${CONTAINER_NAME}" \
         -p 7474:7474 \
         -p 7687:7687 \
-        -e "NEO4J_AUTH=neo4j/${NEO4J_PASSWORD}" \
-        -e NEO4J_PLUGINS='["apoc"]' \
         -v "${DATA_PATH}:/data" \
         -v "${LOGS_PATH}:/logs" \
         -v "${CONF_PATH}/neo4j.conf:/var/lib/neo4j/conf/neo4j.conf:ro" \
         "${IMAGE}" \
-        console
+        -c "if [ ! -f /data/dbms/auth.ini ]; then neo4j-admin dbms set-initial-password \"${NEO4J_PASSWORD}\"; fi && cp /var/lib/neo4j/labs/apoc-*-core.jar /var/lib/neo4j/plugins/ 2>/dev/null || true && exec neo4j console"
 fi
 
 echo "------------------------------------------------"
