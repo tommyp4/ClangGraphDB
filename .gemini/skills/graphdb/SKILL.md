@@ -32,6 +32,14 @@ The tool automatically inherits the following environment variables. Assume they
 *   `GOOGLE_CLOUD_PROJECT` (Required for Vertex AI embeddings)
 *   `GOOGLE_CLOUD_LOCATION` (Default: `us-central1`)
 
+## Operational Guidelines for Agents
+
+### Handling Long-Running Commands (`build-all`, `enrich-features`)
+When running `build-all` or `enrich-features` on exceptionally large repositories, the process can take many minutes (especially the LLM embedding and clustering phases).
+* **Optimized Output**: The GraphDB CLI has "smart TTY detection". When you execute it via the `run_shell_command` tool, it detects it is running headlessly and disables aggressive progress bar updates, only emitting logs at 10% increments. This drastically reduces verbosity and prevents you from hitting output truncation limits. You can safely run these commands inline and wait for them to finish.
+* **Backgrounding (Optional)**: If you are working on an enormous codebase and prefer not to wait inline to avoid overall tool timeouts, you can run the command with `is_background: true` and redirect the output to a log file (e.g., `> build.log 2>&1`), then periodically use `read_file` or `run_shell_command("tail build.log")` to monitor progress.
+
+### Credentials
 **CRITICAL RULES FOR CREDENTIALS:**
 1. You must **NEVER** explicitly set, export, or pass environment variables (like `NEO4J_PASSWORD=...`) in your bash commands. 
 2. You must rely purely on the Go binary's internal `.env` loading. 
