@@ -69,7 +69,7 @@ func printUsage() {
 	fmt.Println("  import                 Import JSONL files into Neo4j")
 	fmt.Println("  query                  Query the graph (structural or semantic)")
 	fmt.Println("  serve                  Start the HTTP server and D3 visualizer")
-	fmt.Println("  build-all              One-shot: Ingest -> Enrich -> Import")
+	fmt.Println("  build-all              One-shot: Ingest -> Import -> All Enrichment Phases")
 	fmt.Println("  version                Show version info")
 	fmt.Println("\nRun 'graphdb <command> --help' for command-specific options.")
 }
