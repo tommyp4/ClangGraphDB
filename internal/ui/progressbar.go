@@ -22,19 +22,37 @@ type ProgressBar struct {
         stopSpinner chan struct{}
         Format      func(int64, int64) string // Custom format function (current, total) -> string
         lastRender  time.Time
-}
-// NewProgressBar creates a new progress bar with a known total.
-func NewProgressBar(total int64, description string) *ProgressBar {
-	return &ProgressBar{
-		total:       total,
-		description: description,
-		width:       20,
-		start:       time.Now(),
-		writer:      os.Stderr,
-		Format:      FormatCountFn,
-	}
+        isTTY       bool
+        lastPercent int // Track last printed percentage for non-TTY
 }
 
+func isTerminal(w io.Writer) bool {
+        if f, ok := w.(*os.File); ok {
+                stat, err := f.Stat()
+                if err == nil {
+                        return (stat.Mode() & os.ModeCharDevice) != 0
+                }
+        }
+        return false
+}
+
+// NewProgressBar creates a new progress bar with a known total.
+func NewProgressBar(total int64, description string) *ProgressBar {
+        pb := &ProgressBar{
+                total:       total,
+                description: description,
+                width:       20,
+                start:       time.Now(),
+                writer:      os.Stderr,
+                Format:      FormatCountFn,
+                isTTY:       isTerminal(os.Stderr),
+                lastPercent: -1,
+        }
+        if !pb.isTTY {
+                fmt.Fprintf(pb.writer, "%s (Total: %d)\n", description, total)
+        }
+        return pb
+}
 
 // FormatCountFn formats integers with commas for readability.
 func FormatCountFn(current, total int64) string {
@@ -56,20 +74,24 @@ func FormatCountFn(current, total int64) string {
 
 // NewSpinner creates a new spinner for indeterminate progress.
 func NewSpinner(description string) *ProgressBar {
-	pb := &ProgressBar{
-		description: description,
-		start:       time.Now(),
-		writer:      os.Stderr,
-		isSpinner:   true,
-		stopSpinner: make(chan struct{}),
-		Format: func(current, total int64) string {
-			return fmt.Sprintf("%d", current)
-		},
-	}
-	go pb.spin()
-	return pb
+        pb := &ProgressBar{
+                description: description,
+                start:       time.Now(),
+                writer:      os.Stderr,
+                isSpinner:   true,
+                stopSpinner: make(chan struct{}),
+                Format: func(current, total int64) string {
+                        return fmt.Sprintf("%d", current)
+                },
+                isTTY: isTerminal(os.Stderr),
+        }
+        if pb.isTTY {
+                go pb.spin()
+        } else {
+                fmt.Fprintf(pb.writer, "%s...\n", description)
+        }
+        return pb
 }
-
 func (pb *ProgressBar) spin() {
 	chars := []rune{'|', '/', '-', '\\'}
 	i := 0
@@ -122,6 +144,22 @@ func (pb *ProgressBar) SetTotal(total int64) {
 }
 
 func (pb *ProgressBar) render() {
+        percent := float64(pb.current) / float64(pb.total)
+        if percent > 1.0 {
+                percent = 1.0
+        }
+
+        if !pb.isTTY {
+                // In non-TTY mode, only print at 10% increments
+                currentPercent := int(percent * 100)
+                if currentPercent >= pb.lastPercent+10 || pb.current == pb.total {
+                        progressStr := pb.Format(pb.current, pb.total)
+                        fmt.Fprintf(pb.writer, "  ... %d%% (%s)\n", currentPercent, progressStr)
+                        pb.lastPercent = currentPercent
+                }
+                return
+        }
+
         now := time.Now()
         // Rate limit rendering to at most once every 100ms, unless it's completed
         if pb.current < pb.total && !pb.lastRender.IsZero() && now.Sub(pb.lastRender) < 100*time.Millisecond {
@@ -129,32 +167,27 @@ func (pb *ProgressBar) render() {
         }
         pb.lastRender = now
 
-        percent := float64(pb.current) / float64(pb.total)
-        if percent > 1.0 {
-                percent = 1.0
+        filled := int(float64(pb.width) * percent)
+        bar := strings.Repeat("=", filled) + strings.Repeat(" ", pb.width-filled)
+        if filled > 0 {
+                // Add arrow head
+                if filled < pb.width {
+                        bar = strings.Repeat("=", filled-1) + ">" + strings.Repeat(" ", pb.width-filled)
+                } else {
+                        bar = strings.Repeat("=", filled)
+                }
         }
-	filled := int(float64(pb.width) * percent)
-	bar := strings.Repeat("=", filled) + strings.Repeat(" ", pb.width-filled)
-	if filled > 0 {
-		// Add arrow head
-		if filled < pb.width {
-			bar = strings.Repeat("=", filled-1) + ">" + strings.Repeat(" ", pb.width-filled)
-		} else {
-			bar = strings.Repeat("=", filled)
-		}
-	}
 
-	// Use \r to overwrite the line
-	progressStr := pb.Format(pb.current, pb.total)
-	
-	desc := pb.description
-	if len(desc) > 30 {
-		desc = desc[:27] + "..."
-	}
-	
-	fmt.Fprintf(pb.writer, "\r%-30s [%s] %.1f%% (%s)   ", desc, bar, percent*100, progressStr)
+        // Use \r to overwrite the line
+        progressStr := pb.Format(pb.current, pb.total)
+
+        desc := pb.description
+        if len(desc) > 30 {
+                desc = desc[:27] + "..."
+        }
+
+        fmt.Fprintf(pb.writer, "\r%-30s [%s] %.1f%% (%s)   ", desc, bar, percent*100, progressStr)
 }
-
 // Finish completes the progress bar.
 func (pb *ProgressBar) Finish() {
 	if pb.isSpinner {
