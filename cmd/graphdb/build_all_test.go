@@ -9,16 +9,25 @@ func TestHandleBuildAll_ImportsBothGraphs(t *testing.T) {
 	// 1. Setup Mocks
 	var ingestCalledWith []string
 	var enrichCalledWith []string
+	var enrichHistoryCalledWith []string
+	var enrichContaminationCalledWith []string
+	var enrichTestsCalledWith []string
 	var importCalls [][]string
 
 	// Swap handlers
 	originalIngest := ingestCmd
 	originalEnrich := enrichCmd
 	originalImport := importCmd
+	originalEnrichHistory := enrichHistoryCmd
+	originalEnrichContamination := enrichContaminationCmd
+	originalEnrichTests := enrichTestsCmd
 	defer func() {
 		ingestCmd = originalIngest
 		enrichCmd = originalEnrich
 		importCmd = originalImport
+		enrichHistoryCmd = originalEnrichHistory
+		enrichContaminationCmd = originalEnrichContamination
+		enrichTestsCmd = originalEnrichTests
 	}()
 
 	ingestCmd = func(args []string) {
@@ -29,6 +38,15 @@ func TestHandleBuildAll_ImportsBothGraphs(t *testing.T) {
 	}
 	importCmd = func(args []string) {
 		importCalls = append(importCalls, args)
+	}
+	enrichHistoryCmd = func(args []string) {
+		enrichHistoryCalledWith = args
+	}
+	enrichContaminationCmd = func(args []string) {
+		enrichContaminationCalledWith = args
+	}
+	enrichTestsCmd = func(args []string) {
+		enrichTestsCalledWith = args
 	}
 
 	// 2. Run handleBuildAll with default flags (clean=true by default)
@@ -47,6 +65,24 @@ func TestHandleBuildAll_ImportsBothGraphs(t *testing.T) {
 	expectedEnrich := []string{"-dir", "test_project"}
 	if !reflect.DeepEqual(enrichCalledWith, expectedEnrich) {
 		t.Errorf("Enrich args mismatch.\nGot: %v\nWant: %v", enrichCalledWith, expectedEnrich)
+	}
+
+	// Verify Enrich History
+	expectedEnrichHistory := []string{"-dir", "test_project"}
+	if !reflect.DeepEqual(enrichHistoryCalledWith, expectedEnrichHistory) {
+		t.Errorf("Enrich History args mismatch.\nGot: %v\nWant: %v", enrichHistoryCalledWith, expectedEnrichHistory)
+	}
+
+	// Verify Enrich Contamination
+	expectedEnrichContamination := []string{"-module", ".*"}
+	if !reflect.DeepEqual(enrichContaminationCalledWith, expectedEnrichContamination) {
+		t.Errorf("Enrich Contamination args mismatch.\nGot: %v\nWant: %v", enrichContaminationCalledWith, expectedEnrichContamination)
+	}
+
+	// Verify Enrich Tests
+	expectedEnrichTests := []string{}
+	if !reflect.DeepEqual(enrichTestsCalledWith, expectedEnrichTests) {
+		t.Errorf("Enrich Tests args mismatch.\nGot: %v\nWant: %v", enrichTestsCalledWith, expectedEnrichTests)
 	}
 
 	// Verify Import calls
@@ -70,10 +106,16 @@ func TestHandleBuildAll_RespectsCleanFlag(t *testing.T) {
 	originalIngest := ingestCmd
 	originalEnrich := enrichCmd
 	originalImport := importCmd
+	originalEnrichHistory := enrichHistoryCmd
+	originalEnrichContamination := enrichContaminationCmd
+	originalEnrichTests := enrichTestsCmd
 	defer func() {
 		ingestCmd = originalIngest
 		enrichCmd = originalEnrich
 		importCmd = originalImport
+		enrichHistoryCmd = originalEnrichHistory
+		enrichContaminationCmd = originalEnrichContamination
+		enrichTestsCmd = originalEnrichTests
 	}()
 
 	ingestCmd = func(args []string) {}
@@ -81,6 +123,9 @@ func TestHandleBuildAll_RespectsCleanFlag(t *testing.T) {
 	importCmd = func(args []string) {
 		importCalls = append(importCalls, args)
 	}
+	enrichHistoryCmd = func(args []string) {}
+	enrichContaminationCmd = func(args []string) {}
+	enrichTestsCmd = func(args []string) {}
 
 	// Run with clean=false
 	args := []string{"-clean=false"}

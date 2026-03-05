@@ -115,7 +115,7 @@ func NewVertexSummarizer(ctx context.Context, projectID, location, model string)
 
 func (s *VertexSummarizer) Summarize(snippets []string) (string, string, error) {
 	if len(snippets) == 0 {
-		return "Unknown Feature", "No code snippets provided for analysis.", nil
+		return "Feature-" + GenerateShortUUID(), "No code snippets provided for analysis.", nil
 	}
 
 	prompt := fmt.Sprintf(`You are a technical architect. Below are code snippets from a group of functions. 

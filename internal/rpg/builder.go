@@ -83,7 +83,7 @@ func (b *Builder) buildGlobal(rootPath string, functions []graph.Node) ([]Featur
 		// 3. Identification
 		// Prioritize semantic name from GlobalClusterer unless it's a raw cluster ID
 		var domainName string
-		if strings.HasPrefix(originalKey, "root-cluster-") {
+		if strings.HasPrefix(originalKey, "root-cluster-") || strings.HasPrefix(originalKey, "Feature-") {
 			domainName = GenerateDomainName(lca, nodes)
 		} else {
 			domainName = originalKey

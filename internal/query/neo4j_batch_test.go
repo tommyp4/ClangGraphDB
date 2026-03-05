@@ -25,11 +25,12 @@ func TestNeo4jBatchOperations(t *testing.T) {
 
 	// Setup initial state for batch tests
 	setupQuery := `
-		CREATE (f1:Function {id: 'batch-test-f1', file: 'f1.go', start_line: 1, end_line: 10, content: 'func f1() {}'})
-		CREATE (f2:Function {id: 'batch-test-f2', file: 'f2.go', start_line: 11, end_line: 20, content: 'func f2() {}'})
-		CREATE (f3:Function {id: 'batch-test-f3', file: 'f3.go', start_line: 21, end_line: 30, content: 'func f3() {}', atomic_features: ['feature1']})
+		CREATE (f1:Function {id: 'batch-test-f1', file: 'f1.go', line: 1, start_line: 1, end_line: 10, content: 'func f1() {}'})
+		CREATE (f2:Function {id: 'batch-test-f2', file: 'f2.go', line: 11, start_line: 11, end_line: 20, content: 'func f2() {}'})
+		CREATE (f3:Function {id: 'batch-test-f3', file: 'f3.go', line: 21, start_line: 21, end_line: 30, content: 'func f3() {}', atomic_features: ['feature1']})
 		CREATE (feat1:Feature {id: 'batch-test-feat1'})
 		CREATE (feat2:Feature {id: 'batch-test-feat2', name: 'Existing Name', summary: 'Existing Summary'})
+		CREATE (feat3:Feature {id: 'batch-test-feat-unknown', name: 'Feature-cluster-1'})
 	`
 	_, err := neo4j.ExecuteQuery(p.ctx, p.driver, setupQuery, nil, neo4j.EagerResultTransformer)
 	if err != nil {
@@ -69,8 +70,8 @@ func TestNeo4jBatchOperations(t *testing.T) {
 			unembeddedTestNodes++
 		}
 	}
-	if unembeddedTestNodes != 5 {
-		t.Errorf("Expected 5 unembedded test nodes, got %d", unembeddedTestNodes)
+	if unembeddedTestNodes != 6 {
+		t.Errorf("Expected 6 unembedded test nodes, got %d", unembeddedTestNodes)
 	}
 
 	// 4. Test UpdateEmbeddings
@@ -96,19 +97,54 @@ func TestNeo4jBatchOperations(t *testing.T) {
 	}
 
 	// 6. Test GetUnnamedFeatures
-	unnamed, err := p.GetUnnamedFeatures(10)
+	unnamed, err := p.GetUnnamedFeatures(1000)
 	if err != nil {
 		t.Fatalf("GetUnnamedFeatures failed: %v", err)
 	}
-	// feat1 should be unnamed, feat2 is named
+	// feat1 should be unnamed, feat2 is named, feat3 has Unknown Feature so should be picked up
 	foundFeat1 := false
+	foundFeatUnknown := false
 	for _, n := range unnamed {
 		if n.ID == "batch-test-feat1" {
 			foundFeat1 = true
 		}
+		if n.ID == "batch-test-feat-unknown" {
+			foundFeatUnknown = true
+		}
 	}
 	if !foundFeat1 {
 		t.Errorf("Expected to find batch-test-feat1 in unnamed features")
+	}
+	if !foundFeatUnknown {
+		t.Errorf("Expected to find batch-test-feat-unknown in unnamed features due to 'Feature-' prefix")
+	}
+
+	// 6.5 Test GetFunctionMetadata
+	metadata, err := p.GetFunctionMetadata()
+	if err != nil {
+		t.Fatalf("GetFunctionMetadata failed: %v", err)
+	}
+	foundF3Metadata := false
+	for _, n := range metadata {
+		if n.ID == "batch-test-f3" {
+			foundF3Metadata = true
+			if n.Properties["file"] != "f3.go" {
+				t.Errorf("GetFunctionMetadata missing/wrong file: %v", n.Properties["file"])
+			}
+			if n.Properties["line"] != int64(21) {
+				t.Errorf("GetFunctionMetadata missing/wrong line: %v", n.Properties["line"])
+			}
+			if n.Properties["end_line"] != int64(30) {
+				t.Errorf("GetFunctionMetadata missing/wrong end_line: %v", n.Properties["end_line"])
+			}
+			af, ok := n.Properties["atomic_features"].([]string)
+			if !ok || len(af) == 0 || af[0] != "feature1" {
+				t.Errorf("GetFunctionMetadata missing/wrong atomic_features: %v", n.Properties["atomic_features"])
+			}
+		}
+	}
+	if !foundF3Metadata {
+		t.Errorf("Expected to find batch-test-f3 in function metadata")
 	}
 
 	// 7. Test UpdateFeatureSummary

@@ -234,7 +234,7 @@ func (o *Orchestrator) RunSummarization(batchSize int) error {
 			domain, err := o.Provider.ExploreDomain(node.ID)
 			if err != nil {
 				log.Printf("Warning: failed to explore domain for %s: %v", node.ID, err)
-				_ = o.Provider.UpdateFeatureSummary(node.ID, "Unknown Feature", "Failed to analyze")
+				_ = o.Provider.UpdateFeatureSummary(node.ID, "Feature-"+GenerateShortUUID(), "Failed to analyze")
 				continue
 			}
 			
@@ -251,7 +251,7 @@ func (o *Orchestrator) RunSummarization(batchSize int) error {
 			err = enricher.Enrich(f, memberFuncs)
 			if err != nil {
 				log.Printf("Warning: failed to enrich %s: %v", node.ID, err)
-				_ = o.Provider.UpdateFeatureSummary(node.ID, "Unnamed Feature", "Enrichment failed")
+				_ = o.Provider.UpdateFeatureSummary(node.ID, "Feature-"+GenerateShortUUID(), "Enrichment failed")
 				continue
 			}
 			

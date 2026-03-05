@@ -40,7 +40,7 @@ func GenerateDomainName(lca string, nodes []graph.Node) string {
 	}
 
 	// 5. Fallback
-	return "domain-generic-" + generateShortUUID()
+	return "domain-generic-" + GenerateShortUUID()
 }
 
 func findDominantTerm(nodes []graph.Node) string {
@@ -99,7 +99,7 @@ func splitNameIntoWords(s string) []string {
 	return strings.Fields(s)
 }
 
-func generateShortUUID() string {
+func GenerateShortUUID() string {
 	b := make([]byte, 4) // 8 chars hex
 	_, err := rand.Read(b)
 	if err != nil {
