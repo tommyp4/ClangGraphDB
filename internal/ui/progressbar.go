@@ -11,18 +11,18 @@ import (
 
 // ProgressBar is a simple console progress bar.
 type ProgressBar struct {
-	total       int64
-	current     int64
-	description string
-	width       int
-	start       time.Time
-	mu          sync.Mutex
-	writer      io.Writer
-	isSpinner   bool
-	stopSpinner chan struct{}
-	Format      func(int64, int64) string // Custom format function (current, total) -> string
+        total       int64
+        current     int64
+        description string
+        width       int
+        start       time.Time
+        mu          sync.Mutex
+        writer      io.Writer
+        isSpinner   bool
+        stopSpinner chan struct{}
+        Format      func(int64, int64) string // Custom format function (current, total) -> string
+        lastRender  time.Time
 }
-
 // NewProgressBar creates a new progress bar with a known total.
 func NewProgressBar(total int64, description string) *ProgressBar {
 	return &ProgressBar{
@@ -122,11 +122,17 @@ func (pb *ProgressBar) SetTotal(total int64) {
 }
 
 func (pb *ProgressBar) render() {
-	percent := float64(pb.current) / float64(pb.total)
-	if percent > 1.0 {
-		percent = 1.0
-	}
+        now := time.Now()
+        // Rate limit rendering to at most once every 100ms, unless it's completed
+        if pb.current < pb.total && !pb.lastRender.IsZero() && now.Sub(pb.lastRender) < 100*time.Millisecond {
+                return
+        }
+        pb.lastRender = now
 
+        percent := float64(pb.current) / float64(pb.total)
+        if percent > 1.0 {
+                percent = 1.0
+        }
 	filled := int(float64(pb.width) * percent)
 	bar := strings.Repeat("=", filled) + strings.Repeat(" ", pb.width-filled)
 	if filled > 0 {
