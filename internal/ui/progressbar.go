@@ -148,10 +148,10 @@ func (pb *ProgressBar) render() {
         if percent > 1.0 {
                 percent = 1.0
         }
+        currentPercent := int(percent * 100)
 
         if !pb.isTTY {
                 // In non-TTY mode, only print at 10% increments
-                currentPercent := int(percent * 100)
                 if currentPercent >= pb.lastPercent+10 || pb.current == pb.total {
                         progressStr := pb.Format(pb.current, pb.total)
                         fmt.Fprintf(pb.writer, "  ... %d%% (%s)\n", currentPercent, progressStr)
@@ -161,11 +161,19 @@ func (pb *ProgressBar) render() {
         }
 
         now := time.Now()
-        // Rate limit rendering to at most once every 100ms, unless it's completed
-        if pb.current < pb.total && !pb.lastRender.IsZero() && now.Sub(pb.lastRender) < 100*time.Millisecond {
-                return
+        // Rate limit: at most once every 250ms AND only when percentage changes
+        // by at least 1 point. This prevents flooding when \r isn't interpreted
+        // (e.g., when output is captured by a parent process like Gemini CLI).
+        if pb.current < pb.total {
+                if currentPercent <= pb.lastPercent {
+                        return
+                }
+                if !pb.lastRender.IsZero() && now.Sub(pb.lastRender) < 250*time.Millisecond {
+                        return
+                }
         }
         pb.lastRender = now
+        pb.lastPercent = currentPercent
 
         filled := int(float64(pb.width) * percent)
         bar := strings.Repeat("=", filled) + strings.Repeat(" ", pb.width-filled)
