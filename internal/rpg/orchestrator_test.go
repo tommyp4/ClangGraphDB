@@ -8,16 +8,17 @@ import (
 )
 
 type MockGraphProvider struct {
-	GetUnextractedFunctionsFn func(limit int) ([]*graph.Node, error)
-	UpdateAtomicFeaturesFn    func(id string, features []string) error
-	GetUnembeddedNodesFn      func(limit int) ([]*graph.Node, error)
-	UpdateEmbeddingsFn        func(id string, embedding []float32) error
-	GetEmbeddingsOnlyFn       func() (map[string][]float32, error)
-	GetUnnamedFeaturesFn      func(limit int) ([]*graph.Node, error)
-	UpdateFeatureTopologyFn   func(nodes []*graph.Node, edges []*graph.Edge) error
-	UpdateFeatureSummaryFn    func(id string, name string, summary string) error
-	GetFunctionMetadataFn     func() ([]*graph.Node, error)
-	ExploreDomainFn           func(featureID string) (*query.DomainExplorationResult, error)
+	GetUnextractedFunctionsFn  func(limit int) ([]*graph.Node, error)
+	UpdateAtomicFeaturesFn     func(id string, features []string) error
+	GetUnembeddedNodesFn       func(limit int) ([]*graph.Node, error)
+	UpdateEmbeddingsFn         func(id string, embedding []float32) error
+	GetEmbeddingsOnlyFn        func() (map[string][]float32, error)
+	GetUnnamedFeaturesFn       func(limit int) ([]*graph.Node, error)
+	CountUnnamedFeaturesFn     func() (int64, error)
+	UpdateFeatureTopologyFn    func(nodes []*graph.Node, edges []*graph.Edge) error
+	UpdateFeatureSummaryFn     func(id string, name string, summary string) error
+	GetFunctionMetadataFn      func() ([]*graph.Node, error)
+	ExploreDomainFn            func(featureID string) (*query.DomainExplorationResult, error)
 }
 
 func (m *MockGraphProvider) Close() error { return nil }
@@ -73,6 +74,10 @@ func (m *MockGraphProvider) GetEmbeddingsOnly() (map[string][]float32, error) {
 func (m *MockGraphProvider) GetUnnamedFeatures(limit int) ([]*graph.Node, error) {
 	if m.GetUnnamedFeaturesFn != nil { return m.GetUnnamedFeaturesFn(limit) }
 	return nil, nil
+}
+func (m *MockGraphProvider) CountUnnamedFeatures() (int64, error) {
+	if m.CountUnnamedFeaturesFn != nil { return m.CountUnnamedFeaturesFn() }
+	return 0, nil
 }
 func (m *MockGraphProvider) UpdateFeatureTopology(nodes []*graph.Node, edges []*graph.Edge) error {
 	if m.UpdateFeatureTopologyFn != nil { return m.UpdateFeatureTopologyFn(nodes, edges) }

@@ -92,6 +92,7 @@ func (m *MockProvider) GetUnembeddedNodes(limit int) ([]*graph.Node, error)     
 func (m *MockProvider) UpdateEmbeddings(id string, embedding []float32) error    { return nil }
 func (m *MockProvider) GetEmbeddingsOnly() (map[string][]float32, error)         { return nil, nil }
 func (m *MockProvider) GetUnnamedFeatures(limit int) ([]*graph.Node, error)      { return nil, nil }
+func (m *MockProvider) CountUnnamedFeatures() (int64, error)                     { return 0, nil }
 func (m *MockProvider) UpdateFeatureTopology(nodes []*graph.Node, edges []*graph.Edge) error {
 	return nil
 }

@@ -6,6 +6,7 @@ import (
 	"graphdb/internal/graph"
 	"graphdb/internal/query"
 	"graphdb/internal/tools/snippet"
+	"graphdb/internal/ui"
 	"log"
 	"math"
 )
@@ -213,7 +214,18 @@ func (o *Orchestrator) RunClustering(dir string) error {
 func (o *Orchestrator) RunSummarization(batchSize int) error {
 	log.Printf("Starting resumable summarization (batch size: %d)...", batchSize)
 
-	totalProcessed := 0
+	total, err := o.Provider.CountUnnamedFeatures()
+	if err != nil {
+		return fmt.Errorf("failed to count unnamed features: %w", err)
+	}
+	if total == 0 {
+		log.Println("No unnamed features to summarize")
+		return nil
+	}
+
+	pb := ui.NewProgressBar(total, "Summarizing features")
+	defer pb.Finish()
+
 	for {
 		nodes, err := o.Provider.GetUnnamedFeatures(batchSize)
 		if err != nil {
@@ -235,34 +247,36 @@ func (o *Orchestrator) RunSummarization(batchSize int) error {
 			if err != nil {
 				log.Printf("Warning: failed to explore domain for %s: %v", node.ID, err)
 				_ = o.Provider.UpdateFeatureSummary(node.ID, "Feature-"+GenerateShortUUID(), "Failed to analyze")
+				pb.Add(1)
 				continue
 			}
-			
+
 			var memberFuncs []graph.Node
 			for _, fn := range domain.Functions {
 				memberFuncs = append(memberFuncs, *fn)
 			}
-			
+
 			f := &Feature{
 				ID:   node.ID,
 				Name: "",
 			}
-			
+
 			err = enricher.Enrich(f, memberFuncs)
 			if err != nil {
 				log.Printf("Warning: failed to enrich %s: %v", node.ID, err)
 				_ = o.Provider.UpdateFeatureSummary(node.ID, "Feature-"+GenerateShortUUID(), "Enrichment failed")
+				pb.Add(1)
 				continue
 			}
-			
+
 			err = o.Provider.UpdateFeatureSummary(node.ID, f.Name, f.Description)
 			if err != nil {
 				return fmt.Errorf("failed to update feature summary for %s: %w", node.ID, err)
 			}
-			totalProcessed++
+			pb.Add(1)
 		}
 	}
 
-	log.Printf("Finished summarization for %d features", totalProcessed)
+	log.Println("Finished summarization")
 	return nil
 }

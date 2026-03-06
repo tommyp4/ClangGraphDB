@@ -217,6 +217,24 @@ func (p *Neo4jProvider) GetUnnamedFeatures(limit int) ([]*graph.Node, error) {
 	return nodes, nil
 }
 
+// CountUnnamedFeatures returns the total number of features without a name/summary.
+func (p *Neo4jProvider) CountUnnamedFeatures() (int64, error) {
+	query := `
+		MATCH (n:Feature)
+		WHERE coalesce(n.name, '') = '' OR coalesce(n.summary, '') = ''
+		RETURN count(n) as total
+	`
+	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, nil, neo4j.EagerResultTransformer)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count unnamed features: %w", err)
+	}
+	if len(result.Records) == 0 {
+		return 0, nil
+	}
+	total, _, _ := neo4j.GetRecordValue[int64](result.Records[0], "total")
+	return total, nil
+}
+
 // UpdateFeatureTopology writes feature nodes and relationships to the graph.
 func (p *Neo4jProvider) UpdateFeatureTopology(nodes []*graph.Node, edges []*graph.Edge) error {
 	if len(nodes) == 0 && len(edges) == 0 {
