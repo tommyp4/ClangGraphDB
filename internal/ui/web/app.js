@@ -372,8 +372,16 @@ function showNodeDetails(d) {
             if (key === 'name' || key === 'id') continue;
             const row = document.createElement('div');
             row.className = 'grid grid-cols-3 gap-2 border-b border-slate-700/50 pb-1 mb-1';
-            const displayValue = String(value).length > 30 ? String(value).substring(0, 27) + '...' : value;
-            row.innerHTML = `<span class="text-slate-500 font-medium capitalize truncate" title="${key}">${key}</span><span class="col-span-2 truncate text-slate-300" title="${value}">${displayValue}</span>`;
+            
+            let displayValue = value;
+            // Format numeric scores as percentages
+            if (typeof value === 'number' && (key.includes('score') || key.includes('risk') || key.includes('volatility'))) {
+                displayValue = (value * 100).toFixed(1) + '%';
+            } else if (String(value).length > 30) {
+                displayValue = String(value).substring(0, 27) + '...';
+            }
+            
+            row.innerHTML = `<span class="text-slate-500 font-medium capitalize truncate" title="${key}">${key.replace(/_/g, ' ')}</span><span class="col-span-2 truncate text-slate-300" title="${value}">${displayValue}</span>`;
             propsContainer.appendChild(row);
         }
     }
