@@ -47,6 +47,7 @@ func NewProgressBar(total int64, description string) *ProgressBar {
                 Format:      FormatCountFn,
                 isTTY:       isTerminal(os.Stderr),
                 lastPercent: -1,
+                lastRender:  time.Now(),
         }
         if !pb.isTTY {
                 fmt.Fprintf(pb.writer, "%s (Total: %d)\n", description, total)
@@ -151,24 +152,31 @@ func (pb *ProgressBar) render() {
         currentPercent := int(percent * 100)
 
         if !pb.isTTY {
-                // In non-TTY mode, only print at 10% increments
-                if currentPercent >= pb.lastPercent+10 || pb.current == pb.total {
+                now := time.Now()
+                // In non-TTY mode, print at 1% increments (was 10%)
+                // OR if at least 30 seconds have passed since last update.
+                shouldUpdate := currentPercent >= pb.lastPercent+1 || pb.current == pb.total
+                if !shouldUpdate && !pb.lastRender.IsZero() && now.Sub(pb.lastRender) >= 30*time.Second {
+                        shouldUpdate = true
+                }
+
+                if shouldUpdate {
                         progressStr := pb.Format(pb.current, pb.total)
                         fmt.Fprintf(pb.writer, "  ... %d%% (%s)\n", currentPercent, progressStr)
                         pb.lastPercent = currentPercent
+                        pb.lastRender = now
                 }
                 return
         }
 
         now := time.Now()
-        // Rate limit: at most once every 250ms AND only when percentage changes
-        // by at least 1 point. This prevents flooding when \r isn't interpreted
-        // (e.g., when output is captured by a parent process like Gemini CLI).
+        // Rate limit: at most once every 250ms OR when percentage changes.
+        // This prevents flooding when \r isn't interpreted correctly,
+        // but still allows seeing progress for slow tasks.
         if pb.current < pb.total {
-                if currentPercent <= pb.lastPercent {
-                        return
-                }
-                if !pb.lastRender.IsZero() && now.Sub(pb.lastRender) < 250*time.Millisecond {
+                hasTimePassed := !pb.lastRender.IsZero() && now.Sub(pb.lastRender) >= 250*time.Millisecond
+                hasPercentChanged := currentPercent > pb.lastPercent
+                if !hasPercentChanged && !hasTimePassed {
                         return
                 }
         }
