@@ -1,12 +1,11 @@
-const width = document.getElementById('graph-container').clientWidth;
-const height = document.getElementById('graph-container').clientHeight;
+const width = document.getElementById('graph-container').clientWidth || 1200;
+const height = document.getElementById('graph-container').clientHeight || 800;
 
 let labelsVisible = true;
 const zoom = d3.zoom().on("zoom", function (event) {
     const transform = event.transform;
     g.attr("transform", transform);
     
-    // Phase 5: Toggle label visibility based on zoom scale
     const shouldBeVisible = transform.k >= 0.6;
     if (shouldBeVisible !== labelsVisible) {
         labelsVisible = shouldBeVisible;
@@ -18,7 +17,9 @@ const svg = d3.select('#graph-container')
     .append('svg')
     .attr('width', '100%')
     .attr('height', '100%')
-    .call(zoom);
+    .style('cursor', 'grab')
+    .call(zoom)
+    .on("dblclick.zoom", null); 
 
 const g = svg.append('g');
 
@@ -52,7 +53,6 @@ document.getElementById('btn-physical-layer').addEventListener('click', (e) => {
     const btn = e.currentTarget;
     if (showPhysical) {
         btn.className = `px-4 py-1.5 text-xs font-medium rounded-md ${activeClass} flex items-center gap-2`;
-        // When toggling Physical layer ON, fetch Physical counterparts (Functions) for visible Semantic nodes (Features)
         nodes.filter(n => isNodeVisible(n) && isSemantic(n)).forEach(n => fetchAndExpandNeighborhood(n, "IMPLEMENTS"));
     } else {
         btn.className = `px-4 py-1.5 text-xs font-medium rounded-md ${inactiveClass} flex items-center gap-2`;
@@ -65,7 +65,6 @@ document.getElementById('btn-semantic-layer').addEventListener('click', (e) => {
     const btn = e.currentTarget;
     if (showSemantic) {
         btn.className = `px-4 py-1.5 text-xs font-medium rounded-md ${activeClass} flex items-center gap-2`;
-        // When toggling Semantic layer ON, fetch Semantic counterparts (Features) for visible Physical nodes (Functions)
         nodes.filter(n => isNodeVisible(n) && isPhysical(n)).forEach(n => fetchAndExpandNeighborhood(n, "IMPLEMENTS"));
     } else {
         btn.className = `px-4 py-1.5 text-xs font-medium rounded-md ${inactiveClass} flex items-center gap-2`;
@@ -76,8 +75,7 @@ document.getElementById('btn-semantic-layer').addEventListener('click', (e) => {
 // Blast Radius Button (Footer)
 document.getElementById('blast-radius-button').addEventListener('click', () => {
     if (lastSelectedNode) {
-        contextNode = lastSelectedNode;
-        document.getElementById('menu-simulate-extraction').dispatchEvent(new Event('click'));
+        runSimulation(lastSelectedNode);
     } else {
         alert("Please select a node first by clicking on it.");
     }
@@ -89,19 +87,18 @@ const simulation = d3.forceSimulation()
     .force("center", d3.forceCenter(width / 2, height / 2));
 
 const nodeColors = {
-    'Domain': '#4f46e5',    // Indigo 600
-    'Feature': '#0891b2',   // Cyan 600
-    'File': '#64748b',      // Slate 500
-    'Class': '#9333ea',     // Purple 600
-    'Interface': '#db2777', // Pink 600
-    'Method': '#ea580c',    // Orange 600
-    'Function': '#16a34a',  // Green 600
-    'Unknown': '#94a3b8'    // Slate 400 fallback
+    'Domain': '#4f46e5',
+    'Feature': '#0891b2',
+    'File': '#64748b',
+    'Class': '#9333ea',
+    'Interface': '#db2777',
+    'Method': '#ea580c',
+    'Function': '#16a34a',
+    'Unknown': '#94a3b8'
 };
 
 function getColor(node) {
     const rawLabel = node.label || (node.properties && node.properties.label) || 'Unknown';
-    // Find matching key case-insensitively
     const match = Object.keys(nodeColors).find(k => k.toLowerCase() === rawLabel.toLowerCase());
     return match ? nodeColors[match] : nodeColors['Unknown'];
 }
@@ -113,7 +110,6 @@ function updateLegend() {
     let html = `<h4 class="text-xs font-bold mb-3 uppercase tracking-wider text-slate-500">Graph Legend</h4>`;
     html += `<div class="flex flex-col gap-3">`;
 
-    // Add node types
     for (const [label, color] of Object.entries(nodeColors)) {
         if (label === 'Unknown') continue;
         html += `
@@ -123,7 +119,6 @@ function updateLegend() {
             </div>`;
     }
 
-    // Add Special Indicators
     html += `
         <div class="h-px bg-slate-200 dark:bg-slate-800 my-1"></div>
         <div class="flex items-center gap-3">
@@ -139,7 +134,6 @@ function updateLegend() {
     legendContainer.innerHTML = html;
 }
 
-// Initialize legend
 updateLegend();
 
 function isSemantic(n) {
@@ -155,24 +149,19 @@ function isPhysical(n) {
 
 function isNodeVisible(n) {
     if (!n) return false;
-    if (isSemantic(n)) {
-        return showSemantic;
-    }
+    if (isSemantic(n)) return showSemantic;
     return showPhysical;
 }
 
 function isSemanticSeam(nodeId) {
     if (!semanticSeams) return false;
     for (let i = 0; i < semanticSeams.length; i++) {
-        if (semanticSeams[i].method_a === nodeId || semanticSeams[i].method_b === nodeId) {
-            return true;
-        }
+        if (semanticSeams[i].method_a === nodeId || semanticSeams[i].method_b === nodeId) return true;
     }
     return false;
 }
 
 function updateGraph(newNodes, newLinks) {
-    // Merge nodes
     newNodes.forEach(n => {
         const id = n.id || n.Id;
         if (!id) return;
@@ -187,16 +176,20 @@ function updateGraph(newNodes, newLinks) {
             };
             nodesMap.set(id, normalizedNode);
             nodes.push(normalizedNode);
+        } else {
+            // Update properties if they changed
+            const existing = nodesMap.get(id);
+            const props = n.properties || n.Properties || {};
+            existing.properties = { ...existing.properties, ...props };
+            if (n.name) existing.name = n.name;
         }
     });
 
-    // Merge links
     if (newLinks) {
         newLinks.forEach(l => {
-            const linkId = `${l.sourceId}-${l.targetId}-${l.type}`;
+            const linkId = `${l.sourceId || l.source}-${l.targetId || l.target}-${l.type}`;
             if (!linksMap.has(linkId)) {
-                // Ensure link format
-                const link = { source: l.sourceId, target: l.targetId, type: l.type };
+                const link = { source: l.sourceId || l.source, target: l.targetId || l.target, type: l.type };
                 linksMap.set(linkId, link);
                 links.push(link);
             }
@@ -206,13 +199,9 @@ function updateGraph(newNodes, newLinks) {
     renderGraph();
 }
 
-// Global selections for simulation tick
-let linkSelection;
-let nodeSelection;
-
 function renderGraph() {
     // Links
-    linkSelection = g.selectAll(".link")
+    let linkSelection = g.selectAll(".link")
         .data(links, d => `${d.source.id || d.source}-${d.target.id || d.target}-${d.type}`);
 
     linkSelection.exit().remove();
@@ -222,7 +211,7 @@ function renderGraph() {
         .attr("stroke", "#94a3b8")
         .attr("stroke-width", 2)
         .attr("stroke-opacity", 0.6)
-        .attr("marker-end", "url(#arrow)");
+        .attr("marker-end", "url(#arrowhead)");
 
     linkSelection = linkEnter.merge(linkSelection);
 
@@ -234,7 +223,7 @@ function renderGraph() {
         });
 
     // Nodes
-    nodeSelection = g.selectAll(".node-group")
+    let nodeSelection = g.selectAll(".node-group")
         .data(nodes, d => d.id);
 
     nodeSelection.exit().remove();
@@ -280,23 +269,19 @@ function renderGraph() {
             return cls;
         });
 
-    // Update simulation
     simulation.nodes(nodes);
     simulation.force("link").links(links);
     simulation.alpha(1).restart();
 
     simulation.on("tick", () => {
-        if (linkSelection) {
-            linkSelection
-                .attr("x1", d => d.source.x)
-                .attr("y1", d => d.source.y)
-                .attr("x2", d => d.target.x)
-                .attr("y2", d => d.target.y);
-        }
+        g.selectAll(".link")
+            .attr("x1", d => d.source.x)
+            .attr("y1", d => d.source.y)
+            .attr("x2", d => d.target.x)
+            .attr("y2", d => d.target.y);
 
-        if (nodeSelection) {
-            nodeSelection.attr("transform", d => `translate(${d.x},${d.y})`);
-        }
+        g.selectAll(".node-group")
+            .attr("transform", d => `translate(${d.x},${d.y})`);
     });
 }
 
@@ -317,24 +302,22 @@ function dragended(event, d) {
     d.fy = null;
 }
 
-function handleNodeClick(event, d) {
+async function handleNodeClick(event, d) {
+    console.log("Node clicked:", d.id);
     lastSelectedNode = d;
     showNodeDetails(d);
+    await fetchAndExpandNeighborhood(d);
 }
 
 function handleNodeMouseOver(event, d) {
-    // Enhance node visually
     d3.select(this).select('circle')
         .transition().duration(200)
         .attr('r', 25)
         .attr('stroke-width', 4);
-    
-    // Instructions say to populate the panel on mouseover too
     showNodeDetails(d);
 }
 
 function handleNodeMouseOut(event, d) {
-    // Reset node visually
     d3.select(this).select('circle')
         .transition().duration(200)
         .attr('r', 20)
@@ -343,6 +326,7 @@ function handleNodeMouseOut(event, d) {
 
 function showNodeDetails(d) {
     const panel = document.getElementById('impact-panel');
+    if (!panel) return;
     panel.style.display = 'flex';
     
     document.getElementById('impact-node-name').textContent = d.name || d.id;
@@ -352,7 +336,6 @@ function showNodeDetails(d) {
         typeEl.textContent = d.label || (d.properties && d.properties.label) || 'Node';
     }
     
-    // Hide placeholder, show details
     const placeholder = document.getElementById('impact-placeholder');
     if (placeholder) placeholder.classList.add('hidden');
     
@@ -362,11 +345,10 @@ function showNodeDetails(d) {
     const props = d.properties || d.Properties || {};
     const riskScore = props.volatility_score || 0;
 
-    // Normalize relative to maxRisk in currently loaded nodes
     const maxRisk = nodes.reduce((max, node) => {
         const score = (node.properties && node.properties.volatility_score) || 0;
         return score > max ? score : max;
-    }, 0.0001); // Avoid div by zero
+    }, 0.0001);
 
     const riskPercent = Math.min(100, Math.round((riskScore / maxRisk) * 100));
     
@@ -383,29 +365,13 @@ function showNodeDetails(d) {
     const riskLabelEl = document.getElementById('risk-label');
     if (riskLabelEl) riskLabelEl.textContent = riskLabel;
     
-    const riskDescEl = document.getElementById('risk-description');
-    if (riskDescEl) {
-        riskDescEl.textContent = 'Volatility impact analysis.';
-        riskDescEl.title = props.file || 'System Component';
-    }
-    
-    // Reset impact-specific fields
-    const statNodes = document.getElementById('stat-nodes');
-    if (statNodes) statNodes.textContent = '--';
-    const statDepth = document.getElementById('stat-depth');
-    if (statDepth) statDepth.textContent = '--';
-    
-    // Populate properties
     const propsContainer = document.getElementById('impact-properties');
     if (propsContainer) {
         propsContainer.innerHTML = '';
         for (const [key, value] of Object.entries(props)) {
-            // skip internal properties if desired, but let's show them all for now
             if (key === 'name' || key === 'id') continue;
-            
             const row = document.createElement('div');
             row.className = 'grid grid-cols-3 gap-2 border-b border-slate-700/50 pb-1 mb-1';
-            // Truncate long FQN/paths and add title tooltips
             const displayValue = String(value).length > 30 ? String(value).substring(0, 27) + '...' : value;
             row.innerHTML = `<span class="text-slate-500 font-medium capitalize truncate" title="${key}">${key}</span><span class="col-span-2 truncate text-slate-300" title="${value}">${displayValue}</span>`;
             propsContainer.appendChild(row);
@@ -414,14 +380,21 @@ function showNodeDetails(d) {
 }
 
 async function handleNodeDoubleClick(event, d) {
-    // Pin the node
+    console.log("Node double-clicked:", d.id);
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+
+    const currentWidth = document.getElementById('graph-container').clientWidth || width;
+    const currentHeight = document.getElementById('graph-container').clientHeight || height;
+
     d.fx = d.x;
     d.fy = d.y;
 
-    // Intelligent Viewport Control: Center the camera on the double-clicked node
     const scale = 2.0;
     const transform = d3.zoomIdentity
-        .translate(width / 2, height / 2)
+        .translate(currentWidth / 2, currentHeight / 2)
         .scale(scale)
         .translate(-d.x, -d.y);
 
@@ -429,10 +402,8 @@ async function handleNodeDoubleClick(event, d) {
         .duration(750)
         .call(zoom.transform, transform);
 
-    // Fetch neighborhood to expand the graph
     await fetchAndExpandNeighborhood(d);
     
-    // Release the pin after a short delay to let simulation settle
     setTimeout(() => {
         d.fx = null;
         d.fy = null;
@@ -451,14 +422,14 @@ function handleNodeContextMenu(event, d) {
 }
 
 document.addEventListener('click', () => {
-    contextMenu.style.display = 'none';
+    if (contextMenu) contextMenu.style.display = 'none';
 });
 
-document.getElementById('menu-simulate-extraction').addEventListener('click', async () => {
-    if (!contextNode) return;
-    const target = contextNode.id;
+async function runSimulation(node) {
+    if (!node) return;
+    const target = node.id;
     
-    showNodeDetails(contextNode);
+    showNodeDetails(node);
     
     const riskLabelEl = document.getElementById('risk-label');
     if (riskLabelEl) riskLabelEl.textContent = 'ANALYZING...';
@@ -467,7 +438,6 @@ document.getElementById('menu-simulate-extraction').addEventListener('click', as
         const response = await fetch(`/api/query?type=what-if&target=${encodeURIComponent(target)}`);
         const data = await response.json();
         
-        // Populate stats
         const impactedNodesCount = (data.orphaned_nodes?.length || 0) + (data.severed_edges?.length || 0);
         const statNodes = document.getElementById('stat-nodes');
         if (statNodes) statNodes.textContent = impactedNodesCount;
@@ -475,66 +445,65 @@ document.getElementById('menu-simulate-extraction').addEventListener('click', as
         const statDepth = document.getElementById('stat-depth');
         if (statDepth) statDepth.textContent = impactedNodesCount > 0 ? '1+' : '0';
         
-        const vizContainer = document.getElementById('impact-visualizations');
-        if (vizContainer) {
-            vizContainer.innerHTML = '<h4 class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Affected Pathways</h4>';
+        const vizContainer = document.getElementById('impact-visualizations') || document.createElement('div');
+        vizContainer.id = 'impact-visualizations';
+        const impactDetails = document.getElementById('impact-details');
+        if (impactDetails && !document.getElementById('impact-visualizations')) {
+            impactDetails.appendChild(vizContainer);
+        }
+        
+        vizContainer.innerHTML = '<h4 class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mt-4 mb-2">Affected Pathways</h4>';
 
-            if (data && (data.severed_edges?.length > 0 || data.orphaned_nodes?.length > 0)) {
-                // Update risk description
-                const riskDescEl = document.getElementById('risk-description');
-                if (riskDescEl) riskDescEl.textContent = `Modifying this node affects ${impactedNodesCount} components.`;
-
-                // List orphaned nodes
-                (data.orphaned_nodes || []).forEach(node => {
-                    const item = document.createElement('div');
-                    item.className = 'flex items-center justify-between p-2 rounded-lg bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 group';
-                    item.innerHTML = `
-                        <div class="flex items-center gap-3">
-                            <span class="material-symbols-outlined text-impact-high text-lg">dangerous</span>
-                            <div class="flex flex-col">
-                                <span class="text-xs font-bold">${node.id}</span>
-                                <span class="text-[10px] text-slate-500">Orphaned</span>
-                            </div>
+        if (data && (data.severed_edges?.length > 0 || data.orphaned_nodes?.length > 0)) {
+            (data.orphaned_nodes || []).forEach(node => {
+                const item = document.createElement('div');
+                item.className = 'flex items-center justify-between p-2 rounded-lg bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 mb-2';
+                item.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined text-impact-high text-lg">dangerous</span>
+                        <div class="flex flex-col">
+                            <span class="text-xs font-bold">${node.id}</span>
+                            <span class="text-[10px] text-slate-500">Orphaned</span>
                         </div>
-                    `;
-                    vizContainer.appendChild(item);
-                });
+                    </div>
+                `;
+                vizContainer.appendChild(item);
+            });
 
-                // List severed edges
-                (data.severed_edges || []).forEach(edge => {
-                    const item = document.createElement('div');
-                    item.className = 'flex items-center justify-between p-2 rounded-lg bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 group';
-                    item.innerHTML = `
-                        <div class="flex items-center gap-3">
-                            <span class="material-symbols-outlined text-impact-medium text-lg">link_off</span>
-                            <div class="flex flex-col">
-                                <span class="text-xs font-bold">${edge.targetId}</span>
-                                <span class="text-[10px] text-slate-500">Severed from ${edge.sourceId}</span>
-                            </div>
+            (data.severed_edges || []).forEach(edge => {
+                const item = document.createElement('div');
+                item.className = 'flex items-center justify-between p-2 rounded-lg bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 mb-2';
+                item.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined text-impact-medium text-lg">link_off</span>
+                        <div class="flex flex-col">
+                            <span class="text-xs font-bold">${edge.targetId}</span>
+                            <span class="text-[10px] text-slate-500">Severed from ${edge.sourceId}</span>
                         </div>
-                    `;
-                    vizContainer.appendChild(item);
-                });
-                
-                // Re-update risk label based on impact
-                if (riskLabelEl) {
-                    if (impactedNodesCount > 10) riskLabelEl.textContent = 'CRITICAL';
-                    else if (impactedNodesCount > 0) riskLabelEl.textContent = 'HIGH';
-                    else riskLabelEl.textContent = 'STABLE';
-                }
-
-            } else {
-                vizContainer.innerHTML += `<p class="text-xs text-slate-500 italic">No significant impact found.</p>`;
-                if (riskLabelEl) riskLabelEl.textContent = 'STABLE';
+                    </div>
+                `;
+                vizContainer.appendChild(item);
+            });
+            
+            if (riskLabelEl) {
+                if (impactedNodesCount > 10) riskLabelEl.textContent = 'CRITICAL';
+                else if (impactedNodesCount > 0) riskLabelEl.textContent = 'HIGH';
+                else riskLabelEl.textContent = 'STABLE';
             }
+        } else {
+            vizContainer.innerHTML += `<p class="text-xs text-slate-500 italic">No significant impact found.</p>`;
+            if (riskLabelEl) riskLabelEl.textContent = 'STABLE';
         }
     } catch (err) {
         console.error("Failed to simulate extraction:", err);
         if (riskLabelEl) riskLabelEl.textContent = 'ERROR';
     }
+}
+
+document.getElementById('menu-simulate-extraction').addEventListener('click', () => {
+    if (contextNode) runSimulation(contextNode);
 });
 
-// Def arrow marker
 svg.append("defs").append("marker")
     .attr("id", "arrowhead")
     .attr("viewBox", "0 -5 10 10")
@@ -569,7 +538,6 @@ document.getElementById('search-button').addEventListener('click', async () => {
                 };
             });
             
-            // Clear prior state on new search
             nodesMap.clear();
             linksMap.clear();
             nodes = [];
@@ -577,14 +545,9 @@ document.getElementById('search-button').addEventListener('click', async () => {
             
             updateGraph(fetchedNodes, []);
             
-            // Re-center the viewport after search results load
             setTimeout(() => {
-                const btn = document.getElementById('reset-view');
-                if (btn) btn.click();
+                svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity);
             }, 500);
-            
-        } else {
-            console.error("Invalid response format:", data);
         }
     } catch (err) {
         console.error("Failed to fetch data:", err);
@@ -615,10 +578,9 @@ async function loadInitialOverview() {
     }
 }
 
-// Load it initially
 loadInitialOverview();
 
-console.log("GraphDB Visualizer initialized. D3 version:", d3.version);let showPinchPoints = false;
+let showPinchPoints = false;
 let showSemanticSeams = false;
 let pinchPoints = new Set();
 let semanticSeams = [];
@@ -634,7 +596,6 @@ document.getElementById('pinch-points-button').addEventListener('click', async (
             const res = await fetch('/api/query?type=seams');
             const data = await res.json();
             if (Array.isArray(data)) {
-                if (data.length === 0) alert("No pinch points found in the database.");
                 data.forEach(s => pinchPoints.add(s.seam || s.Seam));
             }
         } catch (err) { console.error(err); }
@@ -653,7 +614,6 @@ document.getElementById('semantic-seams-button').addEventListener('click', async
             const res = await fetch('/api/query?type=semantic-seams&similarity=0.6');
             const data = await res.json();
             if (Array.isArray(data)) {
-                if (data.length === 0) alert("No semantic disconnects found at current threshold.");
                 semanticSeams = data;
             }
         } catch (err) { console.error(err); }
@@ -661,23 +621,19 @@ document.getElementById('semantic-seams-button').addEventListener('click', async
     renderGraph();
 });
 
-document.addEventListener('DOMContentLoaded', () => {
+// Initialize side panel buttons
+function initSidePanelButtons() {
     const btnExpand = document.getElementById('btn-expand-node');
     if (btnExpand) {
         btnExpand.addEventListener('click', () => {
-            if (lastSelectedNode) {
-                handleNodeDoubleClick(null, lastSelectedNode);
-            }
+            if (lastSelectedNode) handleNodeDoubleClick(null, lastSelectedNode);
         });
     }
 
     const btnTrace = document.getElementById('btn-trace-intent');
     if (btnTrace) {
         btnTrace.addEventListener('click', async () => {
-            if (!lastSelectedNode) {
-                alert("Please select a node first.");
-                return;
-            }
+            if (!lastSelectedNode) return;
             try {
                 const response = await fetch(`/api/query?type=semantic-trace&target=${encodeURIComponent(lastSelectedNode.id)}`);
                 const data = await response.json();
@@ -699,57 +655,25 @@ document.addEventListener('DOMContentLoaded', () => {
                         })));
                     });
                     updateGraph(fetchedNodes, fetchedLinks);
-                    
-                    // Trigger a slight "zoom to fit" or center if we got results
-                    if (fetchedNodes.length > 0) {
-                        const targetNode = nodesMap.get(lastSelectedNode.id);
-                        if (targetNode) {
-                            const scale = 1.2;
-                            const transform = d3.zoomIdentity
-                                .translate(width / 2, height / 2)
-                                .scale(scale)
-                                .translate(-targetNode.x, -targetNode.y);
-
-                            svg.transition()
-                                .duration(750)
-                                .call(zoom.transform, transform);
-                        }
-                    }
                 }
-            } catch (err) {
-                console.error("Trace intent failed:", err);
-            }
+            } catch (err) { console.error(err); }
         });
     }
 
     const btnSimulate = document.getElementById('btn-simulate-extraction');
     if (btnSimulate) {
-        btnSimulate.addEventListener('click', async () => {
-            if (lastSelectedNode) {
-                // Same logic as context menu simulate extraction
-                try {
-                    const response = await fetch(`/api/query?type=what-if&target=${encodeURIComponent(lastSelectedNode.id)}`);
-                    const data = await response.json();
-                    
-                    const statNodes = document.getElementById('stat-nodes');
-                    if (statNodes) statNodes.textContent = data.orphaned_nodes ? data.orphaned_nodes.length : 0;
-                    
-                    const statDepth = document.getElementById('stat-depth');
-                    if (statDepth) statDepth.textContent = data.severed_edges ? data.severed_edges.length : 0;
-                } catch(e) {
-                    console.error("Simulation failed", e);
-                }
-            }
+        btnSimulate.addEventListener('click', () => {
+            if (lastSelectedNode) runSimulation(lastSelectedNode);
         });
     }
-});
+}
+
+initSidePanelButtons();
 
 async function fetchAndExpandNeighborhood(d, edgeTypes = "") {
     try {
         let url = `/api/query?type=traverse&target=${encodeURIComponent(d.id)}&direction=both&depth=1`;
-        if (edgeTypes) {
-            url += `&edge-types=${encodeURIComponent(edgeTypes)}`;
-        }
+        if (edgeTypes) url += `&edge-types=${encodeURIComponent(edgeTypes)}`;
         const response = await fetch(url);
         const data = await response.json();
         
@@ -771,7 +695,7 @@ async function fetchAndExpandNeighborhood(d, edgeTypes = "") {
             });
             updateGraph(fetchedNodes, fetchedLinks);
         }
-    } catch (err) {
-        console.error("Expand failed", err);
-    }
+    } catch (err) { console.error(err); }
 }
+
+console.log("GraphDB Visualizer initialized. Version: " + new Date().toISOString());

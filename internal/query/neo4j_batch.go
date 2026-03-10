@@ -256,12 +256,16 @@ func (p *Neo4jProvider) UpdateFeatureTopology(nodes []*graph.Node, edges []*grap
 					}
 				}
 				props["id"] = n.ID
+				props["node_label"] = n.Label // Use node_label to avoid conflict with Neo4j internal label if any
 				nodeBatches = append(nodeBatches, props)
 			}
 			query := `
 				UNWIND $batch AS row
-				MERGE (f:Feature {id: row.id})
-				SET f += row
+				MERGE (n {id: row.id})
+				SET n += row
+				WITH n, row
+				FOREACH (ignore IN CASE WHEN row.node_label = 'Domain' THEN [1] ELSE [] END | SET n:Domain)
+				FOREACH (ignore IN CASE WHEN row.node_label = 'Feature' THEN [1] ELSE [] END | SET n:Feature)
 			`
 			_, txErr := tx.Run(p.ctx, query, map[string]any{"batch": nodeBatches})
 			if txErr != nil {

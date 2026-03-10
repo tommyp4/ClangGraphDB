@@ -1,6 +1,9 @@
 package rpg
 
-import "graphdb/internal/graph"
+import (
+	"graphdb/internal/graph"
+	"strings"
+)
 
 type Feature struct {
 	ID          string
@@ -15,9 +18,13 @@ type Feature struct {
 }
 
 func (f *Feature) ToNode() graph.Node {
+	label := "Feature"
+	if strings.HasPrefix(f.ID, "domain-") {
+		label = "Domain"
+	}
 	return graph.Node{
 		ID:    f.ID,
-		Label: "Feature",
+		Label: label,
 		Properties: map[string]interface{}{
 			"name":        f.Name,
 			"description": f.Description,
