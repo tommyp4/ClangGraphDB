@@ -298,15 +298,15 @@ function dragged(event, d) {
 
 function dragended(event, d) {
     if (!event.active) simulation.alphaTarget(0);
-    d.fx = null;
-    d.fy = null;
+    // Keep the node fixed where it was dragged
+    d.fx = d.x;
+    d.fy = d.y;
 }
 
 async function handleNodeClick(event, d) {
     console.log("Node clicked:", d.id);
     lastSelectedNode = d;
     showNodeDetails(d);
-    await fetchAndExpandNeighborhood(d);
 }
 
 function handleNodeMouseOver(event, d) {
@@ -314,7 +314,6 @@ function handleNodeMouseOver(event, d) {
         .transition().duration(200)
         .attr('r', 25)
         .attr('stroke-width', 4);
-    showNodeDetails(d);
 }
 
 function handleNodeMouseOut(event, d) {
@@ -394,9 +393,13 @@ async function handleNodeDoubleClick(event, d) {
         event.stopPropagation();
     }
 
+    lastSelectedNode = d;
+    showNodeDetails(d);
+
     const currentWidth = document.getElementById('graph-container').clientWidth || width;
     const currentHeight = document.getElementById('graph-container').clientHeight || height;
 
+    // Pin the node
     d.fx = d.x;
     d.fy = d.y;
 
@@ -411,11 +414,6 @@ async function handleNodeDoubleClick(event, d) {
         .call(zoom.transform, transform);
 
     await fetchAndExpandNeighborhood(d);
-    
-    setTimeout(() => {
-        d.fx = null;
-        d.fy = null;
-    }, 1500);
 }
 
 let contextNode = null;
@@ -512,6 +510,14 @@ document.getElementById('menu-simulate-extraction').addEventListener('click', ()
     if (contextNode) runSimulation(contextNode);
 });
 
+document.getElementById('menu-unpin-node').addEventListener('click', () => {
+    if (contextNode) {
+        contextNode.fx = null;
+        contextNode.fy = null;
+        simulation.alpha(0.3).restart();
+    }
+});
+
 svg.append("defs").append("marker")
     .attr("id", "arrowhead")
     .attr("viewBox", "0 -5 10 10")
@@ -526,7 +532,7 @@ svg.append("defs").append("marker")
     .attr("fill", "#999")
     .style("stroke", "none");
 
-document.getElementById('search-button').addEventListener('click', async () => {
+async function performSearch() {
     const target = document.getElementById('search-input').value;
     if (!target) return;
 
@@ -559,6 +565,14 @@ document.getElementById('search-button').addEventListener('click', async () => {
         }
     } catch (err) {
         console.error("Failed to fetch data:", err);
+    }
+}
+
+document.getElementById('search-button').addEventListener('click', performSearch);
+
+document.getElementById('search-input').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        performSearch();
     }
 });
 
