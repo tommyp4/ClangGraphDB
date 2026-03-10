@@ -40,7 +40,9 @@ func IsTestFile(path string) bool {
 		return true
 	case strings.HasSuffix(lowerPath, "test.java"):
 		return true
-	case strings.HasSuffix(lowerPath, "tests.cs"):
+	case strings.HasSuffix(lowerPath, "tests.cs") || strings.HasSuffix(lowerPath, "test.cs"):
+		return true
+	case strings.Contains(lowerPath, "/tests/"):
 		return true
 	case strings.HasSuffix(lowerPath, ".test.ts"):
 		return true

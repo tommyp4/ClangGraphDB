@@ -165,6 +165,11 @@ func (p *TypeScriptParser) Parse(filePath string, content []byte) ([]*graph.Node
 			value: [(arrow_function) (function_expression)]
 		) @function.def
 
+		(call_expression
+			function: (identifier) @test.wrapper
+			arguments: (arguments (string) (arrow_function))
+		)
+
         (required_parameter
             pattern: (identifier) @param.name
             type: (type_annotation)? @param.type
@@ -207,6 +212,33 @@ func (p *TypeScriptParser) Parse(filePath string, content []byte) ([]*graph.Node
             case "param.type":
                 paramType = nodeContent
             
+            case "test.wrapper":
+                if nodeContent == "describe" || nodeContent == "it" || nodeContent == "test" {
+                    // Extract the string name of the test from the first argument
+                    argsNode := c.Node.Parent().ChildByFieldName("arguments")
+                    if argsNode != nil && argsNode.NamedChildCount() > 0 {
+                        nameNode := argsNode.NamedChild(0)
+                        if nameNode.Type() == "string" {
+                            testName := strings.Trim(nameNode.Content(content), "\"'`")
+                            
+                            fqn := fmt.Sprintf("%s:%s", filePath, testName)
+                            fullID := GenerateNodeID("Function", fqn, "")
+                            
+                            nodes = append(nodes, &graph.Node{
+                                ID:    fullID,
+                                Label: "Function",
+                                Properties: map[string]interface{}{
+                                    "name":     testName,
+                                    "fqn":      fqn,
+                                    "file":     filePath,
+                                    "line":     int(c.Node.StartPoint().Row + 1),
+                                    "is_test":  true,
+                                },
+                            })
+                        }
+                    }
+                }
+
             case "class.name", "function.name", "method.name":
                 var label string
                 var nodeType string

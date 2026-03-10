@@ -48,6 +48,10 @@ func (p *CSharpParser) Parse(filePath string, content []byte) ([]*graph.Node, []
 				(parameter type: (_) @param.type)
 			)
 		)
+
+		(method_declaration
+			(attribute_list (attribute name: (identifier) @attribute.name))
+		) @function.with_attributes
 	`
 
 	qDef, err := sitter.NewQuery([]byte(defQueryStr), csharp.GetLanguage())
@@ -71,6 +75,9 @@ func (p *CSharpParser) Parse(filePath string, content []byte) ([]*graph.Node, []
 	// Pre-scan for file-scoped namespace
 	fileScopedNamespace := findFileScopedCSharpNamespace(tree.RootNode(), content)
 
+	// Map to track attributes per method node
+	methodAttributes := make(map[uintptr][]string)
+
 	for {
 		m, ok := qcDef.NextMatch()
 		if !ok {
@@ -79,6 +86,20 @@ func (p *CSharpParser) Parse(filePath string, content []byte) ([]*graph.Node, []
 
 		for _, c := range m.Captures {
 			captureName := qDef.CaptureNameForId(c.Index)
+
+			if captureName == "attribute.name" {
+				attrName := c.Node.Content(content)
+				// Find the method_declaration node this attribute belongs to
+				parent := c.Node.Parent()
+				for parent != nil && parent.Type() != "method_declaration" {
+					parent = parent.Parent()
+				}
+				if parent != nil {
+					id := parent.ID()
+					methodAttributes[id] = append(methodAttributes[id], attrName)
+				}
+				continue
+			}
 
 			if captureName == "using.namespace" {
 				usings = append(usings, c.Node.Content(content))
@@ -294,6 +315,22 @@ func (p *CSharpParser) Parse(filePath string, content []byte) ([]*graph.Node, []
 					"line":     c.Node.StartPoint().Row + 1,
 					"end_line": c.Node.EndPoint().Row + 1,
 				}
+
+				// Structural Test Detection via Attributes
+				if nodeType == "function" {
+					funcNode := c.Node.Parent()
+					if funcNode != nil {
+						attrs := methodAttributes[funcNode.ID()]
+						for _, a := range attrs {
+							lowerAttr := strings.ToLower(a)
+							if lowerAttr == "fact" || lowerAttr == "theory" || lowerAttr == "test" {
+								properties["is_test"] = true
+								break
+							}
+						}
+					}
+				}
+
 				if namespace != "" {
 					properties["namespace"] = namespace
 				}

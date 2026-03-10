@@ -61,7 +61,12 @@ func (p *JavaParser) Parse(filePath string, content []byte) ([]*graph.Node, []*g
 			declarator: (variable_declarator name: (identifier) @field.name)
 		)
 		
+		(method_declaration
+			(modifiers (annotation name: (identifier) @annotation.name))
+			name: (identifier) @function.name
+		) @function.with_annotations
 		(method_declaration name: (identifier) @function.name)
+
 		(constructor_declaration name: (identifier) @function.name)
 
         (formal_parameter 
@@ -114,6 +119,9 @@ func (p *JavaParser) Parse(filePath string, content []byte) ([]*graph.Node, []*g
         return result
     }
 
+	// Map to track annotations per method node
+	methodAnnotations := make(map[uintptr][]string)
+
 	for {
 		m, ok := qcDef.NextMatch()
 		if !ok {
@@ -132,6 +140,17 @@ func (p *JavaParser) Parse(filePath string, content []byte) ([]*graph.Node, []*g
 				if len(parts) > 0 {
 					alias := parts[len(parts)-1]
 					imports[alias] = nodeContent
+				}
+			case "annotation.name":
+				attrName := nodeContent
+				// Find the method_declaration node this attribute belongs to
+				parent := c.Node.Parent()
+				for parent != nil && parent.Type() != "method_declaration" {
+					parent = parent.Parent()
+				}
+				if parent != nil {
+					id := parent.ID()
+					methodAnnotations[id] = append(methodAnnotations[id], attrName)
 				}
 						case "class.name":
 							parentType := c.Node.Parent().Type()
@@ -207,16 +226,32 @@ func (p *JavaParser) Parse(filePath string, content []byte) ([]*graph.Node, []*g
 																signature := getJavaMethodSignature(c.Node.Parent(), content)
 																methodID := GenerateNodeID(label, methodFQN, signature)
 											
+																properties := map[string]interface{}{
+																	"name":     nodeContent,
+																	"fqn":      methodFQN,
+																	"file":     filePath,
+																	"line":     int(c.Node.StartPoint().Row + 1),
+																	"end_line": int(c.Node.EndPoint().Row + 1),
+																}
+
+																// Structural Test Detection via Annotations
+																if label == "Function" {
+																	funcNode := c.Node.Parent()
+																	if funcNode != nil {
+																		attrs := methodAnnotations[funcNode.ID()]
+																		for _, a := range attrs {
+																			if a == "Test" {
+																				properties["is_test"] = true
+																				break
+																			}
+																		}
+																	}
+																}
+
 																nodes = append(nodes, &graph.Node{
-																	ID:    methodID,
-																	Label: label,
-																	Properties: map[string]interface{}{
-																		"name":     nodeContent,
-																		"fqn":      methodFQN,
-																		"file":     filePath,
-																		"line":     int(c.Node.StartPoint().Row + 1),
-																		"end_line": int(c.Node.EndPoint().Row + 1),
-																	},
+																	ID:         methodID,
+																	Label:      label,
+																	Properties: properties,
 																})
 											
 																edges = append(edges, &graph.Edge{
