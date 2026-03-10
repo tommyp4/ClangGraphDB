@@ -149,6 +149,22 @@ Structural queries utilize "Fully Qualified Names" (FQN). While the internal dat
 | `traverse` | **Raw Traversal.** Explore graph relationships directly. | Node ID / Name | `-edge-types`, `-direction`, `-depth` |
 | `status` | **Verification.** Check the git commit hash stored in the graph. | (None) | |
 
+### 4. Web Visualizer (HTTP Server)
+The GraphDB skill includes a web-based visualizer for exploring the graph, viewing clusters, and performing interactive queries.
+
+**Command:**
+```bash
+${graphdb_bin} serve -port 8080
+```
+*   *Options:*
+    *   `-port`: The port to run the server on (default: `8080`).
+    *   `-location`: GCP Location for semantic searches (default: `us-central1`).
+    *   `-model`: Embedding model to use for semantic searches (default: loaded from `.env`).
+
+**Operational Note:**
+When running the server in a remote environment (e.g., a Cloud VM), you may need to use SSH port forwarding to access the UI locally:
+`ssh -L 8080:localhost:8080 your-vm-address`
+
 ## Operational Guidelines
 *   **Output Parsing:** The tool returns JSON. Parse it and present a concise summary (bullet points, mermaid diagrams, or tables).
 *   **Exact Names:** Structural queries (`neighbors`, `impact`, `coverage`, `what-if`) are **polymorphic**. You can provide the Node `ID` (e.g., `Function:Namespace.Class.Method:()`), the `fqn` (e.g., `Namespace.Class.Method`), or the simple `name` (e.g., `Method`).
