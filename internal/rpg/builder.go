@@ -83,30 +83,18 @@ func (b *Builder) buildGlobal(rootPath string, functions []graph.Node) ([]Featur
 		// 3. Identification
 		// Prioritize semantic name from GlobalClusterer unless it's a raw cluster ID
 		var domainName string
-		if strings.HasPrefix(originalKey, "root-cluster-") || strings.HasPrefix(originalKey, "Feature-") {
+		if strings.HasPrefix(originalKey, "cluster-") || strings.HasPrefix(originalKey, "root-cluster-") || strings.HasPrefix(originalKey, "Feature-") {
 			domainName = GenerateDomainName(lca, nodes)
 		} else {
 			domainName = originalKey
 		}
 
 		// Ensure unique and safe ID
-		domainID := strings.ToLower(domainName)
-		domainID = strings.ReplaceAll(domainID, " ", "-")
-		// Remove unsafe chars
-		domainID = strings.Map(func(r rune) rune {
-			if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
-				return r
-			}
-			return -1
-		}, domainID)
-
-		if !strings.HasPrefix(domainID, "domain-") {
-			domainID = "domain-" + domainID
-		}
+		domainID := "domain-" + GenerateShortUUID()
 
 		domainFeature := Feature{
 			ID:        domainID,
-			Name:      domainName, // Use the semantic name (e.g., "Authentication System")
+			Name:      domainName, // Can be "" if GenerateDomainName failed
 			ScopePath: lca,
 			Children:  make([]*Feature, 0),
 		}
@@ -144,9 +132,20 @@ func (b *Builder) buildTwoLevel(domain *Feature, funcs []graph.Node, name, pathP
 
 	for _, clusterName := range clusterNames {
 		nodes := clusters[clusterName]
+		
+		var name string
+		var id string
+		if strings.HasPrefix(clusterName, "cluster-") || strings.HasPrefix(clusterName, "Feature-") {
+			id = "feature-" + GenerateShortUUID()
+			name = ""
+		} else {
+			id = "feature-" + clusterName // Should sanitize
+			name = clusterName
+		}
+
 		child := &Feature{
-			ID:              "feat-" + clusterName, // Simple ID generation
-			Name:            clusterName,
+			ID:              id,
+			Name:            name,
 			ScopePath:       pathPrefix,
 			MemberFunctions: nodes,
 		}
@@ -182,9 +181,20 @@ func (b *Builder) buildThreeLevel(domain *Feature, funcs []graph.Node, name, pat
 
 	for _, catName := range catNames {
 		catNodes := categories[catName]
+		
+		var categoryName string
+		var categoryID string
+		if strings.HasPrefix(catName, "cluster-") || strings.HasPrefix(catName, "Feature-") {
+			categoryID = "category-" + GenerateShortUUID()
+			categoryName = ""
+		} else {
+			categoryID = "category-" + catName
+			categoryName = catName
+		}
+
 		category := &Feature{
-			ID:              "cat-" + catName,
-			Name:            catName,
+			ID:              categoryID,
+			Name:            categoryName,
 			ScopePath:       pathPrefix,
 			MemberFunctions: catNodes,
 			Children:        make([]*Feature, 0),
@@ -207,9 +217,20 @@ func (b *Builder) buildThreeLevel(domain *Feature, funcs []graph.Node, name, pat
 
 		for _, featName := range featNames {
 			featNodes := features[featName]
+			
+			var featureName string
+			var featureID string
+			if strings.HasPrefix(featName, "cluster-") || strings.HasPrefix(featName, "Feature-") {
+				featureID = "feature-" + GenerateShortUUID()
+				featureName = ""
+			} else {
+				featureID = "feature-" + featName
+				featureName = featName
+			}
+
 			feature := &Feature{
-				ID:              "feat-" + featName,
-				Name:            featName,
+				ID:              featureID,
+				Name:            featureName,
 				ScopePath:       pathPrefix,
 				MemberFunctions: featNodes,
 			}

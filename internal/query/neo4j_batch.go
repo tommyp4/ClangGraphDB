@@ -145,7 +145,7 @@ func (p *Neo4jProvider) GetEmbeddingsOnly() (map[string][]float32, error) {
 func (p *Neo4jProvider) GetFunctionMetadata() ([]*graph.Node, error) {
 	query := `
 		MATCH (n:Function)
-		RETURN n.id as id, n.file as file, n.line as line, n.end_line as end_line, n.atomic_features as atomic_features
+		RETURN n.id as id, n.name as name, n.file as file, n.line as line, n.end_line as end_line, n.atomic_features as atomic_features
 	`
 	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, nil, neo4j.EagerResultTransformer)
 
@@ -156,6 +156,7 @@ func (p *Neo4jProvider) GetFunctionMetadata() ([]*graph.Node, error) {
 	nodes := make([]*graph.Node, 0, len(result.Records))
 	for _, record := range result.Records {
 		id, _, _ := neo4j.GetRecordValue[string](record, "id")
+		name, _, _ := neo4j.GetRecordValue[string](record, "name")
 		file, _, _ := neo4j.GetRecordValue[string](record, "file")
 		line, _, _ := neo4j.GetRecordValue[int64](record, "line")
 		endLine, _, _ := neo4j.GetRecordValue[int64](record, "end_line")
@@ -175,6 +176,7 @@ func (p *Neo4jProvider) GetFunctionMetadata() ([]*graph.Node, error) {
 			ID:    id,
 			Label: "Function",
 			Properties: map[string]any{
+				"name":            name,
 				"file":            file,
 				"line":            line,
 				"end_line":        endLine,
@@ -189,7 +191,7 @@ func (p *Neo4jProvider) GetFunctionMetadata() ([]*graph.Node, error) {
 func (p *Neo4jProvider) GetUnnamedFeatures(limit int) ([]*graph.Node, error) {
 	query := `
 		MATCH (n:Feature)
-		WHERE coalesce(n.name, '') = '' OR coalesce(n.name, '') STARTS WITH 'Feature-' OR coalesce(n.name, '') STARTS WITH 'Domain-'
+		WHERE coalesce(n.name, '') = '' OR coalesce(n.summary, '') = ''
 		RETURN n.id as id, properties(n) as props
 		LIMIT $limit
 	`
@@ -213,6 +215,24 @@ func (p *Neo4jProvider) GetUnnamedFeatures(limit int) ([]*graph.Node, error) {
 		})
 	}
 	return nodes, nil
+}
+
+// CountUnnamedFeatures returns the total number of features without a name/summary.
+func (p *Neo4jProvider) CountUnnamedFeatures() (int64, error) {
+	query := `
+		MATCH (n:Feature)
+		WHERE coalesce(n.name, '') = '' OR coalesce(n.summary, '') = ''
+		RETURN count(n) as total
+	`
+	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, nil, neo4j.EagerResultTransformer)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count unnamed features: %w", err)
+	}
+	if len(result.Records) == 0 {
+		return 0, nil
+	}
+	total, _, _ := neo4j.GetRecordValue[int64](result.Records[0], "total")
+	return total, nil
 }
 
 // UpdateFeatureTopology writes feature nodes and relationships to the graph.

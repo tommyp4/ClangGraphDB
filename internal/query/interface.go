@@ -147,6 +147,7 @@ type GraphProvider interface {
 	GetEmbeddingsOnly() (map[string][]float32, error)
 	GetFunctionMetadata() ([]*graph.Node, error)
 	GetUnnamedFeatures(limit int) ([]*graph.Node, error)
+	CountUnnamedFeatures() (int64, error)
 	UpdateFeatureTopology(nodes []*graph.Node, edges []*graph.Edge) error
 	UpdateFeatureSummary(id string, name string, summary string) error
 }

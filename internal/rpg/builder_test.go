@@ -88,8 +88,8 @@ func TestBuilder_Build(t *testing.T) {
 			if e.SourceID != "func1" && e.SourceID != "func2" {
 				t.Errorf("IMPLEMENTS edge SourceID should be a function ID, got %s", e.SourceID)
 			}
-			if !strings.HasPrefix(e.TargetID, "feat-") {
-				t.Errorf("IMPLEMENTS edge TargetID should be a feature ID (feat-*), got %s", e.TargetID)
+			if !strings.HasPrefix(e.TargetID, "feature-") {
+				t.Errorf("IMPLEMENTS edge TargetID should be a feature ID (feature-*), got %s", e.TargetID)
 			}
 		}
 		if e.Type == "PARENT_OF" {

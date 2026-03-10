@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"graphdb/internal/embedding"
 	"graphdb/internal/graph"
+	"log"
 	"strings"
+	"time"
 
 	"google.golang.org/genai"
 )
@@ -118,7 +120,7 @@ func (s *VertexSummarizer) Summarize(snippets []string) (string, string, error) 
 		return "Feature-" + GenerateShortUUID(), "No code snippets provided for analysis.", nil
 	}
 
-	prompt := fmt.Sprintf(`You are a technical architect. Below are code snippets from a group of functions. 
+	prompt := fmt.Sprintf(`You are a technical architect. Below are code snippets from a group of functions.
 Your task is to:
 1. Provide a concise, professional name for this "Feature" (e.g., "User Authentication", "Database Migration Service").
 2. Provide a 1-2 sentence description of what this feature does.
@@ -129,36 +131,49 @@ Return your response in JSON format ONLY:
 Code Snippets:
 %s`, strings.Join(snippets, "\n---\n"))
 
-	ctx := context.Background()
-	
-	resp, err := s.Client.Models.GenerateContent(ctx, s.Model, genai.Text(prompt), nil)
-	if err != nil {
-		return "", "", fmt.Errorf("generate content failed: %w", err)
+	const maxRetries = 3
+	const requestTimeout = 120 * time.Second
+
+	var lastErr error
+	for attempt := range maxRetries {
+		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+		resp, err := s.Client.Models.GenerateContent(ctx, s.Model, genai.Text(prompt), nil)
+		cancel()
+
+		if err != nil {
+			lastErr = err
+			backoff := time.Duration(1<<uint(attempt)) * time.Second
+			log.Printf("Summarize attempt %d/%d failed: %v (retrying in %v)", attempt+1, maxRetries, err, backoff)
+			time.Sleep(backoff)
+			continue
+		}
+
+		if resp == nil || len(resp.Candidates) == 0 {
+			return "", "", fmt.Errorf("no candidates returned from Vertex AI")
+		}
+
+		// Check content parts
+		cand := resp.Candidates[0]
+		if cand.Content == nil || len(cand.Content.Parts) == 0 {
+			return "", "", fmt.Errorf("empty content in response")
+		}
+
+		responseText := cand.Content.Parts[0].Text
+		// Strip markdown blocks if present
+		responseText = strings.TrimPrefix(responseText, "```json")
+		responseText = strings.TrimSuffix(responseText, "```")
+		responseText = strings.TrimSpace(responseText)
+
+		var summary struct {
+			Name        string `json:"name"`
+			Description string `json:"description"`
+		}
+		if err := json.Unmarshal([]byte(responseText), &summary); err != nil {
+			return "", "", fmt.Errorf("failed to parse LLM response as JSON: %v. Raw: %s", err, responseText)
+		}
+
+		return summary.Name, summary.Description, nil
 	}
 
-	if resp == nil || len(resp.Candidates) == 0 {
-		return "", "", fmt.Errorf("no candidates returned from Vertex AI")
-	}
-	
-	// Check content parts
-	cand := resp.Candidates[0]
-	if cand.Content == nil || len(cand.Content.Parts) == 0 {
-		return "", "", fmt.Errorf("empty content in response")
-	}
-
-	responseText := cand.Content.Parts[0].Text
-	// Strip markdown blocks if present
-	responseText = strings.TrimPrefix(responseText, "```json")
-	responseText = strings.TrimSuffix(responseText, "```")
-	responseText = strings.TrimSpace(responseText)
-
-	var summary struct {
-		Name        string `json:"name"`
-		Description string `json:"description"`
-	}
-	if err := json.Unmarshal([]byte(responseText), &summary); err != nil {
-		return "", "", fmt.Errorf("failed to parse LLM response as JSON: %v. Raw: %s", err, responseText)
-	}
-
-	return summary.Name, summary.Description, nil
+	return "", "", fmt.Errorf("generate content failed after %d attempts: %w", maxRetries, lastErr)
 }

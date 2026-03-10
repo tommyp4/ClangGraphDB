@@ -8,10 +8,40 @@ BASE_PATH="$(pwd)/.gemini/graph_data/neo4j"
 DATA_PATH="${BASE_PATH}/data"
 LOGS_PATH="${BASE_PATH}/logs"
 CONF_PATH="${BASE_PATH}/conf"
+ENV_FILE="$(pwd)/.env"
 
 # Ensure data directories exist
 mkdir -p "$DATA_PATH" "$LOGS_PATH" "$CONF_PATH"
 chmod 777 "$DATA_PATH" "$LOGS_PATH" "$CONF_PATH"
+
+if [ ! -f "$ENV_FILE" ]; then
+    echo "No .env file found. Let's create one."
+    while true; do
+        read -sp "Enter initial Neo4j password (must not be 'password'): " NEO4J_PASSWORD
+        echo
+        if [ -z "$NEO4J_PASSWORD" ]; then
+            echo "Password cannot be empty. Please try again."
+        elif [ "$NEO4J_PASSWORD" == "password" ]; then
+            echo "Password cannot be 'password'. Please try again."
+        else
+            break
+        fi
+    done
+    printf "NEO4J_URI=bolt://localhost:7687\n" > "$ENV_FILE"
+    printf "NEO4J_USER=neo4j\n" >> "$ENV_FILE"
+    printf "NEO4J_PASSWORD=\"%s\"\n" "$NEO4J_PASSWORD" >> "$ENV_FILE"
+    echo ".env file created with initial database credentials."
+else
+    # Load env variables safely
+    set -a
+    source "$ENV_FILE"
+    set +a
+fi
+
+if [ -z "$NEO4J_PASSWORD" ]; then
+    echo "Error: NEO4J_PASSWORD not found in $ENV_FILE."
+    exit 1
+fi
 
 # Write neo4j.conf so that it listens on all interfaces (required for podman port forwarding)
 cat > "${CONF_PATH}/neo4j.conf" <<'CONF'
@@ -33,20 +63,20 @@ if podman ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
     fi
 else
     echo "Creating and starting new container '${CONTAINER_NAME}'..."
-    # Launch with exact configuration from previous 'podman inspect'
+    # Launch using a custom entrypoint script to bypass rootless chown issues
+    # while still correctly setting the initial password (avoiding "must change" prompt)
+    # and installing the APOC plugin.
     podman run -d \
         --user 0:0 \
-        --entrypoint neo4j \
+        --entrypoint bash \
         --name "${CONTAINER_NAME}" \
         -p 7474:7474 \
         -p 7687:7687 \
-        -e NEO4J_AUTH=neo4j/password \
-        -e NEO4J_PLUGINS='["apoc"]' \
         -v "${DATA_PATH}:/data" \
         -v "${LOGS_PATH}:/logs" \
         -v "${CONF_PATH}/neo4j.conf:/var/lib/neo4j/conf/neo4j.conf:ro" \
         "${IMAGE}" \
-        console
+        -c "if [ ! -f /data/dbms/auth.ini ]; then neo4j-admin dbms set-initial-password \"${NEO4J_PASSWORD}\"; fi && cp /var/lib/neo4j/labs/apoc-*-core.jar /var/lib/neo4j/plugins/ 2>/dev/null || true && exec neo4j console"
 fi
 
 echo "------------------------------------------------"
@@ -54,5 +84,5 @@ echo "Neo4j is running!"
 echo "HTTP Interface: http://localhost:7474"
 echo "Bolt Interface: bolt://localhost:7687"
 echo "Username: neo4j"
-echo "Password: password"
+echo "Password: ${NEO4J_PASSWORD}"
 echo "------------------------------------------------"

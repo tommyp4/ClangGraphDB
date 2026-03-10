@@ -78,8 +78,8 @@ func TestBuilder_GlobalBuild(t *testing.T) {
 		// Check for Auth System
 		if f.Name == "Auth System" {
 			foundAuth = true
-			if f.ID != "domain-auth-system" {
-				t.Errorf("Expected ID 'domain-auth-system', got '%s'", f.ID)
+			if !strings.HasPrefix(f.ID, "domain-") {
+				t.Errorf("Expected ID to start with 'domain-', got '%s'", f.ID)
 			}
 			if f.ScopePath != "src/auth" {
 				t.Errorf("Expected Auth domain ScopePath 'src/auth', got '%s'", f.ScopePath)
@@ -89,8 +89,8 @@ func TestBuilder_GlobalBuild(t *testing.T) {
 		// Check for Payment Service
 		if f.Name == "Payment Service" {
 			foundPayment = true
-			if f.ID != "domain-payment-service" {
-				t.Errorf("Expected ID 'domain-payment-service', got '%s'", f.ID)
+			if !strings.HasPrefix(f.ID, "domain-") {
+				t.Errorf("Expected ID to start with 'domain-', got '%s'", f.ID)
 			}
 			if f.ScopePath != "src/payment" {
 				t.Errorf("Expected Payment domain ScopePath 'src/payment', got '%s'", f.ScopePath)

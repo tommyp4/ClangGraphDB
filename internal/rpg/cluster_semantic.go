@@ -25,7 +25,7 @@ func (c *EmbeddingClusterer) Cluster(nodes []graph.Node, domain string) (map[str
 
 	// If too few nodes, put them all in one cluster
 	if len(nodes) <= 3 {
-		return map[string][]graph.Node{"Feature-" + GenerateShortUUID(): nodes}, nil
+		return map[string][]graph.Node{"cluster-" + GenerateShortUUID(): nodes}, nil
 	}
 
 	// 1. Prepare embeddings
@@ -92,7 +92,7 @@ func (c *EmbeddingClusterer) Cluster(nodes []graph.Node, domain string) (map[str
 	clusters := make(map[string][]graph.Node)
 	clusterKeys := make([]string, k)
 	for j := 0; j < k; j++ {
-		clusterKeys[j] = "Feature-" + GenerateShortUUID()
+		clusterKeys[j] = "cluster-" + GenerateShortUUID()
 	}
 
 	for i, clusterIdx := range assignments {
