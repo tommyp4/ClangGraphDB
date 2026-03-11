@@ -504,6 +504,7 @@ async function runSimulation(node) {
         // Update the local graph with any newly discovered nodes (orphans, shared state)
         if (data.orphaned_nodes) updateGraph(data.orphaned_nodes, []);
         if (data.shared_state) updateGraph(data.shared_state, []);
+        if (data.affected_nodes) updateGraph(data.affected_nodes, []);
 
         const impactedNodesCount = (data.orphaned_nodes?.length || 0) + (data.severed_edges?.length || 0);
         const statNodes = document.getElementById('stat-nodes');

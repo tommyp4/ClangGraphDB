@@ -89,4 +89,20 @@ func TestWhatIf(t *testing.T) {
 	if !foundShared {
 		t.Error("Expected to find shared state TestGlobal1")
 	}
+
+	// Verify AffectedNodes
+	// Should contain TestOutside1, TestInside1, TestOutside2, TestInside2, TestOrphan, TestGlobal1
+	expectedAffected := []string{"TestOutside1", "TestInside1", "TestOutside2", "TestInside2", "TestOrphan", "TestGlobal1"}
+	for _, id := range expectedAffected {
+		found := false
+		for _, node := range result.AffectedNodes {
+			if node.ID == id {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Expected to find %s in AffectedNodes", id)
+		}
+	}
 }

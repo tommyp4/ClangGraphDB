@@ -93,6 +93,7 @@ type WhatIfResult struct {
 	OrphanedNodes      []*graph.Node `json:"orphaned_nodes"`
 	CrossBoundaryCalls []*graph.Edge `json:"cross_boundary_calls"`
 	SharedState        []*graph.Node `json:"shared_state"`
+	AffectedNodes      []*graph.Node `json:"affected_nodes"`
 }
 
 // SemanticSeamResult represents a structural vs semantic divergence in a class or file.
