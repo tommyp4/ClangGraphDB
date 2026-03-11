@@ -399,15 +399,20 @@ async function handleNodeDoubleClick(event, d) {
     const currentWidth = document.getElementById('graph-container').clientWidth || width;
     const currentHeight = document.getElementById('graph-container').clientHeight || height;
 
-    // Pin the node
-    d.fx = d.x;
-    d.fy = d.y;
+    // Pin the node if it has a position
+    if (d.x !== undefined && d.y !== undefined) {
+        d.fx = d.x;
+        d.fy = d.y;
+    }
 
     const scale = 2.0;
+    const targetX = d.x !== undefined ? d.x : currentWidth / 2;
+    const targetY = d.y !== undefined ? d.y : currentHeight / 2;
+
     const transform = d3.zoomIdentity
         .translate(currentWidth / 2, currentHeight / 2)
         .scale(scale)
-        .translate(-d.x, -d.y);
+        .translate(-targetX, -targetY);
 
     svg.transition()
         .duration(750)
@@ -431,6 +436,58 @@ document.addEventListener('click', () => {
     if (contextMenu) contextMenu.style.display = 'none';
 });
 
+/**
+ * Resolves a semantic name for a node ID using the nodesMap.
+ * Falls back to the ID itself if no name is found.
+ */
+function resolveNodeName(nodeId) {
+    const node = nodesMap.get(nodeId);
+    if (node) {
+        return node.name || (node.properties && node.properties.name) || nodeId;
+    }
+    return nodeId;
+}
+
+/**
+ * Centers the camera on a specific node and expands its neighborhood.
+ */
+async function focusNode(nodeId) {
+    console.log("Focusing on node:", nodeId);
+    let node = nodesMap.get(nodeId);
+    
+    // If node is not in graph, we might need to fetch it
+    if (!node) {
+        console.log(`Node ${nodeId} not in graph, fetching...`);
+        try {
+            // Try to fetch via traverse with depth 1 (both directions) to ensure we find it if it has ANY edges
+            const response = await fetch(`/api/query?type=traverse&target=${encodeURIComponent(nodeId)}&depth=1&direction=both`);
+            const data = await response.json();
+            
+            if (data && Array.isArray(data) && data.length > 0) {
+                data.forEach(path => updateGraph(path.nodes || [], path.edges || []));
+                node = nodesMap.get(nodeId);
+            } else {
+                // If traverse failed (possibly no edges), try a fallback that might just return the node
+                // For now, if we can't find it via traverse, we'll try to fetch its neighbors which might return the node record
+                const neighborRes = await fetch(`/api/query?type=neighbors&target=${encodeURIComponent(nodeId)}`);
+                const neighborData = await neighborRes.json();
+                if (neighborData && neighborData.node) {
+                    updateGraph([neighborData.node], []);
+                    node = nodesMap.get(nodeId);
+                }
+            }
+        } catch (err) {
+            console.error("Failed to fetch node for focusing:", err);
+        }
+    }
+
+    if (node) {
+        await handleNodeDoubleClick(null, node);
+    } else {
+        alert(`Node ${nodeId} could not be found in the graph.`);
+    }
+}
+
 async function runSimulation(node) {
     if (!node) return;
     const target = node.id;
@@ -444,6 +501,10 @@ async function runSimulation(node) {
         const response = await fetch(`/api/query?type=what-if&target=${encodeURIComponent(target)}`);
         const data = await response.json();
         
+        // Update the local graph with any newly discovered nodes (orphans, shared state)
+        if (data.orphaned_nodes) updateGraph(data.orphaned_nodes, []);
+        if (data.shared_state) updateGraph(data.shared_state, []);
+
         const impactedNodesCount = (data.orphaned_nodes?.length || 0) + (data.severed_edges?.length || 0);
         const statNodes = document.getElementById('stat-nodes');
         if (statNodes) statNodes.textContent = impactedNodesCount;
@@ -461,14 +522,16 @@ async function runSimulation(node) {
         vizContainer.innerHTML = '<h4 class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mt-4 mb-2">Affected Pathways</h4>';
 
         if (data && (data.severed_edges?.length > 0 || data.orphaned_nodes?.length > 0)) {
-            (data.orphaned_nodes || []).forEach(node => {
+            (data.orphaned_nodes || []).forEach(orphanedNode => {
                 const item = document.createElement('div');
-                item.className = 'flex items-center justify-between p-2 rounded-lg bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 mb-2';
+                const displayName = resolveNodeName(orphanedNode.id);
+                item.className = 'flex items-center justify-between p-2 rounded-lg bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 mb-2 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors group';
+                item.onclick = () => focusNode(orphanedNode.id);
                 item.innerHTML = `
                     <div class="flex items-center gap-3">
-                        <span class="material-symbols-outlined text-impact-high text-lg">dangerous</span>
+                        <span class="material-symbols-outlined text-impact-high text-lg group-hover:scale-110 transition-transform">dangerous</span>
                         <div class="flex flex-col">
-                            <span class="text-xs font-bold">${node.id}</span>
+                            <span class="text-xs font-bold">${displayName}</span>
                             <span class="text-[10px] text-slate-500">Orphaned</span>
                         </div>
                     </div>
@@ -478,13 +541,16 @@ async function runSimulation(node) {
 
             (data.severed_edges || []).forEach(edge => {
                 const item = document.createElement('div');
-                item.className = 'flex items-center justify-between p-2 rounded-lg bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 mb-2';
+                const targetName = resolveNodeName(edge.targetId);
+                const sourceName = resolveNodeName(edge.sourceId);
+                item.className = 'flex items-center justify-between p-2 rounded-lg bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 mb-2 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors group';
+                item.onclick = () => focusNode(edge.targetId);
                 item.innerHTML = `
                     <div class="flex items-center gap-3">
-                        <span class="material-symbols-outlined text-impact-medium text-lg">link_off</span>
+                        <span class="material-symbols-outlined text-impact-medium text-lg group-hover:scale-110 transition-transform">link_off</span>
                         <div class="flex flex-col">
-                            <span class="text-xs font-bold">${edge.targetId}</span>
-                            <span class="text-[10px] text-slate-500">Severed from ${edge.sourceId}</span>
+                            <span class="text-xs font-bold">${targetName}</span>
+                            <span class="text-[10px] text-slate-500">Severed from ${sourceName}</span>
                         </div>
                     </div>
                 `;

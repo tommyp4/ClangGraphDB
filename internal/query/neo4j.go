@@ -352,6 +352,32 @@ func (p *Neo4jProvider) GetNeighbors(nodeID string, depth int) (*NeighborResult,
 		return nil, fmt.Errorf("failed to get dependencies from record: %w", err)
 	}
 
+	// Fetch the full node properties for the result
+	var targetNode *graph.Node
+	if n, ok := result.Records[0].Get("n"); ok {
+		if neoNode, ok := n.(neo4j.Node); ok {
+			id := ""
+			if idVal, ok := neoNode.Props["id"].(string); ok {
+				id = idVal
+			} else if nameVal, ok := neoNode.Props["name"].(string); ok {
+				id = nameVal
+			}
+			label := ""
+			if len(neoNode.Labels) > 0 {
+				label = neoNode.Labels[0]
+			}
+			targetNode = &graph.Node{
+				ID:         id,
+				Label:      label,
+				Properties: sanitizeProperties(neoNode.Props),
+			}
+		}
+	}
+
+	if targetNode == nil {
+		targetNode = &graph.Node{ID: nodeID, Label: "Unknown"}
+	}
+
 	deps := make([]Dependency, 0, len(dependenciesRaw))
 	for _, raw := range dependenciesRaw {
 		item, ok := raw.(map[string]any)
@@ -382,7 +408,7 @@ func (p *Neo4jProvider) GetNeighbors(nodeID string, depth int) (*NeighborResult,
 	}
 
 	return &NeighborResult{
-		Node:         &graph.Node{Label: nodeID}, 
+		Node:         targetNode, 
 		Dependencies: deps,
 	}, nil
 }
