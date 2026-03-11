@@ -300,18 +300,23 @@ Plan: Ref: `plans/12_CAMPAIGN_D3_VISUALIZER.md`
 - [x] **Risk Normalization:** Provide dynamic 0-100 scales for volatility.
 - [x] **Semantic Filtering:** Fix layer toggle behaviors and add node-label coloring/legends.
 ### Campaign 16: Critical UX Rescue (Physics & LLM Fixes)
-
 **Goal:** Resolve two critical regressions preventing effective use of the visualizer and semantic features: missing LLM domain naming due to metadata omissions in the streaming pipeline, and severe D3 physics instability during dynamic graph expansion.
-
 **Status:** Planned
-
 **Plan:** Ref: `plans/16_CAMPAIGN_CRITICAL_UX_RESCUE.md`
-
 **Key Deliverables:**
-
 - [ ] **LLM Domain Naming:** Fix `GetFunctionMetadata` to return line numbers and `atomic_features` so the Summarizer receives valid snippets.
-
 - [ ] **D3 Physics Stabilization:** Replace violent `forceCenter` with gentle positional forces and implement coordinated node spawning.
+
+### Campaign 17: RPG Naming & Navigation (UX Polish)
+**Goal:** Improve the semantic naming of sub-features and categories, and make the "Affected Pathways" sidebar interactive to enable seamless navigation between analysis and the visual graph.
+**Status:** Planned
+**Plan:** Ref: `plans/semantic_naming_and_navigation.md`
+**Key Deliverables:**
+- [ ] **Feature Naming Fallbacks:** Apply naming heuristics to all levels of the RPG hierarchy.
+- [ ] **Interactive Impact Sidebar:** Add click-to-focus/expand capabilities to sidebar items.
+- [ ] **Focus & Expand UI:** Implement robust viewport centering and automatic context expansion for focused nodes.
+
+---
 
 
 ### Campaign 13: The Spanner Backend (Storage Swap)

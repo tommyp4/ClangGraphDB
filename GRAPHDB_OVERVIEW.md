@@ -102,6 +102,14 @@ graph TD
 
 *   **Seams & Risks:**
     *   The `impact` and `seams` queries rely on the `CALLS` graph to calculate "Contamination". If a function touches a UI component or a database, that "risk" propagates up the `CALLS` edges to its callers.
+    *   **Pinch Points (Structural Seams):** A "chokepoint" in the call graph sitting between stable business logic and volatile dependencies (UI, DB, APIs).
+        *   **Logic:** Identified by high *Internal Fan-In* (non-volatile callers) and high *Volatile Fan-Out* (volatile callees).
+        *   **Implementation:** Backend Cypher query (`internal/query/neo4j.go`). 
+        *   **Threshold:** `internal_fan_in > 0 AND volatile_fan_out > 0`. Top 20 by risk (`Fan-In * Fan-Out`).
+    *   **Semantic Seams (Divergence Seams):** Identifies SRP violations within a container (File/Class) by finding function pairs with low semantic similarity.
+        *   **Logic:** Uses Cosine Similarity between vector embeddings.
+        *   **Implementation:** Backend Cypher query (`internal/query/neo4j_semantic_seams.go`).
+        *   **Threshold:** `similarity < 0.5` (Backend/CLI default) or `0.6` (UI default). Controlled via the `similarity` query parameter.
 
 ---
 
