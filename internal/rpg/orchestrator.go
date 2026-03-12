@@ -128,6 +128,21 @@ func (o *Orchestrator) RunEmbedding(batchSize int) error {
 	return nil
 }
 
+// CalculateDomainK determines the number of top-level domains based on unique file count.
+func CalculateDomainK(fileCount int) int {
+	if fileCount == 0 {
+		return 0
+	}
+	k := int(math.Sqrt(float64(fileCount) / 5.0))
+	if k < 5 {
+		return 5
+	}
+	if k > 50 {
+		return 50
+	}
+	return k
+}
+
 func (o *Orchestrator) RunClustering(dir string) error {
 	log.Println("Fetching embeddings for clustering...")
 	embeddings, err := o.Provider.GetEmbeddingsOnly()
@@ -135,40 +150,6 @@ func (o *Orchestrator) RunClustering(dir string) error {
 		return fmt.Errorf("failed to get embeddings: %w", err)
 	}
 	log.Printf("Loaded %d embeddings for clustering", len(embeddings))
-
-	clusterer := &EmbeddingClusterer{
-		Embedder:              o.Embedder,
-		PrecomputedEmbeddings: embeddings,
-		Seed:                  o.Seed,
-	}
-
-	innerGlobalClusterer := &EmbeddingClusterer{
-		Embedder:              o.Embedder,
-		PrecomputedEmbeddings: embeddings,
-		Seed:                  o.Seed,
-		KStrategy: func(n int) int {
-			if n == 0 {
-				return 0
-			}
-			k := int(math.Sqrt(float64(n) / 10.0))
-			if k < 2 {
-				return 2
-			}
-			return k
-		},
-	}
-
-	globalClusterer := &GlobalEmbeddingClusterer{
-		Inner:                 innerGlobalClusterer,
-		Summarizer:            o.Summarizer,
-		Loader:                snippet.SliceFile,
-		PrecomputedEmbeddings: embeddings,
-	}
-
-	builder := &Builder{
-		Clusterer:       clusterer,
-		GlobalClusterer: globalClusterer,
-	}
 
 	log.Println("Fetching function metadata for clustering...")
 	metadataNodes, err := o.Provider.GetFunctionMetadata()
@@ -183,7 +164,54 @@ func (o *Orchestrator) RunClustering(dir string) error {
 			functions = append(functions, *n)
 		}
 	}
-	
+
+	// Count unique files from function metadata
+	uniqueFiles := make(map[string]struct{})
+	for _, fn := range functions {
+		if file, ok := fn.Properties["file"].(string); ok {
+			uniqueFiles[file] = struct{}{}
+		}
+	}
+	fileCount := len(uniqueFiles)
+	log.Printf("Detected %d unique files across %d functions", fileCount, len(functions))
+
+	clusterer := &EmbeddingClusterer{
+		Embedder:              o.Embedder,
+		PrecomputedEmbeddings: embeddings,
+		Seed:                  o.Seed,
+	}
+
+	innerGlobalClusterer := &EmbeddingClusterer{
+		Embedder:              o.Embedder,
+		PrecomputedEmbeddings: embeddings,
+		Seed:                  o.Seed,
+		LogLabel:              "domain",
+		KStrategy: func(n int) int {
+			return CalculateDomainK(fileCount)
+		},
+	}
+
+	globalClusterer := &GlobalEmbeddingClusterer{
+		Inner:                 innerGlobalClusterer,
+		Summarizer:            o.Summarizer,
+		Loader:                snippet.SliceFile,
+		PrecomputedEmbeddings: embeddings,
+	}
+
+	builder := &Builder{
+		Clusterer:       clusterer,
+		GlobalClusterer: globalClusterer,
+		OnPhaseStart: func(phaseName string, total int) {
+			log.Printf("Clustering phase: %s (%d domains)", phaseName, total)
+		},
+		OnStepStart: func(stepName string) {
+			log.Printf("  Clustering domain: %s...", stepName)
+		},
+		OnStepEnd: func(stepName string) {
+			log.Printf("  Finished domain: %s", stepName)
+		},
+	}
+
 	log.Printf("Starting clustering with %d functions...", len(functions))
 
 	features, edges, err := builder.Build(dir, functions)
@@ -202,7 +230,7 @@ func (o *Orchestrator) RunClustering(dir string) error {
 		edgePointers = append(edgePointers, &allEdges[i])
 	}
 
-	log.Printf("Writing %d feature nodes and %d edges to database...", len(nodePointers), len(edgePointers))
+	log.Printf("Writing %d feature nodes and %d edges to database (batch size: 500)...", len(nodePointers), len(edgePointers))
 	if err := o.Provider.UpdateFeatureTopology(nodePointers, edgePointers); err != nil {
 		return fmt.Errorf("failed to write topology: %w", err)
 	}

@@ -144,7 +144,7 @@ func TestEnricher_Enrich_MissingProps(t *testing.T) {
 		Loader: mockLoader,
 	}
 	feature := &Feature{ID: "feat-temp", Name: "Cluster-001"}
-	
+
 	// Missing file/line props should result in empty snippets, handled gracefully
 	functions := []graph.Node{
 		{Properties: map[string]interface{}{"other": "val"}},

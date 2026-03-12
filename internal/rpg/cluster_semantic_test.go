@@ -181,7 +181,7 @@ func TestKmeans_Basic(t *testing.T) {
 		{0, 1},
 		{0.1, 0.9},
 	}
-	assignments := kmeans(vectors, 2, 50, 42)
+	assignments := kmeans(vectors, 2, 50, 42, "cluster")
 
 	// First two should be in one cluster, last two in another
 	if assignments[0] != assignments[1] {
@@ -204,11 +204,11 @@ func TestKmeans_Deterministic(t *testing.T) {
 		{0, 0, 1},
 		{0, 0.1, 0.9},
 	}
-	
+
 	seed := int64(123)
-	a1 := kmeans(vectors, 3, 50, seed)
-	a2 := kmeans(vectors, 3, 50, seed)
-	
+	a1 := kmeans(vectors, 3, 50, seed, "cluster")
+	a2 := kmeans(vectors, 3, 50, seed, "cluster")
+
 	for i := range a1 {
 		if a1[i] != a2[i] {
 			t.Errorf("kmeans with same seed was non-deterministic at index %d: %v vs %v", i, a1, a2)

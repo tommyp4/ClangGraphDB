@@ -8,120 +8,164 @@ import (
 )
 
 type MockGraphProvider struct {
-	GetUnextractedFunctionsFn  func(limit int) ([]*graph.Node, error)
-	UpdateAtomicFeaturesFn     func(id string, features []string) error
-	GetUnembeddedNodesFn       func(limit int) ([]*graph.Node, error)
-	UpdateEmbeddingsFn         func(id string, embedding []float32) error
-	GetEmbeddingsOnlyFn        func() (map[string][]float32, error)
-	GetUnnamedFeaturesFn       func(limit int) ([]*graph.Node, error)
-	CountUnnamedFeaturesFn     func() (int64, error)
-	UpdateFeatureTopologyFn    func(nodes []*graph.Node, edges []*graph.Edge) error
-	UpdateFeatureSummaryFn     func(id string, name string, summary string) error
-	GetFunctionMetadataFn      func() ([]*graph.Node, error)
-	ExploreDomainFn            func(featureID string) (*query.DomainExplorationResult, error)
+	GetUnextractedFunctionsFn func(limit int) ([]*graph.Node, error)
+	UpdateAtomicFeaturesFn    func(id string, features []string) error
+	GetUnembeddedNodesFn      func(limit int) ([]*graph.Node, error)
+	UpdateEmbeddingsFn        func(id string, embedding []float32) error
+	GetEmbeddingsOnlyFn       func() (map[string][]float32, error)
+	GetUnnamedFeaturesFn      func(limit int) ([]*graph.Node, error)
+	CountUnnamedFeaturesFn    func() (int64, error)
+	UpdateFeatureTopologyFn   func(nodes []*graph.Node, edges []*graph.Edge) error
+	UpdateFeatureSummaryFn    func(id string, name string, summary string) error
+	GetFunctionMetadataFn     func() ([]*graph.Node, error)
+	ExploreDomainFn           func(featureID string) (*query.DomainExplorationResult, error)
 }
 
 func (m *MockGraphProvider) Close() error { return nil }
-func (m *MockGraphProvider) Traverse(startNodeID string, relationship string, direction query.Direction, depth int) ([]*graph.Path, error) { return nil, nil }
-func (m *MockGraphProvider) SearchFeatures(embedding []float32, limit int) ([]*query.FeatureResult, error) { return nil, nil }
-func (m *MockGraphProvider) SearchSimilarFunctions(embedding []float32, limit int) ([]*query.FeatureResult, error) { return nil, nil }
-func (m *MockGraphProvider) GetNeighbors(nodeID string, depth int) (*query.NeighborResult, error) { return nil, nil }
+func (m *MockGraphProvider) Traverse(startNodeID string, relationship string, direction query.Direction, depth int) ([]*graph.Path, error) {
+	return nil, nil
+}
+func (m *MockGraphProvider) SearchFeatures(embedding []float32, limit int) ([]*query.FeatureResult, error) {
+	return nil, nil
+}
+func (m *MockGraphProvider) SearchSimilarFunctions(embedding []float32, limit int) ([]*query.FeatureResult, error) {
+	return nil, nil
+}
+func (m *MockGraphProvider) GetNeighbors(nodeID string, depth int) (*query.NeighborResult, error) {
+	return nil, nil
+}
 func (m *MockGraphProvider) GetCallers(nodeID string) ([]string, error) { return nil, nil }
-func (m *MockGraphProvider) GetImpact(nodeID string, depth int) (*query.ImpactResult, error) { return nil, nil }
-func (m *MockGraphProvider) GetGlobals(nodeID string) (*query.GlobalUsageResult, error) { return nil, nil }
+func (m *MockGraphProvider) GetImpact(nodeID string, depth int) (*query.ImpactResult, error) {
+	return nil, nil
+}
+func (m *MockGraphProvider) GetGlobals(nodeID string) (*query.GlobalUsageResult, error) {
+	return nil, nil
+}
 func (m *MockGraphProvider) GetSeams(modulePattern string, layer string) ([]*query.SeamResult, error) {
 	return nil, nil
 }
-func (m *MockGraphProvider) GetHotspots(modulePattern string) ([]*query.HotspotResult, error) { return nil, nil }
+func (m *MockGraphProvider) GetHotspots(modulePattern string) ([]*query.HotspotResult, error) {
+	return nil, nil
+}
 func (m *MockGraphProvider) FetchSource(nodeID string) (string, error) { return "", nil }
-func (m *MockGraphProvider) LocateUsage(sourceID string, targetID string) (any, error) { return nil, nil }
-func (m *MockGraphProvider) GetGraphState() (string, error) { return "", nil }
-func (m *MockGraphProvider) SemanticTrace(nodeID string) ([]*graph.Path, error) { return nil, nil }
-func (m *MockGraphProvider) GetOverview() (*graph.Path, error) { return nil, nil }
+func (m *MockGraphProvider) LocateUsage(sourceID string, targetID string) (any, error) {
+	return nil, nil
+}
+func (m *MockGraphProvider) GetGraphState() (string, error)                       { return "", nil }
+func (m *MockGraphProvider) SemanticTrace(nodeID string) ([]*graph.Path, error)   { return nil, nil }
+func (m *MockGraphProvider) GetOverview() (*graph.Path, error)                    { return nil, nil }
 func (m *MockGraphProvider) WhatIf(targets []string) (*query.WhatIfResult, error) { return nil, nil }
 func (m *MockGraphProvider) GetSemanticSeams(ctx context.Context, similarityThreshold float64) ([]*query.SemanticSeamResult, error) {
 	return nil, nil
 }
 
 func (m *MockGraphProvider) GetCoverage(nodeID string) ([]*graph.Node, error) { return nil, nil }
-func (m *MockGraphProvider) LinkTests() error { return nil }
+func (m *MockGraphProvider) LinkTests() error                                 { return nil }
 
 func (m *MockGraphProvider) SeedVolatility(modulePattern string, rules []query.ContaminationRule) error {
 	return nil
 }
 func (m *MockGraphProvider) PropagateVolatility() error { return nil }
-func (m *MockGraphProvider) CalculateRiskScores() error               { return nil }
-func (m *MockGraphProvider) UpdateFileHistory(metrics map[string]query.FileHistoryMetrics) error { return nil }
+func (m *MockGraphProvider) CalculateRiskScores() error { return nil }
+func (m *MockGraphProvider) UpdateFileHistory(metrics map[string]query.FileHistoryMetrics) error {
+	return nil
+}
 
 func (m *MockGraphProvider) GetUnextractedFunctions(limit int) ([]*graph.Node, error) {
-	if m.GetUnextractedFunctionsFn != nil { return m.GetUnextractedFunctionsFn(limit) }
+	if m.GetUnextractedFunctionsFn != nil {
+		return m.GetUnextractedFunctionsFn(limit)
+	}
 	return nil, nil
 }
 func (m *MockGraphProvider) UpdateAtomicFeatures(id string, features []string) error {
-	if m.UpdateAtomicFeaturesFn != nil { return m.UpdateAtomicFeaturesFn(id, features) }
+	if m.UpdateAtomicFeaturesFn != nil {
+		return m.UpdateAtomicFeaturesFn(id, features)
+	}
 	return nil
 }
 func (m *MockGraphProvider) GetUnembeddedNodes(limit int) ([]*graph.Node, error) {
-	if m.GetUnembeddedNodesFn != nil { return m.GetUnembeddedNodesFn(limit) }
+	if m.GetUnembeddedNodesFn != nil {
+		return m.GetUnembeddedNodesFn(limit)
+	}
 	return nil, nil
 }
 func (m *MockGraphProvider) UpdateEmbeddings(id string, embedding []float32) error {
-	if m.UpdateEmbeddingsFn != nil { return m.UpdateEmbeddingsFn(id, embedding) }
+	if m.UpdateEmbeddingsFn != nil {
+		return m.UpdateEmbeddingsFn(id, embedding)
+	}
 	return nil
 }
 func (m *MockGraphProvider) GetEmbeddingsOnly() (map[string][]float32, error) {
-	if m.GetEmbeddingsOnlyFn != nil { return m.GetEmbeddingsOnlyFn() }
+	if m.GetEmbeddingsOnlyFn != nil {
+		return m.GetEmbeddingsOnlyFn()
+	}
 	return nil, nil
 }
 func (m *MockGraphProvider) GetUnnamedFeatures(limit int) ([]*graph.Node, error) {
-	if m.GetUnnamedFeaturesFn != nil { return m.GetUnnamedFeaturesFn(limit) }
+	if m.GetUnnamedFeaturesFn != nil {
+		return m.GetUnnamedFeaturesFn(limit)
+	}
 	return nil, nil
 }
 func (m *MockGraphProvider) CountUnnamedFeatures() (int64, error) {
-	if m.CountUnnamedFeaturesFn != nil { return m.CountUnnamedFeaturesFn() }
+	if m.CountUnnamedFeaturesFn != nil {
+		return m.CountUnnamedFeaturesFn()
+	}
 	return 0, nil
 }
 func (m *MockGraphProvider) UpdateFeatureTopology(nodes []*graph.Node, edges []*graph.Edge) error {
-	if m.UpdateFeatureTopologyFn != nil { return m.UpdateFeatureTopologyFn(nodes, edges) }
+	if m.UpdateFeatureTopologyFn != nil {
+		return m.UpdateFeatureTopologyFn(nodes, edges)
+	}
 	return nil
 }
 func (m *MockGraphProvider) UpdateFeatureSummary(id string, name string, summary string) error {
-	if m.UpdateFeatureSummaryFn != nil { return m.UpdateFeatureSummaryFn(id, name, summary) }
+	if m.UpdateFeatureSummaryFn != nil {
+		return m.UpdateFeatureSummaryFn(id, name, summary)
+	}
 	return nil
 }
 
 func (m *MockGraphProvider) GetFunctionMetadata() ([]*graph.Node, error) {
-	if m.GetFunctionMetadataFn != nil { return m.GetFunctionMetadataFn() }
+	if m.GetFunctionMetadataFn != nil {
+		return m.GetFunctionMetadataFn()
+	}
 	return nil, nil
 }
 func (m *MockGraphProvider) ExploreDomain(featureID string) (*query.DomainExplorationResult, error) {
-	if m.ExploreDomainFn != nil { return m.ExploreDomainFn(featureID) }
+	if m.ExploreDomainFn != nil {
+		return m.ExploreDomainFn(featureID)
+	}
 	return nil, nil
 }
 
 func TestOrchestratorExtraction(t *testing.T) {
 	mockProvider := &MockGraphProvider{}
-	
+
 	callCount := 0
 	mockProvider.GetUnextractedFunctionsFn = func(limit int) ([]*graph.Node, error) {
-		if callCount > 0 { return nil, nil }
+		if callCount > 0 {
+			return nil, nil
+		}
 		callCount++
 		return []*graph.Node{
 			{ID: "f1", Properties: map[string]any{"name": "testFunc", "file": "test.go", "start_line": 1, "end_line": 2}},
 		}, nil
 	}
-	
+
 	updateCount := 0
 	mockProvider.UpdateAtomicFeaturesFn = func(id string, features []string) error {
 		updateCount++
-		if id != "f1" { t.Errorf("Expected f1, got %s", id) }
+		if id != "f1" {
+			t.Errorf("Expected f1, got %s", id)
+		}
 		return nil
 	}
 
 	extractor := &MockFeatureExtractor{}
 
 	orchestrator := &Orchestrator{
-		Provider: mockProvider,
+		Provider:  mockProvider,
 		Extractor: extractor,
 	}
 
@@ -129,7 +173,7 @@ func TestOrchestratorExtraction(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RunExtraction failed: %v", err)
 	}
-	
+
 	if updateCount != 1 {
 		t.Errorf("Expected 1 update, got %d", updateCount)
 	}
@@ -137,20 +181,24 @@ func TestOrchestratorExtraction(t *testing.T) {
 
 func TestOrchestratorEmbedding(t *testing.T) {
 	mockProvider := &MockGraphProvider{}
-	
+
 	callCount := 0
 	mockProvider.GetUnembeddedNodesFn = func(limit int) ([]*graph.Node, error) {
-		if callCount > 0 { return nil, nil }
+		if callCount > 0 {
+			return nil, nil
+		}
 		callCount++
 		return []*graph.Node{
 			{ID: "f1", Label: "Function", Properties: map[string]any{"name": "testFunc"}},
 		}, nil
 	}
-	
+
 	updateCount := 0
 	mockProvider.UpdateEmbeddingsFn = func(id string, embedding []float32) error {
 		updateCount++
-		if id != "f1" { t.Errorf("Expected f1, got %s", id) }
+		if id != "f1" {
+			t.Errorf("Expected f1, got %s", id)
+		}
 		return nil
 	}
 
@@ -163,8 +211,78 @@ func TestOrchestratorEmbedding(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RunEmbedding failed: %v", err)
 	}
-	
+
 	if updateCount != 1 {
 		t.Errorf("Expected 1 update, got %d", updateCount)
+	}
+}
+
+func TestOrchestratorClustering(t *testing.T) {
+	mockProvider := &MockGraphProvider{}
+
+	// Setup embeddings
+	mockProvider.GetEmbeddingsOnlyFn = func() (map[string][]float32, error) {
+		return map[string][]float32{
+			"f1": {0.1},
+			"f2": {0.2},
+		}, nil
+	}
+
+	// Setup function metadata
+	mockProvider.GetFunctionMetadataFn = func() ([]*graph.Node, error) {
+		return []*graph.Node{
+			{ID: "f1", Properties: map[string]any{"file": "file1.go"}},
+			{ID: "f2", Properties: map[string]any{"file": "file2.go"}},
+		}, nil
+	}
+
+	updateTopologyCalled := false
+	mockProvider.UpdateFeatureTopologyFn = func(nodes []*graph.Node, edges []*graph.Edge) error {
+		updateTopologyCalled = true
+		return nil
+	}
+
+	orchestrator := &Orchestrator{
+		Provider:   mockProvider,
+		Embedder:   &MockEmbedder{},
+		Summarizer: &MockSummarizer{},
+		Seed:       42,
+	}
+
+	err := orchestrator.RunClustering(".")
+	if err != nil {
+		t.Fatalf("RunClustering failed: %v", err)
+	}
+
+	if !updateTopologyCalled {
+		t.Errorf("Expected UpdateFeatureTopology to be called")
+	}
+}
+
+func TestCalculateDomainK(t *testing.T) {
+	tests := []struct {
+		name      string
+		fileCount int
+		expected  int
+	}{
+		{"Zero files", 0, 0},
+		{"Very small (hits floor)", 10, 5},
+		{"Small (hits floor)", 50, 5},
+		{"Small-Med", 200, 6},
+		{"Medium", 1000, 14},
+		{"Medium-Large", 2000, 20},
+		{"Large", 5000, 31},
+		{"Very Large", 10000, 44},
+		{"Massive (hits ceiling)", 33000, 50},
+		{"Excessive (stays at ceiling)", 100000, 50},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := CalculateDomainK(tt.fileCount)
+			if result != tt.expected {
+				t.Errorf("CalculateDomainK(%d) = %d; expected %d", tt.fileCount, result, tt.expected)
+			}
+		})
 	}
 }

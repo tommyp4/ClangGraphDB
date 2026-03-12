@@ -42,7 +42,7 @@ func TestBuilder_GlobalBuild(t *testing.T) {
 		// Assuming MockClusterer is defined there.
 		// If not, we need to redefine it here or make sure they share the package scope.
 		// Since both are package 'rpg', they share it.
-		Clusterer: &MockClusterer{}, 
+		Clusterer: &MockClusterer{},
 	}
 
 	// Input: Functions
@@ -74,7 +74,7 @@ func TestBuilder_GlobalBuild(t *testing.T) {
 
 	for _, f := range features {
 		t.Logf("Found feature: ID=%s Name=%s ScopePath=%s", f.ID, f.Name, f.ScopePath)
-		
+
 		// Check for Auth System
 		if f.Name == "Auth System" {
 			foundAuth = true

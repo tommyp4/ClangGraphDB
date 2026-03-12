@@ -12,7 +12,7 @@ type Clusterer interface {
 }
 
 type Builder struct {
-	Clusterer  Clusterer
+	Clusterer Clusterer
 	// GlobalClusterer enables global discovery mode (inverted flow).
 	// It clusters all functions first, then grounds them to domains.
 	GlobalClusterer Clusterer
@@ -29,7 +29,7 @@ type Builder struct {
 
 func (b *Builder) Build(rootPath string, functions []graph.Node) ([]Feature, []graph.Edge, error) {
 	if b.GlobalClusterer == nil {
-		// Fallback or Error? 
+		// Fallback or Error?
 		// Since we removed Directory Discovery, GlobalClusterer is mandatory.
 		// However, for backward compatibility or testing, we might want a default?
 		// But we don't have a default discovery anymore.
@@ -79,7 +79,7 @@ func (b *Builder) buildGlobal(rootPath string, functions []graph.Node) ([]Featur
 		if lca == "" {
 			lca = rootPath
 		}
-		
+
 		// 3. Identification
 		// Prioritize semantic name from GlobalClusterer unless it's a raw cluster ID
 		var domainName string
@@ -98,7 +98,7 @@ func (b *Builder) buildGlobal(rootPath string, functions []graph.Node) ([]Featur
 			ScopePath: lca,
 			Children:  make([]*Feature, 0),
 		}
-		
+
 		// In Global Mode, 'nodes' ARE the members. No filtering needed.
 		domainFeature.MemberFunctions = nodes
 
@@ -122,7 +122,7 @@ func (b *Builder) buildGlobal(rootPath string, functions []graph.Node) ([]Featur
 func (b *Builder) buildTwoLevel(domain *Feature, funcs []graph.Node, name, pathPrefix string, allEdges []graph.Edge) []graph.Edge {
 	// Use domain ID as the key for clustering if name is not unique globally, but here we use name as per interface
 	clusters, _ := b.Clusterer.Cluster(funcs, name)
-	
+
 	// Sort cluster names for deterministic order
 	clusterNames := make([]string, 0, len(clusters))
 	for k := range clusters {
@@ -132,7 +132,7 @@ func (b *Builder) buildTwoLevel(domain *Feature, funcs []graph.Node, name, pathP
 
 	for _, clusterName := range clusterNames {
 		nodes := clusters[clusterName]
-		
+
 		var name string
 		var id string
 		if strings.HasPrefix(clusterName, "cluster-") || strings.HasPrefix(clusterName, "Feature-") {
@@ -172,7 +172,7 @@ func (b *Builder) buildTwoLevel(domain *Feature, funcs []graph.Node, name, pathP
 func (b *Builder) buildThreeLevel(domain *Feature, funcs []graph.Node, name, pathPrefix string, allEdges []graph.Edge) []graph.Edge {
 	// First pass: coarse clustering into categories
 	categories, _ := b.CategoryClusterer.Cluster(funcs, name)
-	
+
 	catNames := make([]string, 0, len(categories))
 	for k := range categories {
 		catNames = append(catNames, k)
@@ -181,7 +181,7 @@ func (b *Builder) buildThreeLevel(domain *Feature, funcs []graph.Node, name, pat
 
 	for _, catName := range catNames {
 		catNodes := categories[catName]
-		
+
 		var categoryName string
 		var categoryID string
 		if strings.HasPrefix(catName, "cluster-") || strings.HasPrefix(catName, "Feature-") {
@@ -208,7 +208,7 @@ func (b *Builder) buildThreeLevel(domain *Feature, funcs []graph.Node, name, pat
 
 		// Second pass: fine-grained clustering within each category
 		features, _ := b.Clusterer.Cluster(catNodes, catName)
-		
+
 		featNames := make([]string, 0, len(features))
 		for k := range features {
 			featNames = append(featNames, k)
@@ -217,7 +217,7 @@ func (b *Builder) buildThreeLevel(domain *Feature, funcs []graph.Node, name, pat
 
 		for _, featName := range featNames {
 			featNodes := features[featName]
-			
+
 			var featureName string
 			var featureID string
 			if strings.HasPrefix(featName, "cluster-") || strings.HasPrefix(featName, "Feature-") {

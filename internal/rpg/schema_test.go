@@ -36,7 +36,7 @@ func TestFeature_ToNode(t *testing.T) {
 	if props["scope_path"] != "src/auth" {
 		t.Errorf("expected property 'scope_path' to be 'src/auth', got '%v'", props["scope_path"])
 	}
-	
+
 	// Check embedding
 	emb, ok := props["embedding"].([]float32)
 	if !ok {

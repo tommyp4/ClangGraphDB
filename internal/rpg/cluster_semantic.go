@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"graphdb/internal/embedding"
 	"graphdb/internal/graph"
+	"log"
 	"math"
 	"math/rand"
 )
@@ -16,6 +17,7 @@ type EmbeddingClusterer struct {
 	PrecomputedEmbeddings map[string][]float32
 	KStrategy             func(n int) int // Optional custom K calculation
 	Seed                  int64           // Seed for K-Means initialization
+	LogLabel              string          // Label for log messages (e.g. "domain", "cluster")
 }
 
 func (c *EmbeddingClusterer) Cluster(nodes []graph.Node, domain string) (map[string][]graph.Node, error) {
@@ -73,7 +75,7 @@ func (c *EmbeddingClusterer) Cluster(nodes []graph.Node, domain string) (map[str
 		// Default: target 3-8 functions per cluster
 		k = len(nodes) / 5
 	}
-	
+
 	if k < 2 {
 		k = 2
 	}
@@ -86,7 +88,12 @@ func (c *EmbeddingClusterer) Cluster(nodes []graph.Node, domain string) (map[str
 	if maxIter <= 0 {
 		maxIter = 50
 	}
-	assignments := kmeans(embeddings, k, maxIter, c.Seed)
+	label := c.LogLabel
+	if label == "" {
+		label = "feature"
+	}
+	log.Printf("Grouping %d functions into %d %ss...", len(nodes), k, label)
+	assignments := kmeans(embeddings, k, maxIter, c.Seed, label)
 
 	// 5. Group nodes by cluster assignment
 	clusters := make(map[string][]graph.Node)
@@ -105,7 +112,7 @@ func (c *EmbeddingClusterer) Cluster(nodes []graph.Node, domain string) (map[str
 
 // kmeans runs K-Means clustering on a set of vectors.
 // Returns a slice of cluster assignments (one per input vector).
-func kmeans(vectors [][]float32, k int, maxIterations int, seed int64) []int {
+func kmeans(vectors [][]float32, k int, maxIterations int, seed int64, label string) []int {
 	n := len(vectors)
 	if n == 0 || k <= 0 {
 		return nil
@@ -113,12 +120,13 @@ func kmeans(vectors [][]float32, k int, maxIterations int, seed int64) []int {
 	dim := len(vectors[0])
 
 	// Initialize centroids using K-Means++ initialization
-	centroids := kmeansppInit(vectors, k, seed)
+	centroids := kmeansppInit(vectors, k, seed, label)
 
 	assignments := make([]int, n)
 
 	for iter := 0; iter < maxIterations; iter++ {
 		changed := false
+		log.Printf("Refining %ss, pass %d/%d", label, iter+1, maxIterations)
 
 		// Assign each vector to nearest centroid
 		for i, v := range vectors {
@@ -168,7 +176,7 @@ func kmeans(vectors [][]float32, k int, maxIterations int, seed int64) []int {
 }
 
 // kmeansppInit selects initial centroids using K-Means++ algorithm.
-func kmeansppInit(vectors [][]float32, k int, seed int64) [][]float32 {
+func kmeansppInit(vectors [][]float32, k int, seed int64, label string) [][]float32 {
 	n := len(vectors)
 	centroids := make([][]float32, 0, k)
 	rng := rand.New(rand.NewSource(seed))
@@ -178,6 +186,9 @@ func kmeansppInit(vectors [][]float32, k int, seed int64) [][]float32 {
 	centroids = append(centroids, vectors[first])
 
 	for len(centroids) < k {
+		if len(centroids)%10 == 0 {
+			log.Printf("Seeding %s %d/%d", label, len(centroids), k)
+		}
 		// Compute distances to nearest centroid
 		dists := make([]float64, n)
 		total := 0.0

@@ -34,10 +34,8 @@ timeout_mins: 10
 When creating a plan, follow this process:
 
 ### 1. Investigation Phase
-*   **Mandatory Skill Usage:** You MUST use the `graphdb` skill to map the territory.
-*   **Discovery:** Use `find_implicit_links.js` to find code by concept or pattern (e.g., "Auth logic", "ILogger constructors").
-*   **Structure:** Use `query_graph.js` to map hard dependencies.
-*   **Prohibition:** Do NOT rely on file names or directory listings alone. Do NOT use `grep`.
+*   **Deep Investigation:** Perform a comprehensive analysis of the codebase to understand existing patterns, dependencies, and business logic.
+*   **No Guessing:** If you are unsure about the behavior of a system or the impact of a change, investigate until you have empirical evidence. Do NOT rely on file names or directory listings alone.
 
 ### 2. Analysis & Reasoning
 *   Document findings: What exists? What needs to change? Why?

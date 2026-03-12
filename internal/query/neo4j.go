@@ -7,6 +7,7 @@ import (
 	"graphdb/internal/graph"
 	"graphdb/internal/tools/snippet"
 	"strings"
+	"time"
 
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j/dbtype"
@@ -22,7 +23,11 @@ type Neo4jProvider struct {
 func NewNeo4jProvider(cfg config.Config) (*Neo4jProvider, error) {
 	auth := neo4j.BasicAuth(cfg.Neo4jUser, cfg.Neo4jPassword, "")
 
-	driver, err := neo4j.NewDriverWithContext(cfg.Neo4jURI, auth)
+	driver, err := neo4j.NewDriverWithContext(cfg.Neo4jURI, auth, func(c *neo4j.Config) {
+		c.MaxTransactionRetryTime = 30 * time.Second
+		c.SocketKeepalive = true
+		c.ConnectionLivenessCheckTimeout = 1 * time.Minute
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create neo4j driver: %w", err)
 	}

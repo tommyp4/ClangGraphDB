@@ -25,9 +25,9 @@ func TestNeo4jBatchOperations(t *testing.T) {
 
 	// Setup initial state for batch tests
 	setupQuery := `
-		CREATE (f1:Function {id: 'batch-test-f1', file: 'f1.go', line: 1, start_line: 1, end_line: 10, content: 'func f1() {}'})
-		CREATE (f2:Function {id: 'batch-test-f2', file: 'f2.go', line: 11, start_line: 11, end_line: 20, content: 'func f2() {}'})
-		CREATE (f3:Function {id: 'batch-test-f3', name: 'f3', file: 'f3.go', line: 21, start_line: 21, end_line: 30, content: 'func f3() {}', atomic_features: ['feature1']})
+		CREATE (f1:Function:CodeElement {id: 'batch-test-f1', file: 'f1.go', line: 1, start_line: 1, end_line: 10, content: 'func f1() {}'})
+		CREATE (f2:Function:CodeElement {id: 'batch-test-f2', file: 'f2.go', line: 11, start_line: 11, end_line: 20, content: 'func f2() {}'})
+		CREATE (f3:Function:CodeElement {id: 'batch-test-f3', name: 'f3', file: 'f3.go', line: 21, start_line: 21, end_line: 30, content: 'func f3() {}', atomic_features: ['feature1']})
 		CREATE (feat1:Feature {id: 'batch-test-feat1'})
 		CREATE (feat2:Feature {id: 'batch-test-feat2', name: 'Existing Name', summary: 'Existing Summary'})
 		CREATE (feat3:Feature {id: 'batch-test-feat-semi', name: 'Some Name'})
@@ -186,9 +186,23 @@ func TestNeo4jBatchOperations(t *testing.T) {
 		t.Fatalf("UpdateFeatureTopology failed: %v", err)
 	}
 	
-	// Verify topology update by querying it directly
+	// Verify topology update: node should have :CodeElement label
+	labelQuery := `
+		MATCH (n:CodeElement {id: 'batch-test-feat3'})
+		RETURN count(n) as count
+	`
+	labelRes, err := neo4j.ExecuteQuery(p.ctx, p.driver, labelQuery, nil, neo4j.EagerResultTransformer)
+	if err != nil || len(labelRes.Records) == 0 {
+		t.Fatalf("Failed to verify CodeElement label: %v", err)
+	}
+	labelCount, _, _ := neo4j.GetRecordValue[int64](labelRes.Records[0], "count")
+	if labelCount != 1 {
+		t.Errorf("Expected batch-test-feat3 to have :CodeElement label, got count %d", labelCount)
+	}
+
+	// Verify topology update by querying the edge
 	query := `
-		MATCH (s {id: 'batch-test-feat3'})-[r:CONTAINS]->(t {id: 'batch-test-f1'})
+		MATCH (s:CodeElement {id: 'batch-test-feat3'})-[r:CONTAINS]->(t:CodeElement {id: 'batch-test-f1'})
 		RETURN count(r) as count
 	`
 	res, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, nil, neo4j.EagerResultTransformer)

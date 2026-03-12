@@ -28,8 +28,12 @@ func (c *GlobalEmbeddingClusterer) Cluster(nodes []graph.Node, domain string) (m
 
 	namedClusters := make(map[string][]graph.Node)
 
+	log.Printf("Global clustering produced %d raw clusters, generating semantic names...", len(rawClusters))
+
 	// 2. Process each raw cluster to generate a semantic name
+	clusterIdx := 0
 	for _, clusterNodes := range rawClusters {
+		clusterIdx++
 		if len(clusterNodes) == 0 {
 			continue
 		}
@@ -44,6 +48,7 @@ func (c *GlobalEmbeddingClusterer) Cluster(nodes []graph.Node, domain string) (m
 		snippets := c.collectSnippets(representatives)
 
 		// Generate Name
+		log.Printf("  Naming domain %d/%d (%d functions)...", clusterIdx, len(rawClusters), len(clusterNodes))
 		name, _, err := c.Summarizer.Summarize(snippets)
 		if err != nil {
 			log.Printf("Warning: domain summarization failed: %v", err)
@@ -72,7 +77,7 @@ func (c *GlobalEmbeddingClusterer) calculateCentroid(nodes []graph.Node) []float
 	if len(nodes) == 0 {
 		return nil
 	}
-	
+
 	// Assume all embeddings have same dimension. Find first valid one to get dim.
 	var dim int
 	for _, n := range nodes {
@@ -150,7 +155,7 @@ func (c *GlobalEmbeddingClusterer) collectSnippets(nodes []graph.Node) []string 
 			file, okFile := n.Properties["file"].(string)
 			line, okLine := getInt(n.Properties["line"])
 			endLine, okEnd := getInt(n.Properties["end_line"])
-			
+
 			if okFile && okLine && okEnd {
 				content, err := c.Loader(file, line, endLine)
 				if err == nil && content != "" {

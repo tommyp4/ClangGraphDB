@@ -37,7 +37,7 @@ func FindLowestCommonAncestor(paths []string) string {
 			// If we hit the root/current dir limit and we still need to go up..
 			if parent == common {
 				// We can't go higher.
-				// This handles cases where we are at root "/" or current "." 
+				// This handles cases where we are at root "/" or current "."
 				// and the target path requires going up (e.g. ".." relative path).
 				// We consider this "no common ancestor" within the scope of the paths provided.
 				return ""

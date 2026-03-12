@@ -19,7 +19,7 @@ var (
 func GenerateDomainName(lca string, nodes []graph.Node) string {
 	// 1. Analyze LCA
 	base := filepath.Base(lca)
-	
+
 	// Normalize base for root/empty
 	if lca == "." || lca == "" || lca == "/" {
 		base = "."
@@ -45,7 +45,7 @@ func GenerateDomainName(lca string, nodes []graph.Node) string {
 
 func findDominantTerm(nodes []graph.Node) string {
 	counts := make(map[string]int)
-	
+
 	for _, n := range nodes {
 		nameVal, ok := n.Properties["name"]
 		if !ok {
@@ -59,7 +59,7 @@ func findDominantTerm(nodes []graph.Node) string {
 		words := splitNameIntoWords(name)
 		for _, w := range words {
 			// Filter out common short words or too generic ones could be added here
-			if len(w) > 2 { 
+			if len(w) > 2 {
 				counts[strings.ToLower(w)]++
 			}
 		}

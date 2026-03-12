@@ -1,0 +1,326 @@
+<html class="dark"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#137fec",
+            "background-light": "#f6f7f8",
+            "background-dark": "#101922",
+            "impact-high": "#ef4444",
+            "impact-medium": "#f97316",
+          },
+          fontFamily: {
+            "display": ["Space Grotesk"]
+          },
+          borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+        },
+      },
+    }
+  </script>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100">
+<div class="relative flex h-auto min-screen w-full flex-col overflow-x-hidden">
+<div class="layout-container flex h-full grow flex-col">
+<!-- Top Navigation Bar -->
+<header class="flex items-center justify-between whitespace-nowrap border-b border-slate-200 dark:border-slate-800 px-6 py-3 bg-white dark:bg-background-dark/50 backdrop-blur-md sticky top-0 z-50">
+<div class="flex items-center gap-8">
+<div class="flex items-center gap-3 text-primary">
+<div class="size-6">
+<svg fill="none" viewbox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+<path d="M24 4C25.7818 14.2173 33.7827 22.2182 44 24C33.7827 25.7818 25.7818 33.7827 24 44C22.2182 33.7827 14.2173 25.7818 4 24C14.2173 22.2182 22.2182 14.2173 24 4Z" fill="currentColor"></path>
+</svg>
+</div>
+<h2 class="text-slate-900 dark:text-slate-100 text-lg font-bold leading-tight tracking-[-0.015em]">GraphDB Analysis</h2>
+</div>
+<nav class="hidden md:flex items-center gap-6">
+<a class="text-slate-600 dark:text-slate-400 hover:text-primary dark:hover:text-primary text-sm font-medium transition-colors" href="#">Explorer</a>
+<a class="text-primary text-sm font-bold border-b-2 border-primary pb-1" href="#">Blast Radius</a>
+<a class="text-slate-600 dark:text-slate-400 hover:text-primary dark:hover:text-primary text-sm font-medium transition-colors" href="#">Query</a>
+<a class="text-slate-600 dark:text-slate-400 hover:text-primary dark:hover:text-primary text-sm font-medium transition-colors" href="#">Settings</a>
+</nav>
+</div>
+<div class="flex flex-1 justify-end gap-4 items-center">
+<label class="hidden sm:flex flex-col min-w-40 h-10 max-w-64">
+<div class="flex w-full flex-1 items-stretch rounded-lg bg-slate-100 dark:bg-slate-800">
+<div class="text-slate-500 flex items-center justify-center pl-3">
+<span class="material-symbols-outlined text-xl">search</span>
+</div>
+<input class="bg-transparent border-none focus:ring-0 text-sm w-full px-2 text-slate-900 dark:text-slate-100 placeholder:text-slate-500" placeholder="Search components..." value=""/>
+</div>
+</label>
+<div class="flex gap-2">
+<button class="flex size-10 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="flex size-10 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+</div>
+<div class="bg-slate-200 dark:bg-slate-700 aspect-square rounded-full size-10 overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="User avatar placeholder" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDx_W8SFWbsdpxB0NUoICjHdEkXg3zdMpaX_w00nGX-_onkb5KzA979IKtKk6_rohRgVFXitVNvcI1L_ETUx4w8aqWZYteSQC8Z5AYek2Ex8nSGcdQ8z33sFOBWuRozRj1GKnVVvZSkh5ssE8BzhYHb2YstIGASfxl4vqZzD3dDb6HsiIsoTYh6NxUc-2DYXLI2Q9cWKxtK41wqAbxSTiTqZ6DrICwbl8MrxKVvpP5dVGeOfALOXq4E_p0SorJP1QzQAPti5Z8n8mKx"/>
+</div>
+</div>
+</header>
+<main class="flex flex-1 flex-col lg:flex-row h-[calc(100vh-64px)] overflow-hidden">
+<!-- Sidebar Navigation -->
+<aside class="hidden lg:flex w-64 flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-background-dark p-4 shrink-0 overflow-y-auto">
+<div class="flex flex-col gap-6">
+<div class="flex flex-col">
+<h1 class="text-slate-900 dark:text-slate-100 text-base font-bold">Analysis Mode</h1>
+<p class="text-slate-500 text-xs font-normal">Project Alpha / V2.4.0</p>
+</div>
+<nav class="flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined text-xl">dashboard</span>
+<span class="text-sm font-medium">Overview</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined text-xl">account_tree</span>
+<span class="text-sm font-medium">Dependencies</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-primary/10 text-primary" href="#">
+<span class="material-symbols-outlined text-xl">content_cut</span>
+<span class="text-sm font-medium">Impact Analysis</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined text-xl">report_problem</span>
+<span class="text-sm font-medium">Risk Assessment</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined text-xl">history</span>
+<span class="text-sm font-medium">History</span>
+</a>
+</nav>
+<div class="mt-auto pt-6 border-t border-slate-200 dark:border-slate-800">
+<button class="w-full py-2.5 px-4 bg-primary text-white rounded-lg text-sm font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-lg">download</span>
+                Export Report
+              </button>
+</div>
+</div>
+</aside>
+<!-- Main Visualization Area -->
+<div class="flex-1 flex flex-col relative overflow-hidden">
+<!-- Breadcrumbs and Header -->
+<div class="p-4 border-b border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-background-dark/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+<div class="flex items-center gap-2 text-sm font-medium">
+<span class="text-slate-400">Project Alpha</span>
+<span class="material-symbols-outlined text-xs text-slate-400">chevron_right</span>
+<span class="text-slate-400">Functions</span>
+<span class="material-symbols-outlined text-xs text-slate-400">chevron_right</span>
+<span class="text-primary bg-primary/10 px-2 py-0.5 rounded">processPayment()</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-xs text-slate-500 mr-2">Last scan: 2 mins ago</span>
+<button class="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                Re-scan Graph
+              </button>
+</div>
+</div>
+<!-- The Graph Canvas -->
+<div class="flex-1 relative bg-slate-50 dark:bg-[#0c141b] overflow-hidden">
+<!-- Simulated Graph Visualization Background -->
+<div class="absolute inset-0 opacity-40 pointer-events-none" style="background-image: radial-gradient(circle at 50% 50%, #137fec11 1px, transparent 1px); background-size: 30px 30px;"></div>
+<!-- Nodes and Edges Layers (Abstractly represented) -->
+<div class="absolute inset-0 flex items-center justify-center">
+<div class="relative w-full h-full max-w-4xl mx-auto">
+<!-- Root Affected Node (processPayment) -->
+<div class="absolute left-1/2 top-[70%] -translate-x-1/2 -translate-y-1/2 group">
+<div class="relative">
+<div class="absolute inset-0 bg-impact-high blur-xl rounded-full opacity-30 animate-pulse scale-150"></div>
+<div class="relative flex flex-col items-center gap-2">
+<div class="size-16 rounded-xl bg-impact-high flex items-center justify-center text-white shadow-2xl shadow-impact-high/50 border-2 border-impact-high outline outline-4 outline-impact-high/20 ring-offset-4 ring-offset-background-dark">
+<span class="material-symbols-outlined text-3xl">function</span>
+</div>
+<div class="bg-background-dark/90 px-3 py-1 rounded text-xs font-bold border border-impact-high text-impact-high">processPayment()</div>
+</div>
+</div>
+</div>
+<!-- Upward Connection Paths (Red/Orange Glowing Lines) -->
+<svg class="absolute inset-0 w-full h-full pointer-events-none" viewbox="0 0 800 600">
+<defs>
+<lineargradient id="impact-grad" x1="0%" x2="0%" y1="100%" y2="0%">
+<stop offset="0%" stop-color="#ef4444" stop-opacity="0.8"></stop>
+<stop offset="100%" stop-color="#f97316" stop-opacity="0.8"></stop>
+</lineargradient>
+</defs>
+<!-- Connection to CheckoutController -->
+<path d="M400 400 Q 300 300 250 200" fill="none" stroke="url(#impact-grad)" stroke-dasharray="10 5" stroke-width="3"></path>
+<!-- Connection to OrderProcessing -->
+<path d="M400 400 Q 400 300 400 150" fill="none" stroke="url(#impact-grad)" stroke-dasharray="10 5" stroke-width="3"></path>
+<!-- Connection to AnalyticsService -->
+<path d="M400 400 Q 500 300 550 200" fill="none" stroke="url(#impact-grad)" stroke-dasharray="10 5" stroke-width="3"></path>
+</svg>
+<!-- Affected Upper Nodes -->
+<!-- Level 1: Functional Parents -->
+<div class="absolute left-[30%] top-[35%] -translate-x-1/2">
+<div class="flex flex-col items-center gap-2 opacity-90">
+<div class="size-12 rounded-lg bg-impact-medium/20 border border-impact-medium flex items-center justify-center text-impact-medium shadow-lg shadow-impact-medium/10">
+<span class="material-symbols-outlined">data_object</span>
+</div>
+<div class="bg-slate-800 px-2 py-0.5 rounded text-[10px] text-slate-300">CheckoutController</div>
+</div>
+</div>
+<div class="absolute left-[50%] top-[25%] -translate-x-1/2">
+<div class="flex flex-col items-center gap-2 opacity-100">
+<div class="size-14 rounded-lg bg-impact-medium/20 border border-impact-medium flex items-center justify-center text-impact-medium shadow-lg shadow-impact-medium/20">
+<span class="material-symbols-outlined text-2xl">account_tree</span>
+</div>
+<div class="bg-slate-800 px-2 py-0.5 rounded text-[10px] text-slate-300">OrderProcessing.ts</div>
+</div>
+</div>
+<div class="absolute left-[70%] top-[35%] -translate-x-1/2">
+<div class="flex flex-col items-center gap-2 opacity-90">
+<div class="size-12 rounded-lg bg-impact-medium/20 border border-impact-medium flex items-center justify-center text-impact-medium shadow-lg shadow-impact-medium/10">
+<span class="material-symbols-outlined">analytics</span>
+</div>
+<div class="bg-slate-800 px-2 py-0.5 rounded text-[10px] text-slate-300">AnalyticsService</div>
+</div>
+</div>
+<!-- Level 2: Feature/Semantic Domains -->
+<div class="absolute left-[50%] top-[8%] -translate-x-1/2">
+<div class="flex flex-col items-center gap-2">
+<div class="px-6 py-2 rounded-full bg-impact-medium/10 border-2 border-dashed border-impact-medium/50 flex items-center gap-2 text-impact-medium shadow-xl">
+<span class="material-symbols-outlined">shopping_cart</span>
+<span class="text-sm font-bold uppercase tracking-widest">E-Commerce Domain</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Visualization Controls Overlay -->
+<div class="absolute bottom-6 right-6 flex flex-col gap-3">
+<div class="flex flex-col bg-white dark:bg-slate-800 rounded-lg shadow-2xl border border-slate-200 dark:border-slate-700">
+<button class="p-3 border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors rounded-t-lg">
+<span class="material-symbols-outlined">add</span>
+</button>
+<button class="p-3 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors rounded-b-lg">
+<span class="material-symbols-outlined">remove</span>
+</button>
+</div>
+<button class="p-3 bg-white dark:bg-slate-800 rounded-lg shadow-2xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+<span class="material-symbols-outlined">near_me</span>
+</button>
+</div>
+<!-- Legend Overlay -->
+<div class="absolute bottom-6 left-6 p-4 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md rounded-xl border border-slate-200 dark:border-slate-800 shadow-xl">
+<h4 class="text-xs font-bold mb-3 uppercase tracking-wider text-slate-500">Blast Radius Legend</h4>
+<div class="flex flex-col gap-3">
+<div class="flex items-center gap-3">
+<div class="size-3 rounded-full bg-impact-high ring-4 ring-impact-high/20"></div>
+<span class="text-xs font-medium">Root Impact Node</span>
+</div>
+<div class="flex items-center gap-3">
+<div class="size-3 rounded-full bg-impact-medium"></div>
+<span class="text-xs font-medium">Cascading Impact</span>
+</div>
+<div class="flex items-center gap-3">
+<div class="w-6 h-0.5 bg-impact-medium border-t-2 border-dashed border-impact-medium"></div>
+<span class="text-xs font-medium">Call Chain (Upwards)</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Impact Summary Side Panel -->
+<aside class="w-full lg:w-80 border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-background-dark flex flex-col shrink-0 overflow-y-auto">
+<div class="p-5 border-b border-slate-200 dark:border-slate-800">
+<h3 class="text-lg font-bold text-slate-900 dark:text-slate-100">Impact Summary</h3>
+<p class="text-xs text-slate-500">Analysis for processPayment()</p>
+</div>
+<!-- Risk Indicator Card -->
+<div class="p-5">
+<div class="p-4 rounded-xl bg-impact-high/10 border border-impact-high/30 flex flex-col gap-2">
+<div class="flex justify-between items-center">
+<span class="text-xs font-bold text-impact-high uppercase tracking-wide">Risk Level</span>
+<span class="px-2 py-0.5 rounded bg-impact-high text-white text-[10px] font-bold">CRITICAL</span>
+</div>
+<div class="text-2xl font-bold text-impact-high">94/100</div>
+<div class="w-full bg-impact-high/20 rounded-full h-1.5 mt-1">
+<div class="bg-impact-high h-1.5 rounded-full" style="width: 94%"></div>
+</div>
+<p class="text-[10px] text-impact-high/80 mt-1 italic">Modifying this node affects 14 critical pathways.</p>
+</div>
+</div>
+<!-- Statistics -->
+<div class="grid grid-cols-2 gap-4 px-5 mb-6">
+<div class="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
+<div class="text-xs text-slate-500 mb-1">Impacted Nodes</div>
+<div class="text-xl font-bold">24</div>
+</div>
+<div class="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
+<div class="text-xs text-slate-500 mb-1">Depth Level</div>
+<div class="text-xl font-bold">5</div>
+</div>
+</div>
+<!-- List of Affected Entities -->
+<div class="px-5 flex-1 flex flex-col gap-4">
+<div class="flex flex-col gap-3">
+<h4 class="text-xs font-bold uppercase tracking-wider text-slate-500">Direct Parents (High)</h4>
+<div class="flex flex-col gap-2">
+<div class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer border border-transparent hover:border-slate-200 dark:hover:border-slate-700 group">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-impact-medium text-lg">code</span>
+<div class="flex flex-col">
+<span class="text-xs font-bold">OrderProcessing.ts</span>
+<span class="text-[10px] text-slate-500">Impact Depth: 1</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-slate-400 group-hover:text-primary text-sm">open_in_new</span>
+</div>
+<div class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer border border-transparent hover:border-slate-200 dark:hover:border-slate-700 group">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-impact-medium text-lg">router</span>
+<div class="flex flex-col">
+<span class="text-xs font-bold">CheckoutController</span>
+<span class="text-[10px] text-slate-500">Impact Depth: 1</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-slate-400 group-hover:text-primary text-sm">open_in_new</span>
+</div>
+</div>
+</div>
+<div class="flex flex-col gap-3">
+<h4 class="text-xs font-bold uppercase tracking-wider text-slate-500">Indirect Domains (Medium)</h4>
+<div class="flex flex-col gap-2">
+<div class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer border border-transparent hover:border-slate-200 dark:hover:border-slate-700 group">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-slate-400 text-lg">shopping_bag</span>
+<div class="flex flex-col">
+<span class="text-xs font-bold">E-Commerce Module</span>
+<span class="text-[10px] text-slate-500">Impact Depth: 3</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-slate-400 group-hover:text-primary text-sm">open_in_new</span>
+</div>
+<div class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer border border-transparent hover:border-slate-200 dark:hover:border-slate-700 group">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-slate-400 text-lg">payments</span>
+<div class="flex flex-col">
+<span class="text-xs font-bold">User Subscriptions</span>
+<span class="text-[10px] text-slate-500">Impact Depth: 4</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-slate-400 group-hover:text-primary text-sm">open_in_new</span>
+</div>
+</div>
+</div>
+</div>
+<div class="p-5 mt-auto">
+<button class="w-full py-3 border-2 border-primary/50 text-primary font-bold rounded-lg hover:bg-primary/10 transition-colors text-sm">
+               View Full Dependency List
+             </button>
+</div>
+</aside>
+</main>
+</div>
+</div>
+</body></html>

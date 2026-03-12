@@ -63,7 +63,7 @@ func (e *LLMFeatureExtractor) Extract(code string, functionName string) ([]strin
 		fmt.Sprintf("Function name: %s\n\n%s", functionName, code)
 
 	ctx := context.Background()
-	
+
 	resp, err := e.Client.Models.GenerateContent(ctx, e.Model, genai.Text(prompt), nil)
 	if err != nil {
 		return nil, fmt.Errorf("generate content failed: %w", err)

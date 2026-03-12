@@ -1,12 +1,17 @@
 package query
 
 import (
+	"context"
 	"fmt"
 	"graphdb/internal/graph"
 	"graphdb/internal/loader"
+	"log"
+	"time"
 
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 )
+
+const featureTopologyBatchSize = 500
 
 // GetUnextractedFunctions returns functions that haven't had atomic features extracted yet.
 func (p *Neo4jProvider) GetUnextractedFunctions(limit int) ([]*graph.Node, error) {
@@ -235,75 +240,133 @@ func (p *Neo4jProvider) CountUnnamedFeatures() (int64, error) {
 	return total, nil
 }
 
-// UpdateFeatureTopology writes feature nodes and relationships to the graph.
+// UpdateFeatureTopology writes feature nodes and relationships to the graph
+// using chunked batches to avoid monolithic transactions that can hang.
 func (p *Neo4jProvider) UpdateFeatureTopology(nodes []*graph.Node, edges []*graph.Edge) error {
 	if len(nodes) == 0 && len(edges) == 0 {
 		return nil
 	}
 
-	session := p.driver.NewSession(p.ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
-	defer session.Close(p.ctx)
+	if err := p.batchWriteNodes(p.ctx, nodes, featureTopologyBatchSize); err != nil {
+		return fmt.Errorf("failed to write feature nodes: %w", err)
+	}
 
-	_, err := session.ExecuteWrite(p.ctx, func(tx neo4j.ManagedTransaction) (any, error) {
-		// 1. Batch insert nodes
-		if len(nodes) > 0 {
-			nodeBatches := make([]map[string]any, 0, len(nodes))
-			for _, n := range nodes {
-				props := make(map[string]any)
-				if n.Properties != nil {
-					for k, v := range n.Properties {
-						props[k] = v
-					}
+	if err := p.batchWriteEdges(p.ctx, edges, featureTopologyBatchSize); err != nil {
+		return fmt.Errorf("failed to write feature edges: %w", err)
+	}
+
+	return nil
+}
+
+func (p *Neo4jProvider) batchWriteNodes(ctx context.Context, nodes []*graph.Node, batchSize int) error {
+	if len(nodes) == 0 {
+		return nil
+	}
+
+	totalBatches := (len(nodes) + batchSize - 1) / batchSize
+
+	for i := 0; i < len(nodes); i += batchSize {
+		end := i + batchSize
+		if end > len(nodes) {
+			end = len(nodes)
+		}
+		chunk := nodes[i:end]
+		batchNum := (i / batchSize) + 1
+
+		nodeBatch := make([]map[string]any, 0, len(chunk))
+		for _, n := range chunk {
+			props := make(map[string]any)
+			if n.Properties != nil {
+				for k, v := range n.Properties {
+					props[k] = v
 				}
-				props["id"] = n.ID
-				props["node_label"] = n.Label // Use node_label to avoid conflict with Neo4j internal label if any
-				nodeBatches = append(nodeBatches, props)
 			}
+			props["id"] = n.ID
+			props["node_label"] = n.Label
+			nodeBatch = append(nodeBatch, props)
+		}
+
+		batchCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+
+		session := p.driver.NewSession(batchCtx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
+		_, err := session.ExecuteWrite(batchCtx, func(tx neo4j.ManagedTransaction) (any, error) {
 			query := `
 				UNWIND $batch AS row
-				MERGE (n {id: row.id})
+				MERGE (n:CodeElement {id: row.id})
 				SET n += row
 				WITH n, row
 				FOREACH (ignore IN CASE WHEN row.node_label = 'Domain' THEN [1] ELSE [] END | SET n:Domain)
 				FOREACH (ignore IN CASE WHEN row.node_label = 'Feature' THEN [1] ELSE [] END | SET n:Feature)
 			`
-			_, txErr := tx.Run(p.ctx, query, map[string]any{"batch": nodeBatches})
-			if txErr != nil {
-				return nil, fmt.Errorf("failed to batch load feature nodes: %w", txErr)
-			}
+			_, txErr := tx.Run(batchCtx, query, map[string]any{"batch": nodeBatch})
+			return nil, txErr
+		})
+		session.Close(batchCtx)
+		cancel()
+
+		if err != nil {
+			return fmt.Errorf("failed to write node batch %d/%d: %w", batchNum, totalBatches, err)
 		}
 
-		// 2. Batch insert edges
-		if len(edges) > 0 {
-			// Group edges by type since we need to put the type in the Cypher
-			edgeGroups := make(map[string][]map[string]any)
-			for _, e := range edges {
-				edgeGroups[e.Type] = append(edgeGroups[e.Type], map[string]any{
+		log.Printf("Writing feature topology: nodes batch %d/%d (%d/%d)", batchNum, totalBatches, end, len(nodes))
+	}
+
+	return nil
+}
+
+func (p *Neo4jProvider) batchWriteEdges(ctx context.Context, edges []*graph.Edge, batchSize int) error {
+	if len(edges) == 0 {
+		return nil
+	}
+
+	// Group edges by type
+	edgeGroups := make(map[string][]*graph.Edge)
+	for _, e := range edges {
+		edgeGroups[e.Type] = append(edgeGroups[e.Type], e)
+	}
+
+	for relType, groupEdges := range edgeGroups {
+		sanitizedRelType := loader.SanitizeLabel(relType)
+		totalBatches := (len(groupEdges) + batchSize - 1) / batchSize
+
+		for i := 0; i < len(groupEdges); i += batchSize {
+			end := i + batchSize
+			if end > len(groupEdges) {
+				end = len(groupEdges)
+			}
+			chunk := groupEdges[i:end]
+			batchNum := (i / batchSize) + 1
+
+			batch := make([]map[string]any, 0, len(chunk))
+			for _, e := range chunk {
+				batch = append(batch, map[string]any{
 					"sourceId": e.SourceID,
 					"targetId": e.TargetID,
 				})
 			}
 
-			for relType, batch := range edgeGroups {
-				// Ensure label is sanitized
-				sanitizedRelType := loader.SanitizeLabel(relType)
+			batchCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+
+			session := p.driver.NewSession(batchCtx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
+			_, err := session.ExecuteWrite(batchCtx, func(tx neo4j.ManagedTransaction) (any, error) {
 				query := fmt.Sprintf(`
 					UNWIND $batch AS row
-					MATCH (source {id: row.sourceId})
-					MATCH (target {id: row.targetId})
+					MATCH (source:CodeElement {id: row.sourceId})
+					MATCH (target:CodeElement {id: row.targetId})
 					MERGE (source)-[r:%s]->(target)
 				`, sanitizedRelType)
-				_, txErr := tx.Run(p.ctx, query, map[string]any{"batch": batch})
-				if txErr != nil {
-					return nil, fmt.Errorf("failed to batch load edges of type %s: %w", relType, txErr)
-				}
-			}
-		}
-		return nil, nil
-	})
+				_, txErr := tx.Run(batchCtx, query, map[string]any{"batch": batch})
+				return nil, txErr
+			})
+			session.Close(batchCtx)
+			cancel()
 
-	if err != nil {
-		return fmt.Errorf("failed to update feature topology: %w", err)
+			if err != nil {
+				return fmt.Errorf("failed to write edge batch [%s] %d/%d: %w", relType, batchNum, totalBatches, err)
+			}
+
+			log.Printf("Writing feature topology: edges [%s] batch %d/%d (%d/%d)", relType, batchNum, totalBatches, end, len(groupEdges))
+		}
 	}
 
 	return nil

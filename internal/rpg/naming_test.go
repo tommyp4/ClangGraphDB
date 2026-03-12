@@ -10,7 +10,7 @@ func TestGenerateDomainName(t *testing.T) {
 		name     string
 		lca      string
 		nodes    []graph.Node
-		expected string 
+		expected string
 	}{
 		{
 			name:     "Specific LCA",
@@ -61,9 +61,9 @@ func TestGenerateDomainName(t *testing.T) {
 				{Properties: map[string]interface{}{"name": "LogFormatter"}},
 				{Properties: map[string]interface{}{"name": "LogWriter"}},
 			},
-			expected: "log", 
+			expected: "log",
 		},
-        {
+		{
 			name: "Fallback Generic UUID",
 			lca:  ".",
 			nodes: []graph.Node{
