@@ -40,22 +40,22 @@ We will create a `js/` directory to house specialized modules, each with a singl
 ## 3. Implementation Phasing
 
 ### Phase 1: Infrastructure
-1. Create `internal/ui/web/js/` directory.
-2. Update `index.html` to set `<script type="module" src="app.js"></script>`.
+1. [x] ~~Create `internal/ui/web/js/` directory.~~ ✅
+2. [x] ~~Update `index.html` to set `<script type="module" src="app.js"></script>`.~~ ✅
 
 ### Phase 2: Core Data & Services
-1. Extract constants to `js/config.js`.
-2. Extract state variables to `js/state.js`.
-3. Extract API fetchers to `js/api.js`.
+1. [x] ~~Extract constants to `js/config.js`.~~ ✅
+2. [x] ~~Extract state variables to `js/state.js`.~~ ✅
+3. [x] ~~Extract API fetchers to `js/api.js`.~~ ✅
 
 ### Phase 3: Visualization & UI
-1. Extract D3 logic to `js/graph.js`.
-2. Extract panel management to `js/ui.js`.
-3. Extract event handling to `js/interactions.js`.
+1. [x] ~~Extract D3 logic to `js/graph.js`.~~ ✅
+2. [x] ~~Extract panel management to `js/ui.js`.~~ ✅
+3. [x] ~~Extract event handling to `js/interactions.js`.~~ ✅
 
 ### Phase 4: Integration
-1. Update `app.js` to import and initialize the system.
-2. Verify cross-module communication (e.g., API call -> State update -> Graph render).
+1. [x] ~~Update `app.js` to import and initialize the system.~~ ✅
+2. [x] ~~Verify cross-module communication (e.g., API call -> State update -> Graph render).~~ ✅
 
 ## 4. Technical Constraints & Decisions
 - **No NPM/Build Step:** Use native `import/export` supported by all modern browsers.
