@@ -75,7 +75,28 @@ The binaries will be automatically placed in the required skill folder:
 *   Linux: `.gemini/skills/graphdb/scripts/graphdb`
 *   Windows: `.gemini/skills/graphdb/scripts/graphdb-win.exe`
 
-## 🛠️ Operational Guides
+## 📦 Releasing New Versions
+
+The project uses GitHub Actions to automate the creation of cross-platform releases.
+
+### How to Release
+When you are ready to bump the version, simply ask Gemini:
+**"Prepare a new release v1.x.x"**
+
+Gemini will then:
+1.  Verify the current state of the codebase.
+2.  Create a new Git tag (e.g., `v1.0.0`).
+3.  Push the tag to GitHub.
+4.  This triggers the `.github/workflows/release.yml` workflow which:
+    *   Compiles binaries for Linux and Windows using Go 1.24 and Zig 0.13.0.
+    *   Injects the version string (e.g., `v1.0.0`) into the `main.Version` variable via `LDFLAGS`.
+    *   Creates a new GitHub Release and attaches the compiled binaries as assets.
+
+### Versioning Convention
+*   **Version Format:** `vMAJOR.MINOR.PATCH` (e.g., `v0.1.0`).
+*   **Build Injection:** The `Makefile` automatically captures the git tag using `git describe` and passes it to the Go compiler. When running `graphdb version`, it will display the official release tag instead of "dev".
+
+--- End of Operational Guides ---
 
 ### Neo4j & SSH Operations (Remote Management)
 
