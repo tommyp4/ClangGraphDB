@@ -9,6 +9,7 @@ import (
 )
 
 func getProvider(t *testing.T) *Neo4jProvider {
+	_ = config.LoadEnv()
 	uri := os.Getenv("NEO4J_URI")
 	if uri == "" {
 		t.Skip("NEO4J_URI not set, skipping integration test")
@@ -234,6 +235,31 @@ func TestGetSeams(t *testing.T) {
 	// Risk should be 1.0 (internal_fan_in=1 * volatile_fan_out=1)
 	if results[0].Risk != 1.0 {
 		t.Errorf("Expected risk 1.0, got %f", results[0].Risk)
+	}
+}
+
+func TestGetSeams_MissingData(t *testing.T) {
+	p := getProvider(t)
+	defer p.Close()
+	defer cleanup(t, p)
+
+	// Ensure NO is_volatile data exists
+	_, err := neo4j.ExecuteQuery(p.ctx, p.driver, `
+		MATCH (f:Function) REMOVE f.is_volatile
+	`, nil, neo4j.EagerResultTransformer)
+	if err != nil {
+		t.Fatalf("Failed to clear is_volatile data: %v", err)
+	}
+
+	// Test
+	_, err = p.GetSeams(".*", "ui")
+	if err == nil {
+		t.Fatal("Expected error when is_volatile data is missing, got nil")
+	}
+
+	expectedErr := "volatility data is missing. Run 'graphdb enrich --step extract' first"
+	if err.Error() != expectedErr {
+		t.Errorf("Expected error '%s', got '%v'", expectedErr, err)
 	}
 }
 

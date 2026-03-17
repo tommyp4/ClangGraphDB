@@ -138,17 +138,19 @@ type GraphProvider interface {
 	SeedVolatility(modulePattern string, rules []ContaminationRule) error
 	PropagateVolatility() error
 	CalculateRiskScores() error
+	CountVolatileFunctions() (int64, error)
 	UpdateFileHistory(metrics map[string]FileHistoryMetrics) error
 
 	// Batch/Streaming Operations
 	GetUnextractedFunctions(limit int) ([]*graph.Node, error)
-	UpdateAtomicFeatures(id string, features []string) error
+	UpdateAtomicFeatures(id string, features []string, isVolatile bool) error
 	GetUnembeddedNodes(limit int) ([]*graph.Node, error)
 	UpdateEmbeddings(id string, embedding []float32) error
 	GetEmbeddingsOnly() (map[string][]float32, error)
 	GetFunctionMetadata() ([]*graph.Node, error)
 	GetUnnamedFeatures(limit int) ([]*graph.Node, error)
 	CountUnnamedFeatures() (int64, error)
+	ClearFeatureTopology() error
 	UpdateFeatureTopology(nodes []*graph.Node, edges []*graph.Edge) error
-	UpdateFeatureSummary(id string, name string, summary string) error
+	UpdateFeatureSummary(id string, name string, description string) error
 }

@@ -8,6 +8,20 @@ import (
 
 // GetHotspots retrieves functions sorted by risk and file change frequency.
 func (p *Neo4jProvider) GetHotspots(modulePattern string) ([]*HotspotResult, error) {
+	// Pre-flight check: Is risk_score data present?
+	checkQuery := `MATCH (f:Function) WHERE f.risk_score IS NOT NULL RETURN count(f) AS count LIMIT 1`
+	checkRes, err := neo4j.ExecuteQuery(p.ctx, p.driver, checkQuery, nil, neo4j.EagerResultTransformer)
+	if err != nil {
+		return nil, fmt.Errorf("pre-flight check failed: %w", err)
+	}
+	if len(checkRes.Records) == 0 {
+		return nil, fmt.Errorf("risk score data is missing. Run 'graphdb enrich-contamination' first")
+	}
+	count, _, _ := neo4j.GetRecordValue[int64](checkRes.Records[0], "count")
+	if count == 0 {
+		return nil, fmt.Errorf("risk score data is missing. Run 'graphdb enrich-contamination' first")
+	}
+
 	query := `
 		MATCH (f:Function)-[:DEFINED_IN]->(fi:File)
 		WHERE fi.file =~ $pattern

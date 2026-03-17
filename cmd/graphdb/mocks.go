@@ -85,19 +85,23 @@ func (m *MockProvider) SeedVolatility(modulePattern string, rules []query.Contam
 }
 func (m *MockProvider) PropagateVolatility() error { return nil }
 func (m *MockProvider) CalculateRiskScores() error { return nil }
+func (m *MockProvider) CountVolatileFunctions() (int64, error) { return 0, nil }
 func (m *MockProvider) UpdateFileHistory(metrics map[string]query.FileHistoryMetrics) error {
 	return nil
 }
 
-func (m *MockProvider) GetUnextractedFunctions(limit int) ([]*graph.Node, error) { return nil, nil }
-func (m *MockProvider) UpdateAtomicFeatures(id string, features []string) error  { return nil }
+func (m *MockProvider) GetUnextractedFunctions(limit int) ([]*graph.Node, error)    { return nil, nil }
+func (m *MockProvider) UpdateAtomicFeatures(id string, features []string, isVolatile bool) error {
+	return nil
+}
 func (m *MockProvider) GetUnembeddedNodes(limit int) ([]*graph.Node, error)      { return nil, nil }
 func (m *MockProvider) UpdateEmbeddings(id string, embedding []float32) error    { return nil }
 func (m *MockProvider) GetEmbeddingsOnly() (map[string][]float32, error)         { return nil, nil }
 func (m *MockProvider) GetUnnamedFeatures(limit int) ([]*graph.Node, error)      { return nil, nil }
 func (m *MockProvider) CountUnnamedFeatures() (int64, error)                     { return 0, nil }
+func (m *MockProvider) ClearFeatureTopology() error                              { return nil }
 func (m *MockProvider) UpdateFeatureTopology(nodes []*graph.Node, edges []*graph.Edge) error {
 	return nil
 }
-func (m *MockProvider) UpdateFeatureSummary(id string, name string, summary string) error { return nil }
+func (m *MockProvider) UpdateFeatureSummary(id string, name string, description string) error { return nil }
 func (m *MockProvider) GetFunctionMetadata() ([]*graph.Node, error)                       { return nil, nil }

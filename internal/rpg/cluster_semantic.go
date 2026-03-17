@@ -20,14 +20,17 @@ type EmbeddingClusterer struct {
 	LogLabel              string          // Label for log messages (e.g. "domain", "cluster")
 }
 
-func (c *EmbeddingClusterer) Cluster(nodes []graph.Node, domain string) (map[string][]graph.Node, error) {
+func (c *EmbeddingClusterer) Cluster(nodes []graph.Node, domain string) ([]ClusterGroup, error) {
 	if len(nodes) == 0 {
 		return nil, nil
 	}
 
 	// If too few nodes, put them all in one cluster
 	if len(nodes) <= 3 {
-		return map[string][]graph.Node{"cluster-" + GenerateShortUUID(): nodes}, nil
+		return []ClusterGroup{{
+			Name:  "cluster-" + GenerateShortUUID(),
+			Nodes: nodes,
+		}}, nil
 	}
 
 	// 1. Prepare embeddings
@@ -96,18 +99,27 @@ func (c *EmbeddingClusterer) Cluster(nodes []graph.Node, domain string) (map[str
 	assignments := kmeans(embeddings, k, maxIter, c.Seed, label)
 
 	// 5. Group nodes by cluster assignment
-	clusters := make(map[string][]graph.Node)
-	clusterKeys := make([]string, k)
+	groups := make([]ClusterGroup, k)
 	for j := 0; j < k; j++ {
-		clusterKeys[j] = "cluster-" + GenerateShortUUID()
+		groups[j] = ClusterGroup{
+			Name:  "cluster-" + GenerateShortUUID(),
+			Nodes: make([]graph.Node, 0),
+		}
 	}
 
 	for i, clusterIdx := range assignments {
-		key := clusterKeys[clusterIdx]
-		clusters[key] = append(clusters[key], nodes[i])
+		groups[clusterIdx].Nodes = append(groups[clusterIdx].Nodes, nodes[i])
 	}
 
-	return clusters, nil
+	// Filter out empty groups
+	finalGroups := make([]ClusterGroup, 0, k)
+	for _, g := range groups {
+		if len(g.Nodes) > 0 {
+			finalGroups = append(finalGroups, g)
+		}
+	}
+
+	return finalGroups, nil
 }
 
 // kmeans runs K-Means clustering on a set of vectors.

@@ -80,8 +80,8 @@ func TestEmbeddingClusterer_Cluster(t *testing.T) {
 
 	// Verify all nodes are assigned
 	total := 0
-	for _, fns := range clusters {
-		total += len(fns)
+	for _, g := range clusters {
+		total += len(g.Nodes)
 	}
 	if total != 6 {
 		t.Errorf("Expected 6 total nodes across clusters, got %d", total)

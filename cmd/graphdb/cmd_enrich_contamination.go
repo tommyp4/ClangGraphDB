@@ -3,14 +3,11 @@ package main
 import (
 	"flag"
 	"graphdb/internal/config"
-	"graphdb/internal/query"
 	"log"
 )
 
 func handleEnrichContamination(args []string) {
 	fs := flag.NewFlagSet("enrich-contamination", flag.ExitOnError)
-	modulePtr := fs.String("module", ".*", "Regex pattern to filter file paths (e.g., '.*Controllers.*')")
-
 	fs.Parse(args)
 
 	cfg := config.LoadConfig()
@@ -25,42 +22,13 @@ func handleEnrichContamination(args []string) {
 	}
 	defer provider.Close()
 
-	// Default rules for volatility seeding.
-	// These seed initial is_volatile flags based on Feathers' legacy seams definition:
-	// - External dependencies (IO, Network, DB)
-	// - 3rd-party libraries
-	// - Non-deterministic functions (Time, Random)
-	rules := []query.ContaminationRule{
-		// External & Network
-		{Layer: "volatility", Type: "function", Pattern: `(?i).*HttpClient.*`, Heuristic: "content"},
-		{Layer: "volatility", Type: "function", Pattern: `(?i).*WebRequest.*`, Heuristic: "content"},
-		{Layer: "volatility", Type: "function", Pattern: `(?i).*Socket.*`, Heuristic: "content"},
-		{Layer: "volatility", Type: "function", Pattern: `(?i).*System\.Net.*`, Heuristic: "content"},
-		
-		// Database & Storage
-		{Layer: "volatility", Type: "function", Pattern: `(?i).*SELECT.*FROM.*`, Heuristic: "content"},
-		{Layer: "volatility", Type: "function", Pattern: `(?i).*INSERT.*INTO.*`, Heuristic: "content"},
-		{Layer: "volatility", Type: "function", Pattern: `(?i).*UPDATE.*SET.*`, Heuristic: "content"},
-		{Layer: "volatility", Type: "function", Pattern: `(?i).*DELETE.*FROM.*`, Heuristic: "content"},
-		{Layer: "volatility", Type: "function", Pattern: `(?i).*DbContext.*`, Heuristic: "content"},
-		{Layer: "volatility", Type: "function", Pattern: `(?i).*Repository.*`, Heuristic: "content"},
-		
-		// Non-determinism & Environment
-		{Layer: "volatility", Type: "function", Pattern: `(?i).*DateTime\.Now.*`, Heuristic: "content"},
-		{Layer: "volatility", Type: "function", Pattern: `(?i).*DateTime\.UtcNow.*`, Heuristic: "content"},
-		{Layer: "volatility", Type: "function", Pattern: `(?i).*Guid\.NewGuid.*`, Heuristic: "content"},
-		{Layer: "volatility", Type: "function", Pattern: `(?i).*Random.*`, Heuristic: "content"},
-		
-		// UI & Framework Boundaries
-		{Layer: "volatility", Type: "file", Pattern: `(?i).*Controller.*`, Heuristic: "path"},
-		{Layer: "volatility", Type: "file", Pattern: `(?i).*View.*`, Heuristic: "path"},
-		{Layer: "volatility", Type: "file", Pattern: `(?i).*\.aspx$`, Heuristic: "path"},
-		{Layer: "volatility", Type: "file", Pattern: `(?i).*\.cshtml$`, Heuristic: "path"},
+	// Guard: Check if is_volatile flags exist
+	count, err := provider.CountVolatileFunctions()
+	if err != nil {
+		log.Fatalf("Failed to check volatility data: %v", err)
 	}
-
-	log.Println("Seeding initial volatility flags using heuristic rules...")
-	if err := provider.SeedVolatility(*modulePtr, rules); err != nil {
-		log.Fatalf("Volatility seeding failed: %v", err)
+	if count == 0 {
+		log.Fatal("Volatility data is missing. Run 'graphdb enrich --step extract' first to seed volatility via LLM.")
 	}
 
 	log.Printf("Propagating volatility UPWARD through the CALLS graph...")

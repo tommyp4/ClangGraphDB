@@ -53,21 +53,21 @@ func (o *Orchestrator) RunExtraction(batchSize int) error {
 			}
 
 			if file == "" || startLine == 0 || endLine == 0 {
-				_ = o.Provider.UpdateAtomicFeatures(node.ID, []string{"unknown"})
+				_ = o.Provider.UpdateAtomicFeatures(node.ID, []string{"unknown"}, false)
 				continue
 			}
 
 			code, err := snippet.SliceFile(file, startLine, endLine)
 			if err != nil {
 				log.Printf("Warning: failed to slice file %s:%d-%d: %v", file, startLine, endLine, err)
-				_ = o.Provider.UpdateAtomicFeatures(node.ID, []string{"unreadable_source"})
+				_ = o.Provider.UpdateAtomicFeatures(node.ID, []string{"unreadable_source"}, false)
 				continue
 			}
 
-			descriptors, err := o.Extractor.Extract(code, name)
+			descriptors, isVolatile, err := o.Extractor.Extract(code, name)
 			if err != nil {
 				log.Printf("Warning: failed to extract features for %s: %v", node.ID, err)
-				_ = o.Provider.UpdateAtomicFeatures(node.ID, []string{})
+				_ = o.Provider.UpdateAtomicFeatures(node.ID, []string{}, false)
 				continue
 			}
 
@@ -75,7 +75,7 @@ func (o *Orchestrator) RunExtraction(batchSize int) error {
 				descriptors = []string{"no_features_detected"}
 			}
 
-			err = o.Provider.UpdateAtomicFeatures(node.ID, descriptors)
+			err = o.Provider.UpdateAtomicFeatures(node.ID, descriptors, isVolatile)
 			if err != nil {
 				return fmt.Errorf("failed to update atomic features for %s: %w", node.ID, err)
 			}
@@ -144,6 +144,11 @@ func CalculateDomainK(fileCount int) int {
 }
 
 func (o *Orchestrator) RunClustering(dir string) error {
+	log.Println("Clearing existing feature topology...")
+	if err := o.Provider.ClearFeatureTopology(); err != nil {
+		return fmt.Errorf("failed to clear topology: %w", err)
+	}
+
 	log.Println("Fetching embeddings for clustering...")
 	embeddings, err := o.Provider.GetEmbeddingsOnly()
 	if err != nil {
@@ -273,10 +278,7 @@ func (o *Orchestrator) RunSummarization(batchSize int) error {
 		for _, node := range nodes {
 			domain, err := o.Provider.ExploreDomain(node.ID)
 			if err != nil {
-				log.Printf("Warning: failed to explore domain for %s: %v", node.ID, err)
-				_ = o.Provider.UpdateFeatureSummary(node.ID, "Feature-"+GenerateShortUUID(), "Failed to analyze")
-				pb.Add(1)
-				continue
+				return fmt.Errorf("failed to explore domain for %s: %w", node.ID, err)
 			}
 
 			var memberFuncs []graph.Node
@@ -291,10 +293,7 @@ func (o *Orchestrator) RunSummarization(batchSize int) error {
 
 			err = enricher.Enrich(f, memberFuncs)
 			if err != nil {
-				log.Printf("Warning: failed to enrich %s: %v", node.ID, err)
-				_ = o.Provider.UpdateFeatureSummary(node.ID, "Feature-"+GenerateShortUUID(), "Enrichment failed")
-				pb.Add(1)
-				continue
+				return fmt.Errorf("failed to enrich %s: %w", node.ID, err)
 			}
 
 			err = o.Provider.UpdateFeatureSummary(node.ID, f.Name, f.Description)

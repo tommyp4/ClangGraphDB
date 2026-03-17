@@ -29,9 +29,9 @@ func TestNeo4jBatchOperations(t *testing.T) {
 		CREATE (f2:Function:CodeElement {id: 'batch-test-f2', file: 'f2.go', line: 11, start_line: 11, end_line: 20, content: 'func f2() {}'})
 		CREATE (f3:Function:CodeElement {id: 'batch-test-f3', name: 'f3', file: 'f3.go', line: 21, start_line: 21, end_line: 30, content: 'func f3() {}', atomic_features: ['feature1']})
 		CREATE (feat1:Feature {id: 'batch-test-feat1'})
-		CREATE (feat2:Feature {id: 'batch-test-feat2', name: 'Existing Name', summary: 'Existing Summary'})
+		CREATE (feat2:Feature {id: 'batch-test-feat2', name: 'Existing Name', description: 'Existing Description'})
 		CREATE (feat3:Feature {id: 'batch-test-feat-semi', name: 'Some Name'})
-		CREATE (feat4:Feature {id: 'batch-test-feat-empty', name: '', summary: ''})
+		CREATE (feat4:Feature {id: 'batch-test-feat-empty', name: '', description: ''})
 	`
 	_, err := neo4j.ExecuteQuery(p.ctx, p.driver, setupQuery, nil, neo4j.EagerResultTransformer)
 	if err != nil {
@@ -48,9 +48,23 @@ func TestNeo4jBatchOperations(t *testing.T) {
 	}
 
 	// 2. Test UpdateAtomicFeatures
-	err = p.UpdateAtomicFeatures("batch-test-f1", []string{"new-feature-1", "new-feature-2"})
+	err = p.UpdateAtomicFeatures("batch-test-f1", []string{"new-feature-1", "new-feature-2"}, true)
 	if err != nil {
 		t.Fatalf("UpdateAtomicFeatures failed: %v", err)
+	}
+
+	// Verify it was updated (including is_volatile)
+	verifyQuery := `
+		MATCH (n:Function {id: 'batch-test-f1'})
+		RETURN n.is_volatile as is_volatile
+	`
+	vRes, err := neo4j.ExecuteQuery(p.ctx, p.driver, verifyQuery, nil, neo4j.EagerResultTransformer)
+	if err != nil || len(vRes.Records) == 0 {
+		t.Fatalf("Failed to verify is_volatile update: %v", err)
+	}
+	isVolatile, _, _ := neo4j.GetRecordValue[bool](vRes.Records[0], "is_volatile")
+	if !isVolatile {
+		t.Errorf("Expected is_volatile to be true")
 	}
 	
 	// Verify it was updated by re-fetching
@@ -103,9 +117,9 @@ func TestNeo4jBatchOperations(t *testing.T) {
 		t.Fatalf("GetUnnamedFeatures failed: %v", err)
 	}
 	// feat1 should be unnamed (no name property), 
-	// feat2 is named and summarized, so should be excluded.
-	// feat3 has name but no summary (semi-named), so should be picked up.
-	// feat4 has empty name and empty summary, so should be picked up.
+	// feat2 is named and described, so should be excluded.
+	// feat3 has name but no description (semi-named), so should be picked up.
+	// feat4 has empty name and empty description, so should be picked up.
 	foundFeat1 := false
 	foundFeatSemi := false
 	foundFeatEmpty := false
@@ -128,13 +142,13 @@ func TestNeo4jBatchOperations(t *testing.T) {
 		t.Errorf("Expected to find batch-test-feat1 in unnamed features (missing name)")
 	}
 	if !foundFeatSemi {
-		t.Errorf("Expected to find batch-test-feat-semi in unnamed features (missing summary)")
+		t.Errorf("Expected to find batch-test-feat-semi in unnamed features (missing description)")
 	}
 	if !foundFeatEmpty {
 		t.Errorf("Expected to find batch-test-feat-empty in unnamed features (empty name)")
 	}
 	if foundFeat2 {
-		t.Errorf("Did not expect to find batch-test-feat2 in unnamed features (already named and summarized)")
+		t.Errorf("Did not expect to find batch-test-feat2 in unnamed features (already named and described)")
 	}
 
 	// 6.5 Test GetFunctionMetadata
@@ -169,7 +183,7 @@ func TestNeo4jBatchOperations(t *testing.T) {
 	}
 
 	// 7. Test UpdateFeatureSummary
-	err = p.UpdateFeatureSummary("batch-test-feat1", "New Name", "New Summary")
+	err = p.UpdateFeatureSummary("batch-test-feat1", "New Name", "New Description")
 	if err != nil {
 		t.Fatalf("UpdateFeatureSummary failed: %v", err)
 	}

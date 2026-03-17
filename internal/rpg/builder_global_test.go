@@ -9,9 +9,9 @@ import (
 // MockGlobalClusterer for testing Global Discovery Mode
 type MockGlobalClusterer struct{}
 
-func (m *MockGlobalClusterer) Cluster(nodes []graph.Node, domain string) (map[string][]graph.Node, error) {
+func (m *MockGlobalClusterer) Cluster(nodes []graph.Node, domain string) ([]ClusterGroup, error) {
 	// Returns two clusters with SEMANTIC NAMES: "Auth System" and "Payment Service"
-	clusters := make(map[string][]graph.Node)
+	var clusters []ClusterGroup
 
 	// Filter nodes for AuthGroup
 	var authNodes []graph.Node
@@ -20,7 +20,7 @@ func (m *MockGlobalClusterer) Cluster(nodes []graph.Node, domain string) (map[st
 			authNodes = append(authNodes, n)
 		}
 	}
-	clusters["Auth System"] = authNodes
+	clusters = append(clusters, ClusterGroup{Name: "Auth System", Nodes: authNodes})
 
 	// Filter nodes for PaymentGroup
 	var payNodes []graph.Node
@@ -29,7 +29,7 @@ func (m *MockGlobalClusterer) Cluster(nodes []graph.Node, domain string) (map[st
 			payNodes = append(payNodes, n)
 		}
 	}
-	clusters["Payment Service"] = payNodes
+	clusters = append(clusters, ClusterGroup{Name: "Payment Service", Nodes: payNodes})
 
 	return clusters, nil
 }

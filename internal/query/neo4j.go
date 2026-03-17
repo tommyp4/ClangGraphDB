@@ -535,6 +535,20 @@ func (p *Neo4jProvider) GetGlobals(nodeID string) (*GlobalUsageResult, error) {
 
 // GetSeams suggests architectural seams (boundaries) using Pinch Point detection.
 func (p *Neo4jProvider) GetSeams(modulePattern string, layer string) ([]*SeamResult, error) {
+	// Pre-flight check: Is is_volatile data present?
+	checkQuery := `MATCH (f:Function) WHERE f.is_volatile IS NOT NULL RETURN count(f) AS count LIMIT 1`
+	checkRes, err := neo4j.ExecuteQuery(p.ctx, p.driver, checkQuery, nil, neo4j.EagerResultTransformer)
+	if err != nil {
+		return nil, fmt.Errorf("pre-flight check failed: %w", err)
+	}
+	if len(checkRes.Records) == 0 {
+		return nil, fmt.Errorf("volatility data is missing. Run 'graphdb enrich --step extract' first")
+	}
+	count, _, _ := neo4j.GetRecordValue[int64](checkRes.Records[0], "count")
+	if count == 0 {
+		return nil, fmt.Errorf("volatility data is missing. Run 'graphdb enrich --step extract' first")
+	}
+
 	// Pinch Point detection:
 	// Find functions that have high internal fan-in (non-volatile callers)
 	// and high volatile fan-out (volatile callees).
@@ -812,21 +826,25 @@ func (p *Neo4jProvider) GetOverview() (*graph.Path, error) {
 // the feature itself, its parent, children, siblings, and implementing functions.
 func (p *Neo4jProvider) ExploreDomain(featureID string) (*DomainExplorationResult, error) {
 	query := `
-		// Find the target feature
-		MATCH (f:Feature {id: $featureID})
+		// Find the target feature or domain
+		MATCH (f {id: $featureID})
+		WHERE f:Feature OR f:Domain
 
-		// Optional: parent feature
-		OPTIONAL MATCH (parent:Feature)-[:PARENT_OF]->(f)
+		// Optional: parent domain/feature
+		OPTIONAL MATCH (parent)-[:PARENT_OF]->(f)
+		WHERE parent:Feature OR parent:Domain
 
 		// Optional: children
-		OPTIONAL MATCH (f)-[:PARENT_OF]->(child:Feature)
+		OPTIONAL MATCH (f)-[:PARENT_OF]->(child)
+		WHERE child:Feature OR child:Domain
 
 		// Optional: siblings (same parent, different node)
-		OPTIONAL MATCH (parent)-[:PARENT_OF]->(sibling:Feature)
-		WHERE sibling.id <> f.id
+		OPTIONAL MATCH (parent)-[:PARENT_OF]->(sibling)
+		WHERE (sibling:Feature OR sibling:Domain) AND sibling.id <> f.id
 
 		// Optional: implementing functions (direct or via descendants)
-		OPTIONAL MATCH (f)-[:PARENT_OF*0..]->(desc:Feature)<-[:IMPLEMENTS]-(fn:Function)
+		OPTIONAL MATCH (f)-[:PARENT_OF*0..]->(desc)<-[:IMPLEMENTS]-(fn:Function)
+		WHERE desc:Feature OR desc:Domain
 
 		RETURN properties(f) as feature, f.id as fid,
 		       properties(parent) as parent, parent.id as pid,

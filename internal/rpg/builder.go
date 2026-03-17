@@ -1,14 +1,20 @@
 package rpg
 
 import (
+	"fmt"
 	"graphdb/internal/graph"
-	"sort"
 	"strings"
 )
 
+type ClusterGroup struct {
+	Name        string
+	Description string
+	Nodes       []graph.Node
+}
+
 type Clusterer interface {
 	// Clusters nodes into named groups
-	Cluster(nodes []graph.Node, domain string) (map[string][]graph.Node, error)
+	Cluster(nodes []graph.Node, domain string) ([]ClusterGroup, error)
 }
 
 type Builder struct {
@@ -16,10 +22,6 @@ type Builder struct {
 	// GlobalClusterer enables global discovery mode (inverted flow).
 	// It clusters all functions first, then grounds them to domains.
 	GlobalClusterer Clusterer
-
-	// CategoryClusterer enables 3-level hierarchy: Domain -> Category -> Feature.
-	// If nil, falls back to 2-level: Domain -> Feature.
-	CategoryClusterer Clusterer
 
 	// Callbacks for progress reporting
 	OnPhaseStart func(phaseName string, total int)
@@ -29,10 +31,6 @@ type Builder struct {
 
 func (b *Builder) Build(rootPath string, functions []graph.Node) ([]Feature, []graph.Edge, error) {
 	if b.GlobalClusterer == nil {
-		// Fallback or Error?
-		// Since we removed Directory Discovery, GlobalClusterer is mandatory.
-		// However, for backward compatibility or testing, we might want a default?
-		// But we don't have a default discovery anymore.
 		return nil, nil, nil
 	}
 	return b.buildGlobal(rootPath, functions)
@@ -41,34 +39,26 @@ func (b *Builder) Build(rootPath string, functions []graph.Node) ([]Feature, []g
 func (b *Builder) buildGlobal(rootPath string, functions []graph.Node) ([]Feature, []graph.Edge, error) {
 	// 1. Global Clustering (Latent Domains)
 	// We pass "root" as domain name context, though global clusterer might ignore it.
-	domainMap, err := b.GlobalClusterer.Cluster(functions, "root")
+	domainGroups, err := b.GlobalClusterer.Cluster(functions, "root")
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("global clustering failed: %w", err)
 	}
-
-	// Sort domain keys for deterministic order
-	domainKeys := make([]string, 0, len(domainMap))
-	for k := range domainMap {
-		domainKeys = append(domainKeys, k)
-	}
-	sort.Strings(domainKeys)
 
 	if b.OnPhaseStart != nil {
-		b.OnPhaseStart("Processing Global Domains", len(domainKeys))
+		b.OnPhaseStart("Processing Global Domains", len(domainGroups))
 	}
 
 	var rootFeatures []Feature
 	var allEdges []graph.Edge
 
-	for _, originalKey := range domainKeys {
-		nodes := domainMap[originalKey]
+	for _, group := range domainGroups {
 		if b.OnStepStart != nil {
-			b.OnStepStart(originalKey)
+			b.OnStepStart(group.Name)
 		}
 
 		// 2. Grounding (LCA)
-		filePaths := make([]string, 0, len(nodes))
-		for _, n := range nodes {
+		filePaths := make([]string, 0, len(group.Nodes))
+		for _, n := range group.Nodes {
 			if p, ok := n.Properties["file"].(string); ok {
 				filePaths = append(filePaths, p)
 			}
@@ -83,30 +73,31 @@ func (b *Builder) buildGlobal(rootPath string, functions []graph.Node) ([]Featur
 		// 3. Identification
 		// Prioritize semantic name from GlobalClusterer unless it's a raw cluster ID
 		var domainName string
-		if strings.HasPrefix(originalKey, "cluster-") || strings.HasPrefix(originalKey, "root-cluster-") || strings.HasPrefix(originalKey, "Feature-") {
-			domainName = GenerateDomainName(lca, nodes)
+		if strings.HasPrefix(group.Name, "cluster-") || strings.HasPrefix(group.Name, "root-cluster-") || strings.HasPrefix(group.Name, "Feature-") {
+			domainName = GenerateDomainName(lca, group.Nodes)
 		} else {
-			domainName = originalKey
+			domainName = group.Name
 		}
 
 		// Ensure unique and safe ID
 		domainID := "domain-" + GenerateShortUUID()
 
 		domainFeature := Feature{
-			ID:        domainID,
-			Name:      domainName, // Can be "" if GenerateDomainName failed
-			ScopePath: lca,
-			Children:  make([]*Feature, 0),
+			ID:          domainID,
+			Name:        domainName,
+			Description: group.Description,
+			ScopePath:   lca,
+			Children:    make([]*Feature, 0),
 		}
 
 		// In Global Mode, 'nodes' ARE the members. No filtering needed.
-		domainFeature.MemberFunctions = nodes
+		domainFeature.MemberFunctions = group.Nodes
 
 		// 4. Standard Construction (Feature Clustering)
-		if b.CategoryClusterer != nil {
-			allEdges = b.buildThreeLevel(&domainFeature, nodes, domainName, lca, allEdges)
-		} else {
-			allEdges = b.buildTwoLevel(&domainFeature, nodes, domainName, lca, allEdges)
+		var err error
+		allEdges, err = b.buildTwoLevel(&domainFeature, group.Nodes, domainName, lca, allEdges)
+		if err != nil {
+			return nil, nil, err
 		}
 
 		rootFeatures = append(rootFeatures, domainFeature)
@@ -119,35 +110,30 @@ func (b *Builder) buildGlobal(rootPath string, functions []graph.Node) ([]Featur
 	return rootFeatures, allEdges, nil
 }
 
-func (b *Builder) buildTwoLevel(domain *Feature, funcs []graph.Node, name, pathPrefix string, allEdges []graph.Edge) []graph.Edge {
+func (b *Builder) buildTwoLevel(domain *Feature, funcs []graph.Node, name, pathPrefix string, allEdges []graph.Edge) ([]graph.Edge, error) {
 	// Use domain ID as the key for clustering if name is not unique globally, but here we use name as per interface
-	clusters, _ := b.Clusterer.Cluster(funcs, name)
-
-	// Sort cluster names for deterministic order
-	clusterNames := make([]string, 0, len(clusters))
-	for k := range clusters {
-		clusterNames = append(clusterNames, k)
+	clusters, err := b.Clusterer.Cluster(funcs, name)
+	if err != nil {
+		return nil, fmt.Errorf("feature clustering failed for domain %s: %w", name, err)
 	}
-	sort.Strings(clusterNames)
 
-	for _, clusterName := range clusterNames {
-		nodes := clusters[clusterName]
-
-		var name string
-		var id string
-		if strings.HasPrefix(clusterName, "cluster-") || strings.HasPrefix(clusterName, "Feature-") {
-			id = "feature-" + GenerateShortUUID()
-			name = ""
+	for _, group := range clusters {
+		var featureName string
+		var featureID string
+		if strings.HasPrefix(group.Name, "cluster-") || strings.HasPrefix(group.Name, "Feature-") {
+			featureID = "feature-" + GenerateShortUUID()
+			featureName = ""
 		} else {
-			id = "feature-" + clusterName // Should sanitize
-			name = clusterName
+			featureID = "feature-" + group.Name // Should sanitize
+			featureName = group.Name
 		}
 
 		child := &Feature{
-			ID:              id,
-			Name:            name,
+			ID:              featureID,
+			Name:            featureName,
+			Description:     group.Description,
 			ScopePath:       pathPrefix,
-			MemberFunctions: nodes,
+			MemberFunctions: group.Nodes,
 		}
 
 		allEdges = append(allEdges, graph.Edge{
@@ -156,7 +142,7 @@ func (b *Builder) buildTwoLevel(domain *Feature, funcs []graph.Node, name, pathP
 			Type:     "PARENT_OF",
 		})
 
-		for _, fn := range nodes {
+		for _, fn := range group.Nodes {
 			allEdges = append(allEdges, graph.Edge{
 				SourceID: fn.ID,
 				TargetID: child.ID,
@@ -166,93 +152,5 @@ func (b *Builder) buildTwoLevel(domain *Feature, funcs []graph.Node, name, pathP
 
 		domain.Children = append(domain.Children, child)
 	}
-	return allEdges
-}
-
-func (b *Builder) buildThreeLevel(domain *Feature, funcs []graph.Node, name, pathPrefix string, allEdges []graph.Edge) []graph.Edge {
-	// First pass: coarse clustering into categories
-	categories, _ := b.CategoryClusterer.Cluster(funcs, name)
-
-	catNames := make([]string, 0, len(categories))
-	for k := range categories {
-		catNames = append(catNames, k)
-	}
-	sort.Strings(catNames)
-
-	for _, catName := range catNames {
-		catNodes := categories[catName]
-
-		var categoryName string
-		var categoryID string
-		if strings.HasPrefix(catName, "cluster-") || strings.HasPrefix(catName, "Feature-") {
-			categoryID = "category-" + GenerateShortUUID()
-			categoryName = ""
-		} else {
-			categoryID = "category-" + catName
-			categoryName = catName
-		}
-
-		category := &Feature{
-			ID:              categoryID,
-			Name:            categoryName,
-			ScopePath:       pathPrefix,
-			MemberFunctions: catNodes,
-			Children:        make([]*Feature, 0),
-		}
-
-		allEdges = append(allEdges, graph.Edge{
-			SourceID: domain.ID,
-			TargetID: category.ID,
-			Type:     "PARENT_OF",
-		})
-
-		// Second pass: fine-grained clustering within each category
-		features, _ := b.Clusterer.Cluster(catNodes, catName)
-
-		featNames := make([]string, 0, len(features))
-		for k := range features {
-			featNames = append(featNames, k)
-		}
-		sort.Strings(featNames)
-
-		for _, featName := range featNames {
-			featNodes := features[featName]
-
-			var featureName string
-			var featureID string
-			if strings.HasPrefix(featName, "cluster-") || strings.HasPrefix(featName, "Feature-") {
-				featureID = "feature-" + GenerateShortUUID()
-				featureName = ""
-			} else {
-				featureID = "feature-" + featName
-				featureName = featName
-			}
-
-			feature := &Feature{
-				ID:              featureID,
-				Name:            featureName,
-				ScopePath:       pathPrefix,
-				MemberFunctions: featNodes,
-			}
-
-			allEdges = append(allEdges, graph.Edge{
-				SourceID: category.ID,
-				TargetID: feature.ID,
-				Type:     "PARENT_OF",
-			})
-
-			for _, fn := range featNodes {
-				allEdges = append(allEdges, graph.Edge{
-					SourceID: fn.ID,
-					TargetID: feature.ID,
-					Type:     "IMPLEMENTS",
-				})
-			}
-
-			category.Children = append(category.Children, feature)
-		}
-
-		domain.Children = append(domain.Children, category)
-	}
-	return allEdges
+	return allEdges, nil
 }

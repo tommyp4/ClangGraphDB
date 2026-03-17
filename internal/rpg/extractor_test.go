@@ -7,7 +7,7 @@ import (
 func TestMockFeatureExtractor_Extract(t *testing.T) {
 	extractor := &MockFeatureExtractor{}
 
-	descriptors, err := extractor.Extract("func login() { validate(); hash(); }", "login")
+	descriptors, isVolatile, err := extractor.Extract("func login() { validate(); hash(); }", "login")
 	if err != nil {
 		t.Fatalf("Extract failed: %v", err)
 	}
@@ -21,12 +21,15 @@ func TestMockFeatureExtractor_Extract(t *testing.T) {
 	if descriptors[1] != "validate input" {
 		t.Errorf("Expected 'validate input', got '%s'", descriptors[1])
 	}
+	if isVolatile {
+		t.Errorf("Expected isVolatile to be false")
+	}
 }
 
 func TestMockFeatureExtractor_EmptyCode(t *testing.T) {
 	extractor := &MockFeatureExtractor{}
 
-	descriptors, err := extractor.Extract("", "empty")
+	descriptors, isVolatile, err := extractor.Extract("", "empty")
 	if err != nil {
 		t.Fatalf("Extract failed: %v", err)
 	}
@@ -34,6 +37,9 @@ func TestMockFeatureExtractor_EmptyCode(t *testing.T) {
 	// MockFeatureExtractor returns fixed values regardless of input
 	if len(descriptors) != 2 {
 		t.Fatalf("Expected 2 descriptors from mock, got %d", len(descriptors))
+	}
+	if isVolatile {
+		t.Errorf("Expected isVolatile to be false")
 	}
 }
 

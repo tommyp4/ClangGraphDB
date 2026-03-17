@@ -18,7 +18,7 @@ type GlobalEmbeddingClusterer struct {
 	PrecomputedEmbeddings map[string][]float32
 }
 
-func (c *GlobalEmbeddingClusterer) Cluster(nodes []graph.Node, domain string) (map[string][]graph.Node, error) {
+func (c *GlobalEmbeddingClusterer) Cluster(nodes []graph.Node, domain string) ([]ClusterGroup, error) {
 	// 1. Delegate clustering to the inner clusterer (e.g., K-Means)
 	// We pass "root" as the domain, but the inner clusterer usually appends numeric suffixes.
 	rawClusters, err := c.Inner.Cluster(nodes, domain)
@@ -26,48 +26,52 @@ func (c *GlobalEmbeddingClusterer) Cluster(nodes []graph.Node, domain string) (m
 		return nil, err
 	}
 
-	namedClusters := make(map[string][]graph.Node)
+	namedClusters := make([]ClusterGroup, 0, len(rawClusters))
+	usedNames := make(map[string]bool)
 
 	log.Printf("Global clustering produced %d raw clusters, generating semantic names...", len(rawClusters))
 
 	// 2. Process each raw cluster to generate a semantic name
 	clusterIdx := 0
-	for _, clusterNodes := range rawClusters {
+	for _, cluster := range rawClusters {
 		clusterIdx++
-		if len(clusterNodes) == 0 {
+		if len(cluster.Nodes) == 0 {
 			continue
 		}
 
 		// Calculate Centroid
-		centroid := c.calculateCentroid(clusterNodes)
+		centroid := c.calculateCentroid(cluster.Nodes)
 
 		// Find top representative nodes (closest to centroid)
-		representatives := c.findRepresentatives(clusterNodes, centroid, 5)
+		representatives := c.findRepresentatives(cluster.Nodes, centroid, 5)
 
 		// Collect snippets
 		snippets := c.collectSnippets(representatives)
 
 		// Generate Name
-		log.Printf("  Naming domain %d/%d (%d functions)...", clusterIdx, len(rawClusters), len(clusterNodes))
-		name, _, err := c.Summarizer.Summarize(snippets)
+		log.Printf("  Naming domain %d/%d (%d functions)...", clusterIdx, len(rawClusters), len(cluster.Nodes))
+		name, description, err := c.Summarizer.Summarize(snippets)
 		if err != nil {
-			log.Printf("Warning: domain summarization failed: %v", err)
-			// Fallback if summarization fails
-			name = "Domain-" + GenerateShortUUID()
+			return nil, fmt.Errorf("domain summarization failed for cluster %d: %w", clusterIdx, err)
 		}
 
 		// Ensure uniqueness if multiple clusters map to the same name (unlikely but possible)
 		originalName := name
 		counter := 1
 		for {
-			if _, exists := namedClusters[name]; !exists {
+			if !usedNames[name] {
 				break
 			}
 			name = fmt.Sprintf("%s %d", originalName, counter)
 			counter++
 		}
+		usedNames[name] = true
 
-		namedClusters[name] = clusterNodes
+		namedClusters = append(namedClusters, ClusterGroup{
+			Name:        name,
+			Description: description,
+			Nodes:       cluster.Nodes,
+		})
 	}
 
 	return namedClusters, nil

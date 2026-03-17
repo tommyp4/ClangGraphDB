@@ -117,3 +117,29 @@ func TestGetHotspots(t *testing.T) {
 		}
 	}
 }
+
+func TestGetHotspots_MissingData(t *testing.T) {
+	p := getProvider(t)
+	defer p.Close()
+	cleanup(t, p)
+	defer cleanup(t, p)
+
+	// Ensure NO risk_score data exists
+	_, err := neo4j.ExecuteQuery(p.ctx, p.driver, `
+		MATCH (f:Function) REMOVE f.risk_score
+	`, nil, neo4j.EagerResultTransformer)
+	if err != nil {
+		t.Fatalf("Failed to clear risk_score data: %v", err)
+	}
+
+	// Test
+	_, err = p.GetHotspots(".*")
+	if err == nil {
+		t.Fatal("Expected error when risk_score data is missing, got nil")
+	}
+
+	expectedErr := "risk score data is missing. Run 'graphdb enrich-contamination' first"
+	if err.Error() != expectedErr {
+		t.Errorf("Expected error '%s', got '%v'", expectedErr, err)
+	}
+}

@@ -50,14 +50,15 @@ func (p *Neo4jProvider) GetUnextractedFunctions(limit int) ([]*graph.Node, error
 }
 
 // UpdateAtomicFeatures saves the extracted atomic features for a node.
-func (p *Neo4jProvider) UpdateAtomicFeatures(id string, features []string) error {
+func (p *Neo4jProvider) UpdateAtomicFeatures(id string, features []string, isVolatile bool) error {
 	query := `
 		MATCH (n:Function {id: $id})
-		SET n.atomic_features = $features
+		SET n.atomic_features = $features, n.is_volatile = $isVolatile
 	`
 	_, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
-		"id":       id,
-		"features": features,
+		"id":         id,
+		"features":   features,
+		"isVolatile": isVolatile,
 	}, neo4j.EagerResultTransformer)
 
 	if err != nil {
@@ -192,12 +193,12 @@ func (p *Neo4jProvider) GetFunctionMetadata() ([]*graph.Node, error) {
 	return nodes, nil
 }
 
-// GetUnnamedFeatures returns features without a generated name/summary.
+// GetUnnamedFeatures returns features and domains without a generated name/description.
 func (p *Neo4jProvider) GetUnnamedFeatures(limit int) ([]*graph.Node, error) {
 	query := `
-		MATCH (n:Feature)
-		WHERE coalesce(n.name, '') = '' OR coalesce(n.summary, '') = ''
-		RETURN n.id as id, properties(n) as props
+		MATCH (n)
+		WHERE (n:Feature OR n:Domain) AND (coalesce(n.name, '') = '' OR coalesce(n.description, '') = '')
+		RETURN n.id as id, labels(n)[0] as label, properties(n) as props
 		LIMIT $limit
 	`
 	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
@@ -211,22 +212,23 @@ func (p *Neo4jProvider) GetUnnamedFeatures(limit int) ([]*graph.Node, error) {
 	nodes := make([]*graph.Node, 0, len(result.Records))
 	for _, record := range result.Records {
 		id, _, _ := neo4j.GetRecordValue[string](record, "id")
+		label, _, _ := neo4j.GetRecordValue[string](record, "label")
 		props, _, _ := neo4j.GetRecordValue[map[string]any](record, "props")
 
 		nodes = append(nodes, &graph.Node{
 			ID:         id,
-			Label:      "Feature",
+			Label:      label,
 			Properties: sanitizeProperties(props),
 		})
 	}
 	return nodes, nil
 }
 
-// CountUnnamedFeatures returns the total number of features without a name/summary.
+// CountUnnamedFeatures returns the total number of features and domains without a name/description.
 func (p *Neo4jProvider) CountUnnamedFeatures() (int64, error) {
 	query := `
-		MATCH (n:Feature)
-		WHERE coalesce(n.name, '') = '' OR coalesce(n.summary, '') = ''
+		MATCH (n)
+		WHERE (n:Feature OR n:Domain) AND (coalesce(n.name, '') = '' OR coalesce(n.description, '') = '')
 		RETURN count(n) as total
 	`
 	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, nil, neo4j.EagerResultTransformer)
@@ -238,6 +240,16 @@ func (p *Neo4jProvider) CountUnnamedFeatures() (int64, error) {
 	}
 	total, _, _ := neo4j.GetRecordValue[int64](result.Records[0], "total")
 	return total, nil
+}
+
+// ClearFeatureTopology deletes all Feature and Domain nodes.
+func (p *Neo4jProvider) ClearFeatureTopology() error {
+	query := `MATCH (n) WHERE n:Feature OR n:Domain DETACH DELETE n`
+	_, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, nil, neo4j.EagerResultTransformer)
+	if err != nil {
+		return fmt.Errorf("failed to clear feature topology: %w", err)
+	}
+	return nil
 }
 
 // UpdateFeatureTopology writes feature nodes and relationships to the graph
@@ -372,16 +384,17 @@ func (p *Neo4jProvider) batchWriteEdges(ctx context.Context, edges []*graph.Edge
 	return nil
 }
 
-// UpdateFeatureSummary saves the generated name and summary for a feature.
-func (p *Neo4jProvider) UpdateFeatureSummary(id string, name string, summary string) error {
+// UpdateFeatureSummary saves the generated name and description for a feature or domain.
+func (p *Neo4jProvider) UpdateFeatureSummary(id string, name string, description string) error {
 	query := `
-		MATCH (n:Feature {id: $id})
-		SET n.name = $name, n.summary = $summary
+		MATCH (n {id: $id})
+		WHERE n:Feature OR n:Domain
+		SET n.name = $name, n.description = $description
 	`
 	_, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
-		"id":      id,
-		"name":    name,
-		"summary": summary,
+		"id":          id,
+		"name":        name,
+		"description": description,
 	}, neo4j.EagerResultTransformer)
 
 	if err != nil {

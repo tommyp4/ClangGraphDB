@@ -24,13 +24,13 @@ func TestGlobalEmbeddingClusterer_Cluster(t *testing.T) {
 
 	// Setup Inner Clusterer (Mocking the K-Means result)
 	mockInner := &MockClusterer{
-		ClusterFunc: func(n []graph.Node, d string) (map[string][]graph.Node, error) {
+		ClusterFunc: func(n []graph.Node, d string) ([]ClusterGroup, error) {
 			// Simulate K-Means returning 2 clusters based on our knowledge of embeddings
 			// Cluster 1: fn1, fn2
 			// Cluster 2: fn3
-			return map[string][]graph.Node{
-				"root-cluster-0": {nodes[0], nodes[1]},
-				"root-cluster-1": {nodes[2]},
+			return []ClusterGroup{
+				{Name: "root-cluster-0", Nodes: []graph.Node{nodes[0], nodes[1]}},
+				{Name: "root-cluster-1", Nodes: []graph.Node{nodes[2]}},
 			}, nil
 		},
 	}
@@ -86,22 +86,20 @@ func TestGlobalEmbeddingClusterer_Cluster(t *testing.T) {
 
 	// Check Domain Names
 	// We expect "Authentication System" and "Payment System"
-	var keys []string
-	for k := range result {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Name < result[j].Name
+	})
 
-	if keys[0] != "Authentication System" {
-		t.Errorf("Expected 'Authentication System', got '%s'", keys[0])
+	if result[0].Name != "Authentication System" {
+		t.Errorf("Expected 'Authentication System', got '%s'", result[0].Name)
 	}
-	if keys[1] != "Payment System" {
-		t.Errorf("Expected 'Payment System', got '%s'", keys[1])
+	if result[1].Name != "Payment System" {
+		t.Errorf("Expected 'Payment System', got '%s'", result[1].Name)
 	}
 
 	// Check content of Authentication System
-	authNodes := result["Authentication System"]
-	if len(authNodes) != 2 {
-		t.Errorf("Expected 2 nodes in Auth System, got %d", len(authNodes))
+	authGroup := result[0]
+	if len(authGroup.Nodes) != 2 {
+		t.Errorf("Expected 2 nodes in Auth System, got %d", len(authGroup.Nodes))
 	}
 }

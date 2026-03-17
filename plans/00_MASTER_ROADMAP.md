@@ -53,7 +53,7 @@
 - [x] **Feature Embeddings:** `Enricher` now generates embeddings for all Feature nodes via `Embedder` integration.
 - [x] **Atomic Feature Extraction:** New `FeatureExtractor` interface and `LLMFeatureExtractor` -- extracts Verb-Object descriptors per function (e.g., "validate email", "hash password").
 - [x] **Semantic Clustering:** New `EmbeddingClusterer` with K-Means++ on atomic feature embeddings, replacing file-based grouping.
-- [x] **3-Level Hierarchy:** `Builder` supports optional `CategoryClusterer` for Domain -> Category -> Feature hierarchy (per research).
+- [x] ~~**3-Level Hierarchy:**~~ Removed. The `CategoryClusterer` abstraction was never wired in production and does not serve the core Feathers methodology. Dead code eliminated.
 - [x] **Enrichment Improvements:** Increased truncation to 3000 chars, atomic features included as summarization context.
 - [x] **Hierarchy Navigation:** New `ExploreDomain` query returns feature + parent + children + siblings + implementing functions. Wired to `--type explore-domain` CLI.
 - [x] **Cleanup:** Remove legacy `FileClusterer` and enforce semantic clustering by default (Plan: `plans/refactor_remove_file_clusterer.md`).

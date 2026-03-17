@@ -9,14 +9,15 @@ import (
 
 type MockGraphProvider struct {
 	GetUnextractedFunctionsFn func(limit int) ([]*graph.Node, error)
-	UpdateAtomicFeaturesFn    func(id string, features []string) error
+	UpdateAtomicFeaturesFn    func(id string, features []string, isVolatile bool) error
 	GetUnembeddedNodesFn      func(limit int) ([]*graph.Node, error)
 	UpdateEmbeddingsFn        func(id string, embedding []float32) error
 	GetEmbeddingsOnlyFn       func() (map[string][]float32, error)
 	GetUnnamedFeaturesFn      func(limit int) ([]*graph.Node, error)
 	CountUnnamedFeaturesFn    func() (int64, error)
+	ClearFeatureTopologyFn    func() error
 	UpdateFeatureTopologyFn   func(nodes []*graph.Node, edges []*graph.Edge) error
-	UpdateFeatureSummaryFn    func(id string, name string, summary string) error
+	UpdateFeatureSummaryFn    func(id string, name string, description string) error
 	GetFunctionMetadataFn     func() ([]*graph.Node, error)
 	ExploreDomainFn           func(featureID string) (*query.DomainExplorationResult, error)
 }
@@ -67,6 +68,7 @@ func (m *MockGraphProvider) SeedVolatility(modulePattern string, rules []query.C
 }
 func (m *MockGraphProvider) PropagateVolatility() error { return nil }
 func (m *MockGraphProvider) CalculateRiskScores() error { return nil }
+func (m *MockGraphProvider) CountVolatileFunctions() (int64, error) { return 0, nil }
 func (m *MockGraphProvider) UpdateFileHistory(metrics map[string]query.FileHistoryMetrics) error {
 	return nil
 }
@@ -77,9 +79,9 @@ func (m *MockGraphProvider) GetUnextractedFunctions(limit int) ([]*graph.Node, e
 	}
 	return nil, nil
 }
-func (m *MockGraphProvider) UpdateAtomicFeatures(id string, features []string) error {
+func (m *MockGraphProvider) UpdateAtomicFeatures(id string, features []string, isVolatile bool) error {
 	if m.UpdateAtomicFeaturesFn != nil {
-		return m.UpdateAtomicFeaturesFn(id, features)
+		return m.UpdateAtomicFeaturesFn(id, features, isVolatile)
 	}
 	return nil
 }
@@ -113,15 +115,21 @@ func (m *MockGraphProvider) CountUnnamedFeatures() (int64, error) {
 	}
 	return 0, nil
 }
+func (m *MockGraphProvider) ClearFeatureTopology() error {
+	if m.ClearFeatureTopologyFn != nil {
+		return m.ClearFeatureTopologyFn()
+	}
+	return nil
+}
 func (m *MockGraphProvider) UpdateFeatureTopology(nodes []*graph.Node, edges []*graph.Edge) error {
 	if m.UpdateFeatureTopologyFn != nil {
 		return m.UpdateFeatureTopologyFn(nodes, edges)
 	}
 	return nil
 }
-func (m *MockGraphProvider) UpdateFeatureSummary(id string, name string, summary string) error {
+func (m *MockGraphProvider) UpdateFeatureSummary(id string, name string, description string) error {
 	if m.UpdateFeatureSummaryFn != nil {
-		return m.UpdateFeatureSummaryFn(id, name, summary)
+		return m.UpdateFeatureSummaryFn(id, name, description)
 	}
 	return nil
 }
@@ -154,7 +162,7 @@ func TestOrchestratorExtraction(t *testing.T) {
 	}
 
 	updateCount := 0
-	mockProvider.UpdateAtomicFeaturesFn = func(id string, features []string) error {
+	mockProvider.UpdateAtomicFeaturesFn = func(id string, features []string, isVolatile bool) error {
 		updateCount++
 		if id != "f1" {
 			t.Errorf("Expected f1, got %s", id)
