@@ -39,6 +39,13 @@ jobs:
       - name: Build Binaries
         run: make build-all
 
+      - name: Package Bundle
+        run: |
+          tar -czvf graphdb-skill-bundle.tar.gz \
+            --exclude=".gemini/tools" \
+            .gemini/agents \
+            .gemini/skills
+
       - name: Upload Artifacts (For Manual Runs)
         uses: actions/upload-artifact@v4
         with:
@@ -46,6 +53,7 @@ jobs:
           path: |
             .gemini/skills/graphdb/scripts/graphdb
             .gemini/skills/graphdb/scripts/graphdb-win.exe
+            graphdb-skill-bundle.tar.gz
           retention-days: 7
 
       - name: Create GitHub Release
@@ -56,4 +64,5 @@ jobs:
           files: |
             .gemini/skills/graphdb/scripts/graphdb
             .gemini/skills/graphdb/scripts/graphdb-win.exe
+            graphdb-skill-bundle.tar.gz
           generate_release_notes: true
