@@ -207,13 +207,13 @@ flowchart TD
 
 **What it does:**
 
-1.  Creates schema constraints and indexes: uniqueness constraints on node IDs, vector indexes for future embeddings (768-dimensional cosine similarity on `Function.embedding` and `Feature.embedding`).
+1.  Creates schema constraints and indexes: uniqueness constraints on node IDs, vector indexes for embeddings (cosine similarity on `Function.embedding` and `Feature.embedding`, dimensions configurable via `GEMINI_EMBEDDING_DIMENSIONS`).
 2.  Reads JSONL streams and batches records for high-throughput insertion.
 3.  Uses Cypher `UNWIND` patterns for transactional bulk writes (configurable batch sizes).
 
 **Why UNWIND:** Neo4j's `UNWIND` pattern allows a single transaction to create hundreds of nodes/edges from a parameterized list, amortizing the transaction overhead. This is 10-100x faster than individual `CREATE` statements and critical for codebases with hundreds of thousands of nodes.
 
-**Incremental mode:** When run with `-since-commit` (or auto-detected from stored graph state via `GetGraphState()`), only changed files are re-ingested and their nodes are upserted directly into Neo4j, bypassing JSONL entirely. This uses the `Neo4jEmitter` instead of the `JSONLEmitter`.
+**Incremental mode:** Note that incremental ingestion is handled by the `graphdb ingest` command (Phase 1), not by `import`. When run with `-since-commit` (or auto-detected from stored graph state via `GetGraphState()`), the ingest command skips JSONL output and upserts changed nodes directly into Neo4j using a `Neo4jEmitter`, effectively merging Phases 1 and 2 for changed files only.
 
 ### Phase 3: RPG Construction (Semantic Enrichment)
 
@@ -227,7 +227,7 @@ This is the most complex phase. It runs four sub-steps sequentially, each buildi
 #### Sub-step 3a: Atomic Feature Extraction (`RunExtraction`)
 
 *   Queries for `Function` nodes lacking `atomic_features` (resumable -- skips already-extracted nodes).
-*   Sends each function's source code and name to a generative LLM (e.g., Gemini).
+*   For each function, slices the actual source code from disk (using the stored `file`, `start_line`, `end_line` properties) and sends it to a generative LLM (e.g., Gemini).
 *   The LLM returns structured JSON: `{"descriptors": ["verb-object", ...], "is_volatile": true/false}`
     *   **Descriptors** are semantic "verb-object" pairs (e.g., `authenticate-user`, `query-database-records`) that capture what the function actually does, independent of its name.
     *   **`is_volatile`** indicates whether the function interacts with external systems: UI rendering, database I/O, network calls, file system operations, or non-deterministic state. This flag seeds Phase 4 contamination analysis.
@@ -241,7 +241,7 @@ This is the most complex phase. It runs four sub-steps sequentially, each buildi
 
 *   Queries for nodes where `n.embedding IS NULL` (matches both `Function` and `Feature` nodes; resumable).
 *   Converts each node to text via `NodeToText()`, which prioritizes `atomic_features` (from sub-step 3a), falling back to the raw `name` property, then the node ID.
-*   Sends text batches to `gemini-embedding-001`, producing 768-dimensional float32 vectors.
+*   Sends text batches to the configured embedding model (default: `gemini-embedding-001`), producing float32 vectors (dimensions configurable, default 768).
 *   Writes each vector to the node's `embedding` property.
 
 **Why this ordering is critical:** Extraction MUST complete before embedding. `NodeToText()` encodes the rich `atomic_features` text, not the bare function name. If extraction hasn't run, `NodeToText()` falls back to the raw name, producing the same low-fidelity vectors that would degrade clustering and seam detection.
@@ -250,7 +250,7 @@ This is the most complex phase. It runs four sub-steps sequentially, each buildi
 
 *   **Idempotent cleanup:** Clears any existing `Feature` and `Domain` topology (`ClearFeatureTopology`) before regenerating. This ensures re-runs produce exactly one set of clusters, not duplicates.
 *   Loads all embeddings from the graph via `GetEmbeddingsOnly()`.
-*   Calculates the target number of top-level domains: `K = sqrt(fileCount / 5)`, capped at 50.
+*   Calculates the target number of top-level domains: `K = sqrt(fileCount / 5)`, bounded to the range [5, 50].
 *   Runs **K-Means++** initialization to select optimal initial centroids ("seeds").
 *   Runs iterative K-Means assignment until convergence, grouping functions into clusters.
 *   Creates `Domain` and `Feature` nodes in Neo4j, linked via `PARENT_OF` edges. Links constituent functions via `IMPLEMENTS` edges.
@@ -270,14 +270,15 @@ This is the most complex phase. It runs four sub-steps sequentially, each buildi
 
 *   **Command:** `graphdb enrich-contamination`
 *   **Input:** A graph with `is_volatile` flags on Function nodes (from Phase 3a)
-*   **Output:** `risk_score` on every Function node; `contamination_depth` tracking propagation distance
+*   **Output:** `is_volatile` propagated transitively through the call graph; `volatility_score` (distance-based); `risk_score` (composite, normalized) on every Function node
 *   **Dependencies:** Running Neo4j instance (no LLM needed -- this is a pure graph algorithm)
 
 **What it does:**
 
 1.  **Pre-flight check:** Verifies that `is_volatile` flags exist in the graph. If zero volatile functions are found, halts with a directive to run `graphdb enrich-features` first.
-2.  **Propagation:** Walks the `CALLS` graph upward from volatile leaf functions. If function A calls volatile function B, A inherits a diluted contamination score proportional to its distance from the volatile source.
-3.  **Risk scoring:** Normalizes all scores to `[0, 1]` where `1.0` = directly volatile, and lower values indicate increasingly indirect transitive exposure.
+2.  **Binary propagation:** Walks the `CALLS` graph upward. If function A calls any volatile function (directly or transitively), A is also marked `is_volatile = true`. This is a boolean flood-fill, not a scored propagation.
+3.  **Volatility scoring:** Calculates a distance-based `volatility_score` for each function: `1.0 / (distance + 1)` where `distance` is the shortest path to any volatile function (0 = directly volatile, 1 = one hop away, etc.).
+4.  **Composite risk scoring:** Computes a normalized `risk_score` combining four factors: `fan_in * 0.4 + fan_out * 0.1 + volatility_score * 3.0 + churn * 0.4`. The result is normalized to `[0, 1]` by dividing by the maximum observed score. A value of `1.0` means highest overall risk across all factors, not necessarily directly volatile.
 
 **Why this is separate from Phase 3:** Contamination is a deterministic graph algorithm, not an LLM task. It runs in seconds, costs nothing, and can be re-run cheaply after any graph change (e.g., after re-ingesting code that adds new `CALLS` edges) without re-running expensive LLM extraction or embedding.
 
@@ -292,7 +293,7 @@ This is the most complex phase. It runs four sub-steps sequentially, each buildi
 
 1.  **Churn (`enrich-history`):** Analyzes `git log` output to compute per-file `change_frequency` on `File` nodes. High-churn files are candidates for refactoring.
 2.  **Co-change (`enrich-history`):** Identifies files that frequently change together in the same commits. This reveals implicit coupling not visible in the structural graph (e.g., a config file that always changes alongside a service class).
-3.  **Test linking (`enrich-tests`):** Identifies functions tagged `is_test: true` (from Phase 1) and traces their `CALLS` edges to find the production functions they exercise. Creates explicit `TESTS` relationships, enabling test coverage queries.
+3.  **Test linking (`enrich-tests`):** Identifies functions tagged `is_test: true` (from Phase 1) and matches them to production functions by naming convention (e.g., `TestFoo` links to `Foo`, `FooTest` links to `Foo`). Creates explicit `TESTS` edges via `MERGE`, enabling test coverage queries.
 
 ### One-Shot Pipeline
 
