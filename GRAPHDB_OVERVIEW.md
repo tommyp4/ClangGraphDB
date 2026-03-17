@@ -119,29 +119,81 @@ graph TD
 
 ## 4. The Ingestion Pipeline
 
-The transition from raw code to a queryable knowledge graph occurs in distinct phases.
+The transition from raw code to a queryable knowledge graph occurs in distinct phases. This process combines static analysis, vector embeddings, and LLM-driven semantic clustering.
+
+```mermaid
+flowchart TD
+    %% --- Subgraphs for Phases ---
+    subgraph Phase 1: Ingestion
+        A[File System] -->|Tree-sitter| B(Parse AST)
+        B --> C{Extract Entities}
+        C -->|File, Class, Function, Calls| D[(JSONL Output)]
+    end
+
+    subgraph Phase 2: Loading
+        D -->|Cypher UNWIND| E[(Neo4j Database)]
+    end
+
+    subgraph Phase 3: RPG Construction
+        E -->|Get Unextracted Functions| F(Atomic Extraction)
+        F -->|LLM: Extract 'Verb-Object' & Volatility| G[Generate Embeddings]
+        G -->|Update Node| E
+        
+        E -->|Fetch Embeddings & Metadata| H(Domain Discovery)
+        H -->|Calculate K based on File Count| I(Top-Down Seeding)
+        I -->|K-Means++ Initialization| J(Semantic Clustering)
+        J -->|K-Means Iteration| K[Group Functions]
+        K -->|LLM| L(Naming & Summarization)
+        L -->|Create Domain/Feature Nodes| E
+    end
+
+    subgraph Phase 4: Contamination & Risk
+        E -->|Read 'is_volatile' seeds| M(Propagate Volatility)
+        M -->|Upward through CALLS| N[Calculate Risk Scores]
+        N -->|Update Nodes| E
+    end
+
+    subgraph Phase 5: History & Tests
+        O[Git History] -->|Calculate Churn & Co-change| E
+        P[Test Files] -->|Link Tests to Code| E
+    end
+
+    %% --- Styling ---
+    classDef storage fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
+    classDef process fill:#e3f2fd,stroke:#1565c0,stroke-width:1px;
+    classDef llm fill:#fff8e1,stroke:#f57f17,stroke-width:2px;
+    
+    class D,E storage;
+    class B,C,M,N,H,I,J,K process;
+    class F,L llm;
+```
 
 ### Phase 1: Ingestion (Parsing)
 *   **Command:** `graphdb ingest` walks the file system in parallel.
 *   **Parsing:** Uses **Tree-sitter** to generate Concrete Syntax Trees.
 *   **Graph Construction:** Extracts structural entities (`File`, `Class`, `Function`, `Field`, `Global`) and their local relationships.
-*   **Bootstrap Embedding:** Performs initial vectorization of function *names* to enable immediate semantic search.
+*   **Output:** Generates a stream of JSONL files representing the physical graph.
 
 ### Phase 2: Loading (Persistence)
 *   **Command:** `graphdb import` reads the generated JSONL stream.
 *   **Batching:** Uses Cypher `UNWIND` for high-throughput transactional inserts into Neo4j.
 
 ### Phase 3: RPG Construction (Repository Planning Graph)
-*   **Command:** `graphdb enrich-features`
+*   **Command:** `graphdb enrich --step all` (or individual steps)
 *   **Process:**
-    1.  **Atomic Feature Extraction:** LLM extracts "Verb-Object" descriptors for every function.
-    2.  **Full Body Embedding:** Vectorizes entire function implementations for higher-precision similarity.
-    3.  **Semantic Clustering:** Groups code into `Domain` and `Feature` nodes based on semantic meaning.
-    4.  **Summarization:** LLM generates concise names and descriptions for clusters.
+    1.  **Atomic Extraction (`--step extract`):** Iterates over functions. Uses an LLM to extract "Verb-Object" descriptors and **seeds initial volatility flags** (e.g., identifies if a function interacts with the DB or UI).
+    2.  **Embedding Generation:** Vectorizes the entire function body (or signature) using `gemini-embedding-001` (768 dimensions) and stores it on the Neo4j node.
+    3.  **Clustering Initialization (Seeding) (`--step features`):** 
+        *   Calculates the target number of Top-Level Domains (K) based on the unique file count (capped at 50 domains).
+        *   Uses **K-Means++** to deterministically select the optimal initial centroids ("seeds") for the clusters. This is the computationally heavy `Seeding X/Y` step seen in the CLI.
+
+        > **Plain English:** Think of "seeding" as picking the starting points for each logical group. If you pick starting points that are too close together, your groups will overlap and become messy. K-Means++ is a smart algorithm that ensures these initial "seeds" are spread out as far as possible from each other across the semantic space of your code. By picking seeds that are mathematically "distant" (e.g., one in networking, one in UI, one in database logic), the final clusters are much more likely to represent distinct, high-quality architectural domains.
+    4.  **Semantic Clustering:** Runs the K-Means algorithm to group functions with similar vector embeddings into logical `Feature` and `Domain` clusters.
+    5.  **Naming & Summarization:** Passes the grouped functions to the LLM to generate concise, human-readable names and descriptions for the newly created `Feature` and `Domain` nodes.
 
 ### Phase 4: Contamination Analysis (Seams)
 *   **Command:** `graphdb enrich-contamination`
-*   **Logic:** Seeds volatility flags (e.g., UI/DB access) and propagates them upward through the call graph. Calculates normalized `risk_score` for every function.
+*   **Logic:** Reads the `is_volatile` flags seeded by the LLM during Phase 3, and propagates them upward through the `CALLS` graph. Calculates a normalized `risk_score` for every function based on its transitive dependencies on volatile code.
 
 ### Phase 5: History & Test Enrichment
 *   **Commands:** `graphdb enrich-history` and `graphdb enrich-tests`
