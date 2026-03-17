@@ -257,7 +257,7 @@ func TestGetSeams_MissingData(t *testing.T) {
 		t.Fatal("Expected error when is_volatile data is missing, got nil")
 	}
 
-	expectedErr := "volatility data is missing. Run 'graphdb enrich --step extract' first"
+	expectedErr := "volatility data is missing. Run 'graphdb enrich-contamination' first"
 	if err.Error() != expectedErr {
 		t.Errorf("Expected error '%s', got '%v'", expectedErr, err)
 	}

@@ -542,11 +542,11 @@ func (p *Neo4jProvider) GetSeams(modulePattern string, layer string) ([]*SeamRes
 		return nil, fmt.Errorf("pre-flight check failed: %w", err)
 	}
 	if len(checkRes.Records) == 0 {
-		return nil, fmt.Errorf("volatility data is missing. Run 'graphdb enrich --step extract' first")
+		return nil, fmt.Errorf("volatility data is missing. Run 'graphdb enrich-contamination' first")
 	}
 	count, _, _ := neo4j.GetRecordValue[int64](checkRes.Records[0], "count")
 	if count == 0 {
-		return nil, fmt.Errorf("volatility data is missing. Run 'graphdb enrich --step extract' first")
+		return nil, fmt.Errorf("volatility data is missing. Run 'graphdb enrich-contamination' first")
 	}
 
 	// Pinch Point detection:

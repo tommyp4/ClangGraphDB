@@ -22,10 +22,10 @@ func TestNeo4jExploreDomain(t *testing.T) {
 	`, nil, neo4j.EagerResultTransformer)
 
 	// Setup hierarchy
-	// TopLevel -> Category -> Feature
+	// TopLevel(Domain) -> Category(Feature) -> Feature(Feature)
 	// Function implements Feature
 	setupQuery := `
-		CREATE (top:Feature {id: 'explore-test-top', name: 'Top Level'})
+		CREATE (top:Domain {id: 'explore-test-top', name: 'Top Level'})
 		CREATE (cat:Feature {id: 'explore-test-cat', name: 'Category'})
 		CREATE (feat:Feature {id: 'explore-test-feat', name: 'Feature'})
 		CREATE (fn:Function {id: 'explore-test-fn', name: 'MyFn'})

@@ -32,6 +32,8 @@ func TestNeo4jBatchOperations(t *testing.T) {
 		CREATE (feat2:Feature {id: 'batch-test-feat2', name: 'Existing Name', description: 'Existing Description'})
 		CREATE (feat3:Feature {id: 'batch-test-feat-semi', name: 'Some Name'})
 		CREATE (feat4:Feature {id: 'batch-test-feat-empty', name: '', description: ''})
+		CREATE (dom1:Domain {id: 'batch-test-dom1'})
+		CREATE (dom2:Domain {id: 'batch-test-dom2', name: 'Existing Domain', description: 'Existing Domain Desc'})
 	`
 	_, err := neo4j.ExecuteQuery(p.ctx, p.driver, setupQuery, nil, neo4j.EagerResultTransformer)
 	if err != nil {
@@ -74,7 +76,7 @@ func TestNeo4jBatchOperations(t *testing.T) {
 	}
 
 	// 3. Test GetUnembeddedNodes
-	// f1, f2, f3, feat1, feat2 should all lack embeddings initially
+	// f1, f2, f3, feat1, feat2, dom1, dom2 should all lack embeddings initially
 	unembedded, err := p.GetUnembeddedNodes(100)
 	if err != nil {
 		t.Fatalf("GetUnembeddedNodes failed: %v", err)
@@ -85,8 +87,8 @@ func TestNeo4jBatchOperations(t *testing.T) {
 			unembeddedTestNodes++
 		}
 	}
-	if unembeddedTestNodes != 7 {
-		t.Errorf("Expected 7 unembedded test nodes, got %d", unembeddedTestNodes)
+	if unembeddedTestNodes != 9 {
+		t.Errorf("Expected 9 unembedded test nodes, got %d", unembeddedTestNodes)
 	}
 
 	// 4. Test UpdateEmbeddings
@@ -120,10 +122,14 @@ func TestNeo4jBatchOperations(t *testing.T) {
 	// feat2 is named and described, so should be excluded.
 	// feat3 has name but no description (semi-named), so should be picked up.
 	// feat4 has empty name and empty description, so should be picked up.
+	// dom1 should be unnamed (no name property).
+	// dom2 is named and described, so should be excluded.
 	foundFeat1 := false
 	foundFeatSemi := false
 	foundFeatEmpty := false
 	foundFeat2 := false
+	foundDom1 := false
+	foundDom2 := false
 	for _, n := range unnamed {
 		if n.ID == "batch-test-feat1" {
 			foundFeat1 = true
@@ -137,6 +143,12 @@ func TestNeo4jBatchOperations(t *testing.T) {
 		if n.ID == "batch-test-feat2" {
 			foundFeat2 = true
 		}
+		if n.ID == "batch-test-dom1" {
+			foundDom1 = true
+		}
+		if n.ID == "batch-test-dom2" {
+			foundDom2 = true
+		}
 	}
 	if !foundFeat1 {
 		t.Errorf("Expected to find batch-test-feat1 in unnamed features (missing name)")
@@ -149,6 +161,12 @@ func TestNeo4jBatchOperations(t *testing.T) {
 	}
 	if foundFeat2 {
 		t.Errorf("Did not expect to find batch-test-feat2 in unnamed features (already named and described)")
+	}
+	if !foundDom1 {
+		t.Errorf("Expected to find batch-test-dom1 in unnamed features (Domain node missing name)")
+	}
+	if foundDom2 {
+		t.Errorf("Did not expect to find batch-test-dom2 in unnamed features (Domain already named and described)")
 	}
 
 	// 6.5 Test GetFunctionMetadata
@@ -182,10 +200,16 @@ func TestNeo4jBatchOperations(t *testing.T) {
 		t.Errorf("Expected to find batch-test-f3 in function metadata")
 	}
 
-	// 7. Test UpdateFeatureSummary
+	// 7. Test UpdateFeatureSummary (Feature)
 	err = p.UpdateFeatureSummary("batch-test-feat1", "New Name", "New Description")
 	if err != nil {
-		t.Fatalf("UpdateFeatureSummary failed: %v", err)
+		t.Fatalf("UpdateFeatureSummary failed for feature: %v", err)
+	}
+
+	// 7.5 Test UpdateFeatureSummary (Domain)
+	err = p.UpdateFeatureSummary("batch-test-dom1", "New Domain Name", "New Domain Desc")
+	if err != nil {
+		t.Fatalf("UpdateFeatureSummary failed for domain: %v", err)
 	}
 
 	// 8. Test UpdateFeatureTopology

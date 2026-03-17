@@ -1,6 +1,7 @@
 package rpg
 
 import (
+	"fmt"
 	"graphdb/internal/graph"
 	"strings"
 	"testing"
@@ -104,5 +105,29 @@ func TestBuilder_Build(t *testing.T) {
 	}
 	if foundParentOf != 2 {
 		t.Errorf("Expected 2 PARENT_OF edges, got %d", foundParentOf)
+	}
+}
+
+
+func TestBuilder_ErrorPropagation(t *testing.T) {
+	mockGlobal := &MockClusterer{
+		ClusterFunc: func(nodes []graph.Node, domain string) ([]ClusterGroup, error) {
+			return nil, fmt.Errorf("simulated global clusterer error")
+		},
+	}
+	
+	builder := &Builder{
+		GlobalClusterer: mockGlobal,
+		Clusterer:       &MockClusterer{},
+	}
+	
+	functions := []graph.Node{{ID: "f1"}}
+	_, _, err := builder.Build("src/", functions)
+	
+	if err == nil {
+		t.Fatal("Expected error to propagate from builder, got nil")
+	}
+	if !strings.Contains(err.Error(), "simulated global clusterer error") {
+		t.Errorf("Expected error to contain 'simulated global clusterer error', got '%v'", err)
 	}
 }
