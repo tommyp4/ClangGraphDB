@@ -43,7 +43,7 @@ namespace Trucks.Server {
 	// Run Ingest
 	emitter := storage.NewJSONLEmitter(f)
 	
-	walker := ingest.NewWalker(1, &MockEmbedder{}, emitter)
+	walker := ingest.NewWalker(1, emitter)
 	if err := walker.Run(context.Background(), tmpDir); err != nil {
 		t.Fatal(err)
 	}

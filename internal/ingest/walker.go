@@ -2,7 +2,6 @@ package ingest
 
 import (
 	"context"
-	"graphdb/internal/embedding"
 	"graphdb/internal/storage"
 	"io/fs"
 	"os"
@@ -16,9 +15,9 @@ type Walker struct {
 	WorkerPool *WorkerPool
 }
 
-func NewWalker(workers int, embedder embedding.Embedder, emitter storage.Emitter) *Walker {
+func NewWalker(workers int, emitter storage.Emitter) *Walker {
 	return &Walker{
-		WorkerPool: NewWorkerPool(workers, embedder, emitter),
+		WorkerPool: NewWorkerPool(workers, emitter),
 	}
 }
 

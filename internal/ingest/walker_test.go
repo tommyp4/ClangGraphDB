@@ -56,8 +56,8 @@ ignored_dir/
 	}
 
 	// Initialize Walker
-	// We don't need real embedder/emitter for Count
-	walker := NewWalker(1, &MockFailingEmbedder{}, &MockEmitter{})
+	// We don't need real emitter for Count
+	walker := NewWalker(1, &MockEmitter{})
 
 	// Test Count
 	count, err := walker.Count(context.Background(), tempDir)
@@ -107,7 +107,7 @@ func TestWalker_Count_NoGitIgnore(t *testing.T) {
 		}
 	}
 
-	walker := NewWalker(1, &MockFailingEmbedder{}, &MockEmitter{})
+	walker := NewWalker(1, &MockEmitter{})
 
 	count, err := walker.Count(context.Background(), tempDir)
 	if err != nil {

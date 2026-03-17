@@ -1,7 +1,6 @@
 package ingest
 
 import (
-	"errors"
 	"graphdb/internal/analysis"
 	"graphdb/internal/graph"
 	"testing"
@@ -9,13 +8,6 @@ import (
 	"path/filepath"
 	"os"
 )
-
-// MockEmbedder always fails
-type MockFailingEmbedder struct{}
-
-func (m *MockFailingEmbedder) EmbedBatch(texts []string) ([][]float32, error) {
-	return nil, errors.New("simulated embedding failure")
-}
 
 // MockEmitter collects items
 type MockEmitter struct {
@@ -42,39 +34,10 @@ func (m *MockEmitter) Close() error {
 	return nil
 }
 
-func TestWorkerPool_ContinuesOnEmbeddingFailure(t *testing.T) {
-	// 1. Setup
-	embedder := &MockFailingEmbedder{}
-	emitter := &MockEmitter{}
-	workerPool := NewWorkerPool(1, embedder, emitter)
-	
-	workerPool.Start()
-	
-	// 2. Submit a file that we know has functions (so it triggers embedding)
-	wd, _ := os.Getwd()
-	repoRoot := filepath.Dir(filepath.Dir(wd))
-	// internal/ingest -> root is ../..
-	fixturePath := filepath.Join(wd, "../../test/fixtures/typescript/sample.ts")
-	
-	workerPool.Submit(repoRoot, fixturePath)
-	
-	// 3. Stop and wait
-	workerPool.Stop()
-	
-	// 4. Assert
-	emitter.mu.Lock()
-	defer emitter.mu.Unlock()
-	
-	if len(emitter.Nodes) == 0 {
-		t.Fatalf("Expected nodes to be emitted even if embedding failed, but got 0. Note: This test is EXPECTED to fail before the fix.")
-	}
-}
-
 func TestWorkerPool_EmitsFileAndDefinedInEdges(t *testing.T) {
 	// 1. Setup
-	embedder := &MockFailingEmbedder{} // Embedding doesn't matter here
 	emitter := &MockEmitter{}
-	workerPool := NewWorkerPool(1, embedder, emitter)
+	workerPool := NewWorkerPool(1, emitter)
 	
 	workerPool.Start()
 	
@@ -140,9 +103,8 @@ func (m *MockParser) Parse(filePath string, content []byte) ([]*graph.Node, []*g
 func TestWorkerPool_TagsTestFiles(t *testing.T) {
 	// 1. Setup
 	analysis.RegisterParser(".go", &MockParser{})
-	embedder := &MockFailingEmbedder{}
 	emitter := &MockEmitter{}
-	workerPool := NewWorkerPool(1, embedder, emitter)
+	workerPool := NewWorkerPool(1, emitter)
 	workerPool.Start()
 
 	// 2. Submit a test file

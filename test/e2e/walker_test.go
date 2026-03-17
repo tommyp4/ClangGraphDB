@@ -2,26 +2,12 @@ package e2e_test
 
 import (
 	"context"
-	"graphdb/internal/embedding"
 	"graphdb/internal/graph"
 	"graphdb/internal/ingest"
 	"testing"
     "path/filepath"
     "os"
 )
-
-// MockEmbedder implements embedding.Embedder
-type MockEmbedder struct{}
-
-var _ embedding.Embedder = (*MockEmbedder)(nil)
-
-func (m *MockEmbedder) EmbedBatch(texts []string) ([][]float32, error) {
-	result := make([][]float32, len(texts))
-	for i := range texts {
-		result[i] = []float32{0.1, 0.2, 0.3} // Dummy embedding
-	}
-	return result, nil
-}
 
 // MockEmitter implements storage.Emitter
 type MockEmitter struct {
@@ -65,9 +51,8 @@ func TestWalker_Run(t *testing.T) {
     }
 
 	emitter := &MockEmitter{}
-	embedder := &MockEmbedder{}
 
-    walker := ingest.NewWalker(2, embedder, emitter)
+    walker := ingest.NewWalker(2, emitter)
 
     err = walker.Run(context.Background(), fixturesPath)
     if err != nil {

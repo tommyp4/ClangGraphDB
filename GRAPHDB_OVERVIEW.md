@@ -63,13 +63,13 @@ graph TD
     Cl -- DEFINES --> Fd
     Cl -- INHERITS / EXTENDS --> Cl
     Cl -- DEPENDS_ON --> Cl
-    
+
     %% --- Dependency Edges ---
     Fn -- CALLS --> Fn
     Fn -- USES --> Fd
     Fn -- USES --> Gl
     Fn -- USES_GLOBAL --> Gl
-    
+
     %% --- Location Edges ---
     Fn -. DEFINED_IN .-> F
     Cl -. DEFINED_IN .-> F
@@ -108,7 +108,7 @@ graph TD
     *   The `impact` and `seams` queries rely on the `CALLS` graph to calculate "Contamination". If a function touches a UI component or a database, that "risk" propagates up the `CALLS` edges to its callers.
     *   **Pinch Points (Structural Seams):** A "chokepoint" sitting between stable business logic and volatile dependencies (UI, DB, APIs).
         *   **Logic:** Identified by high *Internal Fan-In* (non-volatile callers) and high *Volatile Fan-Out* (volatile callees).
-        *   **Implementation:** Backend Cypher query (`internal/query/neo4j.go`). 
+        *   **Implementation:** Backend Cypher query (`internal/query/neo4j.go`).
         *   **Threshold:** `internal_fan_in > 0 AND volatile_fan_out > 0`. Results are ranked by `Fan-In * Fan-Out`.
     *   **Semantic Seams (Divergence Seams):** Identifies SRP violations within a container (File/Class) by finding function pairs with low semantic similarity.
         *   **Logic:** Uses Cosine Similarity between vector embeddings.
@@ -119,33 +119,183 @@ graph TD
 
 ## 4. The Ingestion Pipeline
 
-The transition from raw code to a queryable knowledge graph occurs in distinct phases.
+The transition from raw source code to a queryable knowledge graph occurs in six phases. Each phase has a single responsibility and a clear data contract with the next.
 
-### Phase 1: Ingestion (Parsing)
-*   **Command:** `graphdb ingest` walks the file system in parallel.
-*   **Parsing:** Uses **Tree-sitter** to generate Concrete Syntax Trees.
-*   **Graph Construction:** Extracts structural entities (`File`, `Class`, `Function`, `Field`, `Global`) and their local relationships.
-*   **Bootstrap Embedding:** Performs initial vectorization of function *names* to enable immediate semantic search.
+**Guiding Principles:**
+*   **Separation of concerns:** Structural parsing (deterministic, fast, offline) is strictly separated from semantic enrichment (LLM-driven, expensive, requires GCP credentials). Phase 1 requires no API calls or cloud credentials.
+*   **Idempotent and resumable:** Each phase can be re-run without corrupting the graph. Database-backed loops skip already-processed nodes, allowing safe resumption after failures.
+*   **Parse, persist, then enrich:** Raw structure is committed to the database before any semantic analysis begins. This ensures the structural graph is always complete and consistent, independent of LLM availability.
 
-### Phase 2: Loading (Persistence)
-*   **Command:** `graphdb import` reads the generated JSONL stream.
-*   **Batching:** Uses Cypher `UNWIND` for high-throughput transactional inserts into Neo4j.
+```
+Phase 1 (Ingest) --> JSONL --> Phase 2 (Import) --> Neo4j --> Phase 3 (RPG) --> Neo4j --> Phase 4 (Contamination) --> Neo4j --> Phase 5 (History/Tests) --> Neo4j
+```
 
-### Phase 3: RPG Construction (Repository Planning Graph)
+```mermaid
+flowchart TD
+    %% --- Subgraphs for Phases ---
+    subgraph Phase 1: Ingestion
+        A[File System] -->|Tree-sitter| B(Parse AST)
+        B --> C{Extract Entities}
+        C -->|File, Class, Function, Calls| D[(JSONL Output)]
+    end
+
+    subgraph Phase 2: Loading
+        D -->|Cypher UNWIND| E[(Neo4j Database)]
+    end
+
+    subgraph Phase 3: RPG Construction
+        E -->|Get Unextracted Functions| F(Atomic Extraction)
+        F -->|LLM: Extract Verb-Object & Volatility| G[Generate Embeddings]
+        G -->|Vertex AI: Vectorize atomic_features| E
+
+        E -->|Fetch All Embeddings| H(Domain Discovery)
+        H -->|Calculate K from File Count| I(K-Means++ Seeding)
+        I -->|Iterative Assignment| J(Semantic Clustering)
+        J -->|LLM| K(Naming & Summarization)
+        K -->|Create Domain/Feature Nodes| E
+    end
+
+    subgraph Phase 4: Contamination & Risk
+        E -->|Read is_volatile seeds| L(Propagate Volatility)
+        L -->|Upward through CALLS| M[Calculate Risk Scores]
+        M -->|Update Nodes| E
+    end
+
+    subgraph Phase 5: History & Tests
+        N[Git History] -->|Calculate Churn & Co-change| E
+        O[Test Files] -->|Link Tests to Code| E
+    end
+
+    %% --- Styling ---
+    classDef storage fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
+    classDef process fill:#e3f2fd,stroke:#1565c0,stroke-width:1px;
+    classDef llm fill:#fff8e1,stroke:#f57f17,stroke-width:2px;
+
+    class D,E storage;
+    class B,C,L,M,H,I,J process;
+    class F,K llm;
+```
+
+### Phase 1: Ingestion (Structural Parsing)
+
+*   **Command:** `graphdb ingest -dir <path>`
+*   **Input:** A directory of source code files
+*   **Output:** JSONL files containing nodes and edges (the physical layer)
+*   **Dependencies:** None. This phase is entirely offline -- no API calls, no database, no cloud credentials.
+
+**What it does:**
+
+1.  Walks the file system, respecting `.gitignore` patterns at every directory level.
+2.  Dispatches files to a concurrent worker pool (configurable via `-workers`).
+3.  Each worker selects a **Tree-sitter** parser by file extension and generates a Concrete Syntax Tree.
+4.  Extracts structural entities: `File`, `Class`, `Interface`, `Function`, `Constructor`, `Field`, `Global`.
+5.  Extracts behavioral edges: `CALLS`, `USES`, `HAS_METHOD`, `DEFINES`, `EXTENDS`, `IMPLEMENTS`, `DEPENDS_ON`.
+6.  Links every entity to its source file via `DEFINED_IN` edges.
+7.  Tags test files and their contained functions with `is_test: true` (used later by Phase 5 test enrichment).
+8.  Serializes all nodes and edges to JSONL.
+
+**Why it is separate from import:** Decoupling parsing from database writes allows the JSONL output to be versioned, inspected, diffed, or re-imported without re-parsing. For large codebases, parsing is CPU-bound (Tree-sitter) while import is I/O-bound (Neo4j transactions), so they benefit from independent scaling and failure isolation.
+
+**Why no embeddings are generated here:** Embedding generation requires the semantic context produced by LLM extraction (Phase 3a). Generating embeddings from bare function names like `handleRequest` produces low-fidelity vectors that degrade downstream clustering and seam detection. By deferring all embedding work to Phase 3, the pipeline ensures vectors are always based on rich LLM-extracted descriptors like `parse-http-headers, validate-auth-token, route-request`.
+
+### Phase 2: Loading (Graph Persistence)
+
+*   **Command:** `graphdb import -nodes <path> -edges <path>`
+*   **Input:** JSONL files from Phase 1
+*   **Output:** A populated Neo4j database with the complete physical layer
+*   **Dependencies:** Running Neo4j instance
+
+**What it does:**
+
+1.  Creates schema constraints and indexes: uniqueness constraints on node IDs, vector indexes for future embeddings (768-dimensional cosine similarity on `Function.embedding` and `Feature.embedding`).
+2.  Reads JSONL streams and batches records for high-throughput insertion.
+3.  Uses Cypher `UNWIND` patterns for transactional bulk writes (configurable batch sizes).
+
+**Why UNWIND:** Neo4j's `UNWIND` pattern allows a single transaction to create hundreds of nodes/edges from a parameterized list, amortizing the transaction overhead. This is 10-100x faster than individual `CREATE` statements and critical for codebases with hundreds of thousands of nodes.
+
+**Incremental mode:** When run with `-since-commit` (or auto-detected from stored graph state via `GetGraphState()`), only changed files are re-ingested and their nodes are upserted directly into Neo4j, bypassing JSONL entirely. This uses the `Neo4jEmitter` instead of the `JSONLEmitter`.
+
+### Phase 3: RPG Construction (Semantic Enrichment)
+
 *   **Command:** `graphdb enrich-features`
-*   **Process:**
-    1.  **Atomic Feature Extraction:** LLM extracts "Verb-Object" descriptors for every function.
-    2.  **Full Body Embedding:** Vectorizes entire function implementations for higher-precision similarity.
-    3.  **Semantic Clustering:** Groups code into `Domain` and `Feature` nodes based on semantic meaning.
-    4.  **Summarization:** LLM generates concise names and descriptions for clusters.
+*   **Input:** A populated Neo4j graph from Phase 2
+*   **Output:** Enriched function nodes (atomic features, volatility flags, embeddings) + new topology (`Domain` and `Feature` nodes with `PARENT_OF` and `IMPLEMENTS` edges)
+*   **Dependencies:** GCP credentials, Vertex AI (Gemini for LLM extraction + embedding generation)
 
-### Phase 4: Contamination Analysis (Seams)
+This is the most complex phase. It runs four sub-steps sequentially, each building on the output of the previous. All sub-steps operate through resumable database-backed loops: they query for unprocessed nodes, process a batch, write results back, and repeat until no unprocessed nodes remain.
+
+#### Sub-step 3a: Atomic Feature Extraction (`RunExtraction`)
+
+*   Queries for `Function` nodes lacking `atomic_features` (resumable -- skips already-extracted nodes).
+*   Sends each function's source code and name to a generative LLM (e.g., Gemini).
+*   The LLM returns structured JSON: `{"descriptors": ["verb-object", ...], "is_volatile": true/false}`
+    *   **Descriptors** are semantic "verb-object" pairs (e.g., `authenticate-user`, `query-database-records`) that capture what the function actually does, independent of its name.
+    *   **`is_volatile`** indicates whether the function interacts with external systems: UI rendering, database I/O, network calls, file system operations, or non-deterministic state. This flag seeds Phase 4 contamination analysis.
+*   Both properties are persisted on the `Function` node in Neo4j.
+
+**Why verb-object descriptors over raw names:** Raw function names like `handleRequest` carry minimal semantic signal. An LLM reading the implementation produces descriptors like `parse-http-headers, validate-auth-token, route-request`, which capture the function's actual responsibilities. These descriptors are the text that gets vectorized in the next sub-step, so their quality directly determines the quality of all downstream semantic operations (clustering, seam detection, vector search).
+
+**Why LLM-driven volatility:** Volatility detection determines which functions touch external systems. Previous approaches used regex heuristics (e.g., matching `Database` in function names), which were brittle, language-specific, and missed indirect side effects. The LLM evaluates the actual code behavior, generalizing across all supported languages.
+
+#### Sub-step 3b: Embedding Generation (`RunEmbedding`)
+
+*   Queries for nodes where `n.embedding IS NULL` (matches both `Function` and `Feature` nodes; resumable).
+*   Converts each node to text via `NodeToText()`, which prioritizes `atomic_features` (from sub-step 3a), falling back to the raw `name` property, then the node ID.
+*   Sends text batches to `gemini-embedding-001`, producing 768-dimensional float32 vectors.
+*   Writes each vector to the node's `embedding` property.
+
+**Why this ordering is critical:** Extraction MUST complete before embedding. `NodeToText()` encodes the rich `atomic_features` text, not the bare function name. If extraction hasn't run, `NodeToText()` falls back to the raw name, producing the same low-fidelity vectors that would degrade clustering and seam detection.
+
+#### Sub-step 3c: Semantic Clustering (`RunClustering`)
+
+*   **Idempotent cleanup:** Clears any existing `Feature` and `Domain` topology (`ClearFeatureTopology`) before regenerating. This ensures re-runs produce exactly one set of clusters, not duplicates.
+*   Loads all embeddings from the graph via `GetEmbeddingsOnly()`.
+*   Calculates the target number of top-level domains: `K = sqrt(fileCount / 5)`, capped at 50.
+*   Runs **K-Means++** initialization to select optimal initial centroids ("seeds").
+*   Runs iterative K-Means assignment until convergence, grouping functions into clusters.
+*   Creates `Domain` and `Feature` nodes in Neo4j, linked via `PARENT_OF` edges. Links constituent functions via `IMPLEMENTS` edges.
+*   Sends each cluster's function list to the LLM for human-readable naming (e.g., "Authentication & Session Management").
+
+**Why K-Means++ seeding:** Standard K-Means is sensitive to initial centroid placement. If starting points are too close together, clusters overlap and produce incoherent domains. K-Means++ ensures seeds are maximally spread across the semantic space -- one in networking, one in UI, one in database logic -- so the final clusters represent distinct architectural concerns. This is the computationally heavy "Seeding X/Y" step visible in the CLI.
+
+**Why fail-fast on LLM errors:** If the LLM fails during cluster naming, the process halts with an explicit error rather than generating placeholder names like `Domain-<UUID>`. Silent fallbacks hide integration issues (quota exhaustion, timeouts) and produce an inconsistent graph state.
+
+#### Sub-step 3d: Summarization (`RunSummarization`)
+
+*   Queries for `Feature` and `Domain` nodes lacking a `description` property.
+*   For each, loads the constituent functions and sends them to the LLM for a paragraph-length summary describing the cluster's architectural role.
+*   Writes the summary to the node's `description` property.
+
+### Phase 4: Contamination Analysis (Risk Propagation)
+
 *   **Command:** `graphdb enrich-contamination`
-*   **Logic:** Seeds volatility flags (e.g., UI/DB access) and propagates them upward through the call graph. Calculates normalized `risk_score` for every function.
+*   **Input:** A graph with `is_volatile` flags on Function nodes (from Phase 3a)
+*   **Output:** `risk_score` on every Function node; `contamination_depth` tracking propagation distance
+*   **Dependencies:** Running Neo4j instance (no LLM needed -- this is a pure graph algorithm)
+
+**What it does:**
+
+1.  **Pre-flight check:** Verifies that `is_volatile` flags exist in the graph. If zero volatile functions are found, halts with a directive to run `graphdb enrich-features` first.
+2.  **Propagation:** Walks the `CALLS` graph upward from volatile leaf functions. If function A calls volatile function B, A inherits a diluted contamination score proportional to its distance from the volatile source.
+3.  **Risk scoring:** Normalizes all scores to `[0, 1]` where `1.0` = directly volatile, and lower values indicate increasingly indirect transitive exposure.
+
+**Why this is separate from Phase 3:** Contamination is a deterministic graph algorithm, not an LLM task. It runs in seconds, costs nothing, and can be re-run cheaply after any graph change (e.g., after re-ingesting code that adds new `CALLS` edges) without re-running expensive LLM extraction or embedding.
 
 ### Phase 5: History & Test Enrichment
-*   **Commands:** `graphdb enrich-history` and `graphdb enrich-tests`
-*   **Process:**
-    1.  **Churn:** Analyzes git logs to set `change_frequency` on `File` nodes.
-    2.  **Co-change:** Identifies files that frequently change together.
-    3.  **Tests:** Explicitly links `is_test` functions to the production code they exercise.
+
+*   **Commands:** `graphdb enrich-history -dir <path>` and `graphdb enrich-tests`
+*   **Input:** Git repository + Neo4j graph
+*   **Output:** Temporal and testing metadata on graph nodes
+*   **Dependencies:** Git repository (for history), Running Neo4j instance
+
+**What it does:**
+
+1.  **Churn (`enrich-history`):** Analyzes `git log` output to compute per-file `change_frequency` on `File` nodes. High-churn files are candidates for refactoring.
+2.  **Co-change (`enrich-history`):** Identifies files that frequently change together in the same commits. This reveals implicit coupling not visible in the structural graph (e.g., a config file that always changes alongside a service class).
+3.  **Test linking (`enrich-tests`):** Identifies functions tagged `is_test: true` (from Phase 1) and traces their `CALLS` edges to find the production functions they exercise. Creates explicit `TESTS` relationships, enabling test coverage queries.
+
+### One-Shot Pipeline
+
+*   **Command:** `graphdb build-all -dir <path>`
+*   **What it does:** Runs all six phases in sequence: Ingest, Import, Enrich Features, Enrich History, Enrich Contamination, Enrich Tests. Intermediate JSONL files are cleaned up after import.
+*   **Use `-clean` flag** to wipe the Neo4j database before import, ensuring a fresh graph with no stale data.

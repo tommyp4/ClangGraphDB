@@ -70,9 +70,9 @@ func TestWalker_RecursiveGitIgnore(t *testing.T) {
 	}
 
 	// 4. Run Walker
-	// Use a mock embedder/emitter or just use Count/Walk directly.
+	// Use a mock emitter or just use Count/Walk directly.
 	// We'll use Walk to collect paths.
-	walker := NewWalker(1, &MockFailingEmbedder{}, &MockEmitter{})
+	walker := NewWalker(1, &MockEmitter{})
 	
 	collectedPaths := []string{}
 	err := walker.Walk(context.Background(), tempDir, func(path string, d os.DirEntry) error {

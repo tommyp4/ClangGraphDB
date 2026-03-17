@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"graphdb/internal/embedding"
 	"graphdb/internal/graph"
 	"graphdb/internal/ingest"
 )
@@ -39,9 +38,8 @@ func TestIngest_Ignore(t *testing.T) {
 
 	// 3. Run Walker
 	emitter := &IgnoreTestEmitter{}
-	embedder := &IgnoreTestEmbedder{}
 
-	walker := ingest.NewWalker(2, embedder, emitter)
+	walker := ingest.NewWalker(2, emitter)
 
 	err = walker.Run(context.Background(), tempDir)
 	if err != nil {
@@ -81,19 +79,6 @@ func TestIngest_Ignore(t *testing.T) {
 	if !foundSrc {
 		t.Errorf("src/main.ts should be ingested, but was not")
 	}
-}
-
-// IgnoreTestEmbedder implements embedding.Embedder
-type IgnoreTestEmbedder struct{}
-
-var _ embedding.Embedder = (*IgnoreTestEmbedder)(nil)
-
-func (m *IgnoreTestEmbedder) EmbedBatch(texts []string) ([][]float32, error) {
-	result := make([][]float32, len(texts))
-	for i := range texts {
-		result[i] = []float32{0.0} 
-	}
-	return result, nil
 }
 
 // IgnoreTestEmitter implements storage.Emitter

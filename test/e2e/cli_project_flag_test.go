@@ -29,7 +29,7 @@ func TestCLI_NoProjectFlag(t *testing.T) {
 	// 3. Run Ingest without -project
 	// We use /dev/null for output to avoid cleanup issues
 	cmd := exec.Command(cliPath, "ingest", "-dir", fixtureDir, "-output", os.DevNull)
-	cmd.Env = append(os.Environ(), "GRAPHDB_MOCK_ENABLED=true")
+	cmd.Env = append(os.Environ(), "GRAPHDB_MOCK_ENABLED=true", "GEMINI_GENERATIVE_MODEL=test-model", "GOOGLE_CLOUD_PROJECT=test-project")
 	
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -49,7 +49,7 @@ func TestCLI_EnrichFeatures_NoProjectFlag(t *testing.T) {
 	defer os.Remove(cliPath)
 
 	cmd := exec.Command(cliPath, "enrich-features")
-	cmd.Env = append(os.Environ(), "GRAPHDB_MOCK_ENABLED=true", "NEO4J_URI=bolt://localhost:7687", "NEO4J_USER=neo4j", "NEO4J_PASSWORD=password")
+	cmd.Env = append(os.Environ(), "GRAPHDB_MOCK_ENABLED=true", "NEO4J_URI=bolt://localhost:7687", "NEO4J_USER=neo4j", "NEO4J_PASSWORD=password", "GEMINI_GENERATIVE_MODEL=test-model", "GOOGLE_CLOUD_PROJECT=test-project")
 	
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -75,7 +75,7 @@ func TestCLI_Query_NoProjectFlag(t *testing.T) {
 	// I need to check `internal/query/neo4j.go` or `mocks.go`.
 	
 	cmd := exec.Command(cliPath, "query", "-type", "search-features", "-target", "foo")
-	cmd.Env = append(os.Environ(), "GRAPHDB_MOCK_ENABLED=true", "NEO4J_URI=bolt://localhost:7687", "NEO4J_USER=neo4j", "NEO4J_PASSWORD=password")
+	cmd.Env = append(os.Environ(), "GRAPHDB_MOCK_ENABLED=true", "NEO4J_URI=bolt://localhost:7687", "NEO4J_USER=neo4j", "NEO4J_PASSWORD=password", "GEMINI_GENERATIVE_MODEL=test-model", "GOOGLE_CLOUD_PROJECT=test-project")
 
 	// We expect it might fail to connect to Neo4j if not mocked properly, 
 	// but we are testing argument parsing.

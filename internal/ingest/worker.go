@@ -3,7 +3,6 @@ package ingest
 import (
 	"fmt"
 	"graphdb/internal/analysis"
-	"graphdb/internal/embedding"
 	"graphdb/internal/graph"
 	"graphdb/internal/storage"
 	"log"
@@ -19,17 +18,15 @@ type Job struct {
 
 type WorkerPool struct {
 	workers    int
-	embedder   embedding.Embedder
 	emitter    storage.Emitter
 	jobChan    chan Job
 	wg         sync.WaitGroup
 	OnProgress func()
 }
 
-func NewWorkerPool(workers int, embedder embedding.Embedder, emitter storage.Emitter) *WorkerPool {
+func NewWorkerPool(workers int, emitter storage.Emitter) *WorkerPool {
 	return &WorkerPool{
 		workers:  workers,
-		embedder: embedder,
 		emitter:  emitter,
 		jobChan:  make(chan Job, 100),
 	}
@@ -111,32 +108,6 @@ func (wp *WorkerPool) processFile(job Job) error {
 				TargetID: fileNode.ID,
 				Type:     "DEFINED_IN",
 			})
-		}
-	}
-
-	// Filter functions for embedding
-	var functionNodes []*graph.Node
-	var functionTexts []string
-
-	for _, node := range nodes {
-		if node.Label == "Function" || node.Label == "Method" {
-			if name, ok := node.Properties["name"].(string); ok {
-				functionNodes = append(functionNodes, node)
-				functionTexts = append(functionTexts, name)
-			}
-		}
-	}
-
-	if len(functionTexts) > 0 {
-		embeddings, err := wp.embedder.EmbedBatch(functionTexts)
-		if err != nil {
-			log.Printf("WARNING: failed to embed batch for %s: %v. Continuing without embeddings.", path, err)
-		} else if len(embeddings) != len(functionNodes) {
-			log.Printf("WARNING: embedding count mismatch for %s", path)
-		} else {
-			for i, node := range functionNodes {
-				node.Properties["embedding"] = embeddings[i]
-			}
 		}
 	}
 

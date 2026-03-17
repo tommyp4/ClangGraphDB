@@ -34,16 +34,6 @@ func handleIngest(args []string) {
 
 	cfg := config.LoadConfig()
 
-	loc := cfg.GoogleCloudLocation
-	if loc == "" {
-		loc = "us-central1"
-	}
-
-	model := cfg.GeminiEmbeddingModel
-	if model == "" {
-		model = "gemini-embedding-001"
-	}
-
 	var emitter storage.Emitter
 	var neoDriver neo4j.DriverWithContext
 	var changedFiles []string
@@ -121,11 +111,8 @@ func handleIngest(args []string) {
 	}
 	defer emitter.Close()
 
-	// Setup Embedder
-	embedder := setupEmbedder(cfg.GoogleCloudProject, loc, model, cfg.GeminiEmbeddingDimensions)
-
 	// Setup Walker
-	walker := ingest.NewWalker(*workersPtr, embedder, emitter)
+	walker := ingest.NewWalker(*workersPtr, emitter)
 
 	// Count files first for progress bar
 	var totalFiles int64

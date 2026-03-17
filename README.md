@@ -40,7 +40,7 @@ graph TD
 ```
 
 ### The Supervisor (System Prompt)
-The orchestration is managed by a **Supervisor protocol** defined in `.gemini/system.md`. 
+The orchestration is managed by a **Supervisor protocol** defined in `.gemini/system.md`. This protocol and the associated sub-agents are based on the [plan-commands](https://github.com/jjdelorme/plan-commands) orchestration framework.
 *   **Rationale:** We moved from a standalone `supervisor` agent to a `system.md` override to ensure the primary agent (you) has the native authority to dispatch specialized sub-agents (Scout, Engineer, etc.) without intermediate layers of delegation that can obscure context or restrict tool access.
 *   **Enabling:** To activate this protocol, ensure your environment is configured with `GEMINI_SYSTEM_MD=true`.
 
@@ -86,29 +86,28 @@ This project uses a Neo4j database containerized with Podman/Docker. A helper sc
 
 ## 🛠️ Build & Ingestion Workflow
 
-To analyze a codebase, you must first ingest it into the Graph Database. Run these commands from the **project root**:
+To analyze a codebase, you must ingest it into the Graph Database. The ingestion pipeline handles parsing, embedding extraction, and clustering in distinct phases.
 
-1.  **Extract Graph Data** (Parses source code, generates embeddings, outputs JSONL):
+**For a comprehensive architectural view of this pipeline, see [GRAPHDB_OVERVIEW.md](GRAPHDB_OVERVIEW.md).**
+
+The primary interface for this workflow is the `graphdb` Go binary.
+
+1.  **Ingestion (Phase 1):** Parse source code and extract structural relationships.
     ```bash
     .gemini/skills/graphdb/scripts/graphdb ingest -dir <target-dir> -nodes graph_data/nodes.jsonl -edges graph_data/edges.jsonl
     ```
 
-2. **Build RPG Features** (Groups functions into semantic features using LLM):
-    *   *Deep Dive:* [Clustering & Domain Discovery Logic](plans/RPG_CLUSTERING.md)
-
-    ```bash
-
-    .gemini/skills/graphdb/scripts/graphdb enrich-features -dir <target-dir> -input graph.jsonl -output rpg.jsonl
-
-    ```
-
-    Flags: `--mock-embedding` for dry runs.
-
-3.  **Import to Neo4j** (Loads JSONL into the database):
+2.  **Import to Neo4j (Phase 2):** Load the generated JSONL into the database.
     ```bash
     .gemini/skills/graphdb/scripts/graphdb import -input graph_data/nodes.jsonl -clean
-    .gemini/skills/graphdb/scripts/graphdb import -input graph_data/rpg.jsonl
+    .gemini/skills/graphdb/scripts/graphdb import -input graph_data/edges.jsonl
     ```
+
+3.  **RPG Construction & Enrichment (Phase 3 & 4):** This is the core semantic pipeline. It extracts features, generates embeddings, clusters nodes, and propagates risk.
+    ```bash
+    .gemini/skills/graphdb/scripts/graphdb enrich --step all
+    ```
+    *Note: You can run individual steps using `--step extract`, `--step features`, or `--step contamination` if you need to resume a failed process.*
 
 ## 🔍 Usage & Analysis
 

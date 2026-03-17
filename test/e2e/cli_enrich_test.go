@@ -65,7 +65,7 @@ func Ghi() { println("Ghi") }
 	cmdEnrich := exec.Command(cliPath, "enrich-features", "-dir", tempDir)
 	cmdEnrich.Stderr = &stderr
 	cmdEnrich.Stdout = os.Stdout 
-	cmdEnrich.Env = append(os.Environ(), "GRAPHDB_MOCK_ENABLED=true", "NEO4J_URI=bolt://localhost:7687", "NEO4J_USER=neo4j", "NEO4J_PASSWORD=password")
+	cmdEnrich.Env = append(os.Environ(), "GRAPHDB_MOCK_ENABLED=true", "NEO4J_URI=bolt://localhost:7687", "NEO4J_USER=neo4j", "NEO4J_PASSWORD=password", "GEMINI_GENERATIVE_MODEL=test-model", "GOOGLE_CLOUD_PROJECT=test-project")
 
 	if err := cmdEnrich.Run(); err != nil {
 		t.Fatalf("Enrich failed: %v\n%s", err, stderr.String())

@@ -11,21 +11,6 @@ import (
 	"testing"
 )
 
-// MockEmbedder for testing
-type MockEmbedder struct{}
-
-func (m *MockEmbedder) Embed(text string) ([]float32, error) {
-	return []float32{0.1, 0.2, 0.3}, nil
-}
-
-func (m *MockEmbedder) EmbedBatch(texts []string) ([][]float32, error) {
-	result := make([][]float32, len(texts))
-	for i := range texts {
-		result[i] = []float32{0.1, 0.2, 0.3}
-	}
-	return result, nil
-}
-
 func TestIngestPaths(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir, err := os.MkdirTemp("", "graphdb_test")
@@ -52,7 +37,7 @@ func TestIngestPaths(t *testing.T) {
 	// Run Ingest
 	emitter := storage.NewJSONLEmitter(f)
 	
-	walker := ingest.NewWalker(1, &MockEmbedder{}, emitter)
+	walker := ingest.NewWalker(1, emitter)
 	if err := walker.Run(context.Background(), tmpDir); err != nil {
 		t.Fatal(err)
 	}
