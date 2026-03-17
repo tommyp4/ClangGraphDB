@@ -10,15 +10,25 @@ The skill relies on a high-performance, cross-platform Go binary (compiled for W
 
 You do not need to clone this repository or build from source to use the skill in your own projects. All necessary files and pre-compiled binaries are packaged into a single release bundle available on our [GitHub Releases page](https://github.com/jjdelorme/graphdb-skill/releases).
 
-To install the skill, agents, and binaries directly into your current project, run this one-liner from your project's root directory:
+### Linux / macOS
+
+Run this one-liner from your project's root directory:
 
 ```bash
 curl -sL https://github.com/jjdelorme/graphdb-skill/releases/latest/download/graphdb-skill-bundle.tar.gz | tar -xzv
 ```
 
-This command downloads and extracts the `.gemini/` directory structure directly into your project, instantly registering the `SKILL.md` definitions, the specialized agents, and the compiled Go binary.
+*Note: The extraction process preserves executable permissions, but if you encounter issues, run: `chmod +x .gemini/skills/graphdb/scripts/graphdb`*
 
-*Note for Linux/macOS users: The extraction process preserves executable permissions, but if you encounter permission issues running the skill, ensure the binary is executable: `chmod +x .gemini/skills/graphdb/scripts/graphdb`*
+### Windows (PowerShell)
+
+Run this command from your project's root directory:
+
+```powershell
+curl.exe -sL https://github.com/jjdelorme/graphdb-skill/releases/latest/download/graphdb-skill-bundle.tar.gz -o bundle.tar.gz; tar.exe -xzvf bundle.tar.gz; del bundle.tar.gz
+```
+
+This downloads and extracts the `.gemini/` directory structure directly into your project, instantly registering the `SKILL.md` definitions, the specialized agents, and the compiled Go binary.
 
 ## ⚙️ Configuration & Credentials
 
@@ -39,11 +49,14 @@ GEMINI_EMBEDDING_DIMENSIONS=768
 
 ## 🗄️ Neo4j Database Setup
 
-This project uses a Neo4j database to store the Code Property Graph. To simplify database setup and management, this ecosystem includes a companion skill called **`neo4j-manager`**.
+The Code Property Graph is stored in a Neo4j database. To automate the database lifecycle, the installation bundle includes the **`neo4j-manager`** skill.
 
-Instead of manually running container scripts, ensure the manager skill is installed (`.gemini/skills/neo4j-manager/SKILL.md`). You can then simply ask the Gemini CLI to use the `neo4j-manager` to setup, start your local database container, switch between active databases, or list available graphs.
+You don't need to run manual container scripts or commands. Simply ask the Gemini CLI to:
+*   "Start the local Neo4j container"
+*   "List my available databases"
+*   "Switch to the 'LegacyProject' database"
 
-*Note: The `neo4j-manager` ensures the local container automatically configures the required APOC plugins and vector index settings needed by the GraphDB skill.*
+The manager automatically configures the required APOC plugins and vector index settings (Neo4j v5.11+) needed by the GraphDB skill.
 
 ## 🤖 Multi-Agent Orchestration
 
@@ -120,19 +133,6 @@ All queries use the same pattern: `.gemini/skills/graphdb/scripts/graphdb query 
 
 ### Text Search (Fallback)
 Use standard `search_file_content` (Ripgrep) **ONLY** when the `graphdb` skill cannot provide the necessary data (e.g., searching for non-code assets or literal TODOs).
-
-## ⚡ Utilities (Neo4j Manager)
-
-If you need to switch between different project databases (Neo4j Community limit):
-
-*   **List Databases:**
-    ```bash
-    node .gemini/skills/neo4j-manager/scripts/list_databases.js
-    ```
-*   **Switch Database:**
-    ```bash
-    node .gemini/skills/neo4j-manager/scripts/switch_database.js <TargetDBName>
-    ```
 
 ## 🕵️ Agent Execution Tracing
 
