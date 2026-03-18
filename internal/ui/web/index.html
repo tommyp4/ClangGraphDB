@@ -90,39 +90,40 @@
 </head>
 <body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 overflow-hidden h-screen flex flex-col">
     <header class="h-16 border-b border-primary/20 bg-background-light/50 dark:bg-background-dark/50 backdrop-blur-md flex items-center justify-between px-6 z-50">
-        <div class="flex items-center gap-6">
-            <div class="flex items-center gap-2 text-primary">
-                <span class="material-symbols-outlined text-3xl font-bold">hub</span>
-                <h1 class="text-xl font-bold tracking-tight">GraphDB <span class="text-xs font-light text-slate-500 uppercase tracking-widest ml-1">Archeologist</span></h1>
-            </div>
-            <div class="h-10 w-[600px] flex gap-2">
+        <!-- Logo (Left) -->
+        <div class="flex items-center gap-2 text-primary w-[250px]">
+            <span class="material-symbols-outlined text-3xl font-bold">hub</span>
+            <h1 class="text-xl font-bold tracking-tight">GraphDB <span class="text-xs font-light text-slate-500 uppercase tracking-widest ml-1">Archeologist</span></h1>
+        </div>
+        
+        <!-- Controls (Center) -->
+        <div class="flex items-center gap-4 flex-1 justify-center">
+            <div class="h-10 w-[500px] flex gap-2">
                 <div class="relative group flex-1">
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <span class="material-symbols-outlined text-slate-400 group-focus-within:text-primary transition-colors">search</span>
                     </div>
-                    <input id="search-input" class="block w-full h-full pl-10 pr-3 py-2 border-0 bg-slate-200/50 dark:bg-slate-800/50 rounded-lg text-sm focus:ring-2 focus:ring-primary/50 placeholder:text-slate-500 transition-all text-slate-900 dark:text-slate-100" placeholder="Search semantic intent (e.g., 'Where do we validate credit cards?')" type="text"/>
+                    <input id="search-input" class="block w-full h-full pl-10 pr-3 py-2 border-0 bg-slate-200/50 dark:bg-slate-800/50 rounded-lg text-sm focus:ring-2 focus:ring-primary/50 placeholder:text-slate-500 transition-all text-slate-900 dark:text-slate-100" placeholder="Search semantic intent..." type="text"/>
                 </div>
                 <button id="search-button" class="px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold hover:bg-primary/90 transition-colors">Search</button>
             </div>
-        </div>
-        <div class="flex items-center gap-4">
-            <div class="flex gap-1 bg-slate-200 dark:bg-slate-800 p-1 rounded-lg text-slate-900 dark:text-slate-100">
-                <button id="btn-physical-layer" title="Toggle Physical Layer (Files, Functions, Classes). Toggling ON will fetch associated physical components for visible semantic nodes." class="px-4 py-1.5 text-xs font-medium rounded-md bg-white dark:bg-slate-700 shadow-sm flex items-center gap-2">
+            <div class="flex items-center gap-2">
+                <button id="btn-physical-layer" title="Toggle Physical components (Files, Functions, Classes). Toggling ON will fetch associated physical components for visible semantic nodes." class="h-10 px-4 text-sm font-medium rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-2 text-slate-900 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
                     <span class="size-2 rounded-full bg-physical-blue"></span>
-                    Physical Layer
+                    Physical
                 </button>
-                <button id="btn-semantic-layer" title="Toggle Semantic Layer (Domains, Features). Toggling ON will fetch associated semantic context for visible physical nodes." class="px-4 py-1.5 text-xs font-medium rounded-md bg-white dark:bg-slate-700 shadow-sm flex items-center gap-2">
+                <button id="btn-semantic-layer" title="Toggle Semantic context (Domains, Features). Toggling ON will fetch associated semantic context for visible physical nodes." class="h-10 px-4 text-sm font-medium rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-2 text-slate-900 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
                     <span class="size-2 rounded-full bg-semantic-purple"></span>
-                    Semantic Layer
+                    Semantic
                 </button>
             </div>
-            <div class="h-8 w-px bg-slate-700 mx-2"></div>
+        </div>
+
+        <!-- Profile/Settings (Right) -->
+        <div class="flex items-center gap-4 w-[250px] justify-end">
             <button class="p-2 hover:bg-slate-800 rounded-lg transition-colors">
                 <span class="material-symbols-outlined">settings</span>
             </button>
-            <div class="size-10 rounded-full border border-primary/30 p-0.5">
-                <img alt="User profile" class="rounded-full bg-slate-800" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCyl5uCksbVTtKE7p7vIDEmPy_8Nn54O-sj3TXuEeBPgHjQIXRw2_FSO9grNDo6iK1dCE4D41e3SclTmetoz93kcE6Tdf4BUwN15UPdX9vA4LltaEYZCmBJyDcnJ_c_gd6Wlx-JmMX7GTeOPK2tiNxONETinrMxlX4KkRg7y-dxlqOEqKp6r824b0LP3xf3LOvTt2Mbg65un9pGm2MXyEJIKm1RXPg_-i6IQbMPcAICNXbGBPRHBFve_fvF9DZ62SheHg_9XEARF3e7"/>
-            </div>
         </div>
     </header>
     <main class="flex-1 flex overflow-hidden relative">

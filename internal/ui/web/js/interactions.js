@@ -27,10 +27,10 @@ export function initEventListeners() {
         visibilitySettings.showPhysical = !visibilitySettings.showPhysical;
         const btn = e.currentTarget;
         if (visibilitySettings.showPhysical) {
-            btn.className = `px-4 py-1.5 text-xs font-medium rounded-md ${CSS_CLASSES.active} flex items-center gap-2`;
+            btn.className = `h-10 px-4 text-sm font-medium rounded-lg ${CSS_CLASSES.active} border border-primary/50 shadow-sm flex items-center gap-2 transition-colors`;
             nodes.filter(n => isNodeVisible(n) && isSemantic(n)).forEach(n => fetchAndExpandNeighborhood(n, "IMPLEMENTS"));
         } else {
-            btn.className = `px-4 py-1.5 text-xs font-medium rounded-md ${CSS_CLASSES.inactive} flex items-center gap-2`;
+            btn.className = `h-10 px-4 text-sm font-medium rounded-lg ${CSS_CLASSES.inactive} border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-2 text-slate-900 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors`;
         }
         renderGraph();
     });
@@ -39,10 +39,10 @@ export function initEventListeners() {
         visibilitySettings.showSemantic = !visibilitySettings.showSemantic;
         const btn = e.currentTarget;
         if (visibilitySettings.showSemantic) {
-            btn.className = `px-4 py-1.5 text-xs font-medium rounded-md ${CSS_CLASSES.active} flex items-center gap-2`;
+            btn.className = `h-10 px-4 text-sm font-medium rounded-lg ${CSS_CLASSES.active} border border-primary/50 shadow-sm flex items-center gap-2 transition-colors`;
             nodes.filter(n => isNodeVisible(n) && isPhysical(n)).forEach(n => fetchAndExpandNeighborhood(n, "IMPLEMENTS"));
         } else {
-            btn.className = `px-4 py-1.5 text-xs font-medium rounded-md ${CSS_CLASSES.inactive} flex items-center gap-2`;
+            btn.className = `h-10 px-4 text-sm font-medium rounded-lg ${CSS_CLASSES.inactive} border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-2 text-slate-900 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors`;
         }
         renderGraph();
     });
@@ -168,7 +168,11 @@ async function handleNodeDoubleClick(event, d) {
         d.fy = d.y;
     }
 
-    const scale = 2.0;
+    // Get current zoom transform to maintain or slightly widen the scale
+    const currentTransform = d3.zoomTransform(svg.node());
+    // Use the current scale, but if we're zoomed in very tight, zoom out a bit to see neighbors
+    const scale = Math.min(currentTransform.k, 1.0); 
+    
     const targetX = d.x !== undefined ? d.x : width / 2;
     const targetY = d.y !== undefined ? d.y : height / 2;
 

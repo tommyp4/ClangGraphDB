@@ -53,9 +53,11 @@ export function initGraph(handleNodeClick, handleNodeMouseOver, handleNodeMouseO
         .style("stroke", "none");
 
     simulation = d3.forceSimulation()
-        .force("link", d3.forceLink().id(d => d.id).distance(150))
-        .force("charge", d3.forceManyBody().strength(-300))
-        .force("center", d3.forceCenter(width / 2, height / 2));
+        .force("link", d3.forceLink().id(d => d.id).distance(250))
+        .force("charge", d3.forceManyBody().strength(-1000))
+        .force("x", d3.forceX(width / 2).strength(0.05))
+        .force("y", d3.forceY(height / 2).strength(0.05))
+        .force("collision", d3.forceCollide().radius(45));
 
     simulation.on("tick", () => {
         g.selectAll(".link")
@@ -84,6 +86,7 @@ function isSemanticSeam(nodeId) {
 }
 
 export function updateGraph(newNodes, newLinks) {
+    const newlyAddedIds = new Set();
     newNodes.forEach(n => {
         const id = n.id || n.Id;
         if (!id) return;
@@ -94,10 +97,13 @@ export function updateGraph(newNodes, newLinks) {
                 id: id,
                 name: n.name || props.name || id,
                 properties: props,
+                x: width / 2, // Default to center
+                y: height / 2,
                 ...n
             };
             nodesMap.set(id, normalizedNode);
             nodes.push(normalizedNode);
+            newlyAddedIds.add(id);
         } else {
             // Update properties if they changed
             const existing = nodesMap.get(id);
@@ -109,11 +115,26 @@ export function updateGraph(newNodes, newLinks) {
 
     if (newLinks) {
         newLinks.forEach(l => {
-            const linkId = `${l.sourceId || l.source}-${l.targetId || l.target}-${l.type}`;
+            const sourceId = l.sourceId || l.source;
+            const targetId = l.targetId || l.target;
+            const linkId = `${sourceId}-${targetId}-${l.type}`;
             if (!linksMap.has(linkId)) {
-                const link = { source: l.sourceId || l.source, target: l.targetId || l.target, type: l.type };
+                const link = { source: sourceId, target: targetId, type: l.type };
                 linksMap.set(linkId, link);
                 links.push(link);
+
+                // If one of the endpoints was just added, try to seed its coordinates from the other endpoint if it exists
+                if (newlyAddedIds.has(sourceId) && nodesMap.has(targetId) && !newlyAddedIds.has(targetId)) {
+                    const sourceNode = nodesMap.get(sourceId);
+                    const targetNode = nodesMap.get(targetId);
+                    sourceNode.x = targetNode.x;
+                    sourceNode.y = targetNode.y;
+                } else if (newlyAddedIds.has(targetId) && nodesMap.has(sourceId) && !newlyAddedIds.has(sourceId)) {
+                    const sourceNode = nodesMap.get(sourceId);
+                    const targetNode = nodesMap.get(targetId);
+                    targetNode.x = sourceNode.x;
+                    targetNode.y = sourceNode.y;
+                }
             }
         });
     }
