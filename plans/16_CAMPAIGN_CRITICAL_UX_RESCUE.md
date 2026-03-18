@@ -2,8 +2,8 @@
 
 ## 📋 Todo Checklist
 - [x] Fix Missing LLM Domain Naming (Streaming Pipeline Metadata)
-- [ ] Fix D3 Physics Instability (Center of Mass shifting during exploration)
-- [ ] Final Review and Testing
+- [x] Fix D3 Physics Instability (Center of Mass shifting during exploration)
+- [x] Final Review and Testing
 
 ## 🔍 Analysis & Investigation
 
@@ -32,7 +32,7 @@ None.
 3.  **Step 1.C (The Verification):** Build and Verify.
     *   *Action:* Run `go test ./internal/query -run TestGetFunctionMetadata` (if applicable) and manually verify by running an ingestion and observing node labels.
 
-#### Phase 2: D3 Physics Stabilization (Frontend)
+#### Phase 2: D3 Physics Stabilization (Frontend) - COMPLETED
 1.  **Step 2.A (The Verification Baseline):**
     *   *Action:* Manual verification via browser (Completed: `before_double_click.png`, `after_double_click.png`).
     *   *Goal:* Confirm the "Sliding Graph" and "Crowding" issues.
@@ -43,7 +43,7 @@ None.
     *   *Action:* Modify `updateGraph()`.
     *   *Detail:* When a new node is added, if it has a source/parent that already exists in the graph, initialize the new node's `x` and `y` coordinates to match its parent's current position. This ensures nodes "bloom" from their origin instead of jumping from (0,0) or random locations.
 
-#### Phase 3: Force-Directed De-cluttering (Frontend)
+#### Phase 3: Force-Directed De-cluttering (Frontend) - COMPLETED
 1.  **Step 3.A (The Implementation - Collision Detection):** Prevent node overlap in `internal/ui/web/js/graph.js`.
     *   *Action:* Modify `initGraph()`.
     *   *Detail:* Add `.force("collision", d3.forceCollide().radius(45))` to the simulation. This creates a physical buffer around nodes (radius 20 node + 25px padding).
