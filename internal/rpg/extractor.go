@@ -116,9 +116,13 @@ func (e *LLMFeatureExtractor) Extract(code string, functionName string) ([]strin
 type MockFeatureExtractor struct {
 	Descriptors []string
 	IsVolatile  bool
+	Err         error
 }
 
 func (m *MockFeatureExtractor) Extract(code string, functionName string) ([]string, bool, error) {
+	if m.Err != nil {
+		return nil, false, m.Err
+	}
 	if m.Descriptors == nil {
 		return []string{"data processing", "input validation"}, false, nil
 	}

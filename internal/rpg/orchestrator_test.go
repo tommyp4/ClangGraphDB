@@ -2,6 +2,7 @@ package rpg
 
 import (
 	"context"
+	"fmt"
 	"graphdb/internal/graph"
 	"graphdb/internal/query"
 	"testing"
@@ -345,5 +346,109 @@ func TestOrchestratorExtraction_HappyPath(t *testing.T) {
 		t.Errorf("Expected real features, but got 'unknown' fallback. Ensure 'start_line' is correctly read.")
 	} else if updatedFeatures[0] != "real" {
 		t.Errorf("Expected 'real' feature, got %v", updatedFeatures[0])
+	}
+}
+
+func TestOrchestratorExtraction_ErrorThreshold_Aborts(t *testing.T) {
+	mockProvider := &MockGraphProvider{}
+
+	var nodes []*graph.Node
+	for i := 0; i < 6; i++ {
+		nodes = append(nodes, &graph.Node{ID: "f" + string(rune(i+'0')), Properties: map[string]any{"name": "testFunc", "file": "test.go", "start_line": int(1), "end_line": int(2)}})
+	}
+
+	callCount := 0
+	mockProvider.GetUnextractedFunctionsFn = func(limit int) ([]*graph.Node, error) {
+		if callCount > 0 {
+			return nil, nil
+		}
+		callCount++
+		return nodes, nil
+	}
+
+	updateCount := 0
+	mockProvider.UpdateAtomicFeaturesFn = func(id string, features []string, isVolatile bool) error {
+		updateCount++
+		return nil
+	}
+
+	extractor := &MockFeatureExtractor{Err: fmt.Errorf("mock error")}
+
+	orchestrator := &Orchestrator{
+		Provider:  mockProvider,
+		Extractor: extractor,
+		Loader: func(path string, start, end int) (string, error) {
+			return "func testFunc() {}", nil
+		},
+	}
+
+	err := orchestrator.RunExtraction(10)
+	if err == nil {
+		t.Fatalf("RunExtraction should have failed")
+	}
+
+	if updateCount != 5 {
+		t.Errorf("Expected 5 updates for failed extraction, got %d", updateCount)
+	}
+
+	if err.Error() != "extraction aborted: too many consecutive errors (last error: mock error)" {
+		t.Errorf("Unexpected error message: %v", err)
+	}
+}
+
+func TestOrchestratorSummarization_ErrorThreshold_Aborts(t *testing.T) {
+	mockProvider := &MockGraphProvider{}
+
+	var nodes []*graph.Node
+	for i := 0; i < 6; i++ {
+		nodes = append(nodes, &graph.Node{ID: "f" + string(rune(i+'0')), Label: "Domain", Properties: map[string]any{"name": "testFunc"}})
+	}
+
+	callCount := 0
+	mockProvider.GetUnnamedFeaturesFn = func(limit int) ([]*graph.Node, error) {
+		if callCount > 0 {
+			return nil, nil
+		}
+		callCount++
+		return nodes, nil
+	}
+	
+	mockProvider.CountUnnamedFeaturesFn = func() (int64, error) {
+		return 6, nil
+	}
+
+	updateCount := 0
+	mockProvider.UpdateFeatureSummaryFn = func(id string, name string, description string) error {
+		updateCount++
+		return nil
+	}
+
+	mockProvider.ExploreDomainFn = func(featureID string) (*query.DomainExplorationResult, error) {
+		return &query.DomainExplorationResult{Functions: []*graph.Node{{ID: "f1", Properties: map[string]any{"file": "test.go", "start_line": int(1), "end_line": int(2)}}}}, nil
+	}
+
+	summarizer := &MockSummarizer{SummarizeFunc: func(snippets []string, level string) (string, string, error) {
+		return "", "", fmt.Errorf("mock summarizer error")
+	}}
+
+	orchestrator := &Orchestrator{
+		Provider:   mockProvider,
+		Summarizer: summarizer,
+		Loader: func(path string, start, end int) (string, error) {
+			return "func testFunc() {}", nil
+		},
+	}
+
+	err := orchestrator.RunSummarization(10)
+	if err == nil {
+		t.Fatalf("RunSummarization should have failed")
+	}
+
+	if updateCount != 5 {
+		t.Errorf("Expected 5 updates for failed summarization, got %d", updateCount)
+	}
+
+	if err.Error() != "summarization aborted: too many consecutive errors (last error: mock summarizer error)" {
+		t.Errorf("Unexpected error message: %v", err)
 	}
 }
