@@ -10,14 +10,14 @@ import (
 )
 
 // FeatureExtractor extracts atomic feature descriptors from a single function.
-// Each descriptor is a Verb-Object pair (e.g., "validate email", "hash password").
+// Each descriptor is an Object-Action pair (e.g., "email validation", "password hashing").
 // It also identifies if the function is 'volatile' (interacts with UI, DB, Network, or IO).
 type FeatureExtractor interface {
 	Extract(code string, functionName string) ([]string, bool, error)
 }
 
 // LLMFeatureExtractor uses a Vertex AI / Gemini model to extract
-// atomic Verb-Object feature descriptors from function source code.
+// atomic Object-Action feature descriptors from function source code.
 type LLMFeatureExtractor struct {
 	Client *genai.Client
 	Model  string
@@ -56,8 +56,14 @@ func (e *LLMFeatureExtractor) Extract(code string, functionName string) ([]strin
 	}
 
 	prompt := "You are analyzing source code to extract atomic feature descriptors.\n\n" +
-		"For the function below, generate a list of Verb-Object descriptors that capture what this function does.\n" +
-		"Each descriptor should be a concise action phrase like \"validate email\", \"hash password\", \"send notification\".\n\n" +
+		"For the function below, generate descriptors that capture what business entity\n" +
+		"or concept this function operates on and what it does.\n\n" +
+		"Format each descriptor as \"object-action\" (noun first, then verb):\n" +
+		"  GOOD: \"payment validation\", \"user authentication\", \"order fulfillment\", \"session cleanup\"\n" +
+		"  BAD:  \"validate payment\", \"create user\", \"process data\", \"handle request\"\n\n" +
+		"The object/noun should reflect the business domain concept, not technical implementation.\n" +
+		"  GOOD: \"invoice generation\" (business concept)\n" +
+		"  BAD:  \"string parsing\" (implementation detail)\n\n" +
 		"Additionally, evaluate if the function is 'volatile'. A function is volatile if it:\n" +
 		"- Interacts with a User Interface (UI)\n" +
 		"- Reads/writes to a Database (DB)\n" +
@@ -66,10 +72,11 @@ func (e *LLMFeatureExtractor) Extract(code string, functionName string) ([]strin
 		"- Has non-deterministic side effects (e.g., random, time-based)\n\n" +
 		"Rules:\n" +
 		"- Use lowercase for descriptors\n" +
-		"- Each descriptor should be 2-4 words: a verb followed by the object/target\n" +
+		"- Each descriptor should be 2-4 words: a domain noun followed by the action\n" +
 		"- Generate 1-5 descriptors depending on function complexity\n" +
-		"- Focus on the function's purpose, not implementation details\n" +
-		"- Normalize similar concepts (e.g., \"check\" and \"validate\" -> pick one)\n\n" +
+		"- Focus on the business purpose, not implementation mechanics\n" +
+		"- If the function is purely technical (e.g., a utility), use the most specific\n" +
+		"  domain noun available (e.g., \"configuration loading\" not \"file reading\")\n\n" +
 		"Return ONLY a JSON object with this schema:\n" +
 		"{\n" +
 		"  \"descriptors\": [\"descriptor1\", \"descriptor2\"],\n" +
@@ -120,7 +127,7 @@ type MockFeatureExtractor struct {
 
 func (m *MockFeatureExtractor) Extract(code string, functionName string) ([]string, bool, error) {
 	if m.Descriptors == nil {
-		return []string{"process data", "validate input"}, false, nil
+		return []string{"data processing", "input validation"}, false, nil
 	}
 	return m.Descriptors, m.IsVolatile, nil
 }

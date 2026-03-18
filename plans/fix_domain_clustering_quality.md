@@ -4,7 +4,7 @@
 - [x] Step 1: Fix `line`/`start_line` property mismatch across codebase
 - [x] Step 2: Enrich `NodeToText` with structural context (file path + function name) (Status: ✅ Implemented and verified with tests)
 - [x] Step 3: Split Summarizer into Domain vs Feature prompts with DDD naming guidance (Status: ✅ Implemented and verified with tests)
-- [ ] Step 4: Improve extraction prompt to produce domain-friendly descriptors
+- [x] Step 4: Improve extraction prompt to produce domain-friendly descriptors (Status: ✅ Implemented and verified with tests)
 
 ## Research & Root Cause Analysis
 

@@ -15,11 +15,11 @@ func TestMockFeatureExtractor_Extract(t *testing.T) {
 	if len(descriptors) != 2 {
 		t.Fatalf("Expected 2 descriptors, got %d", len(descriptors))
 	}
-	if descriptors[0] != "process data" {
-		t.Errorf("Expected 'process data', got '%s'", descriptors[0])
+	if descriptors[0] != "data processing" {
+		t.Errorf("Expected 'data processing', got '%s'", descriptors[0])
 	}
-	if descriptors[1] != "validate input" {
-		t.Errorf("Expected 'validate input', got '%s'", descriptors[1])
+	if descriptors[1] != "input validation" {
+		t.Errorf("Expected 'input validation', got '%s'", descriptors[1])
 	}
 	if isVolatile {
 		t.Errorf("Expected isVolatile to be false")
