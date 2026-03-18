@@ -34,15 +34,25 @@ None.
 
 #### Phase 2: D3 Physics Stabilization (Frontend)
 1.  **Step 2.A (The Verification Baseline):**
-    *   *Action:* Manual verification via browser required since this is a visual D3 behavior.
-    *   *Goal:* The graph must not slide uncontrollably when a node is expanded.
-2.  **Step 2.B (The Implementation - Removing strict center):** Update physics configuration.
-    *   *Action:* Modify `internal/ui/web/app.js`.
-    *   *Detail:* Remove `.force("center", d3.forceCenter(width / 2, height / 2))`.
-    *   *Detail:* Add `.force("x", d3.forceX(width / 2).strength(0.05))` and `.force("y", d3.forceY(height / 2).strength(0.05))` to the `d3.forceSimulation()` initialization.
-3.  **Step 2.C (The Implementation - Coordinated Spawning):** Seed new node coordinates.
-    *   *Action:* Modify `internal/ui/web/app.js` -> `updateGraph(newNodes, newLinks)`.
-    *   *Detail:* When pushing a `normalizedNode` to `nodes`, rather than letting it default to random coordinates, set `normalizedNode.x = width / 2` and `normalizedNode.y = height / 2` (or set to `lastSelectedNode` coords if available) so new nodes "bloom" predictably.
+    *   *Action:* Manual verification via browser (Completed: `before_double_click.png`, `after_double_click.png`).
+    *   *Goal:* Confirm the "Sliding Graph" and "Crowding" issues.
+2.  **Step 2.B (The Implementation - Removing strict center):** Update physics configuration in `internal/ui/web/js/graph.js`.
+    *   *Action:* Modify `initGraph()`.
+    *   *Detail:* Replace `.force("center", d3.forceCenter(width / 2, height / 2))` with `.force("x", d3.forceX(width / 2).strength(0.05))` and `.force("y", d3.forceY(height / 2).strength(0.05))`.
+3.  **Step 2.C (The Implementation - Coordinated Spawning):** Seed new node coordinates in `internal/ui/web/js/graph.js`.
+    *   *Action:* Modify `updateGraph()`.
+    *   *Detail:* When a new node is added, if it has a source/parent that already exists in the graph, initialize the new node's `x` and `y` coordinates to match its parent's current position. This ensures nodes "bloom" from their origin instead of jumping from (0,0) or random locations.
+
+#### Phase 3: Force-Directed De-cluttering (Frontend)
+1.  **Step 3.A (The Implementation - Collision Detection):** Prevent node overlap in `internal/ui/web/js/graph.js`.
+    *   *Action:* Modify `initGraph()`.
+    *   *Detail:* Add `.force("collision", d3.forceCollide().radius(45))` to the simulation. This creates a physical buffer around nodes (radius 20 node + 25px padding).
+2.  **Step 3.B (The Implementation - Dynamic Repulsion):** Increase separation in `internal/ui/web/js/graph.js`.
+    *   *Action:* Modify `initGraph()`.
+    *   *Detail:* Increase `forceManyBody().strength()` from `-300` to `-1000`. This provides stronger repulsion between all nodes.
+3.  **Step 3.C (The Implementation - Link Distance Tuning):** Increase breathing room in `internal/ui/web/js/graph.js`.
+    *   *Action:* Modify `initGraph()`.
+    *   *Detail:* Increase `forceLink().distance()` from `150` to `250`. This pushes connected nodes further apart, reducing label overlap.
 
 ### Testing Strategy
 *   Backend: Ensure `graphdb enrich-features` successfully populates domains with semantic names instead of "Unknown Feature".

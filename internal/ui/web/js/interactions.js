@@ -168,7 +168,11 @@ async function handleNodeDoubleClick(event, d) {
         d.fy = d.y;
     }
 
-    const scale = 2.0;
+    // Get current zoom transform to maintain or slightly widen the scale
+    const currentTransform = d3.zoomTransform(svg.node());
+    // Use the current scale, but if we're zoomed in very tight, zoom out a bit to see neighbors
+    const scale = Math.min(currentTransform.k, 1.0); 
+    
     const targetX = d.x !== undefined ? d.x : width / 2;
     const targetY = d.y !== undefined ? d.y : height / 2;
 
