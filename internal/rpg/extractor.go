@@ -2,9 +2,7 @@ package rpg
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"strings"
 
 	"google.golang.org/genai"
 )
@@ -101,19 +99,14 @@ func (e *LLMFeatureExtractor) Extract(code string, functionName string) ([]strin
 		return nil, false, fmt.Errorf("empty content in response")
 	}
 
-	responseText := cand.Content.Parts[0].Text
-	responseText = strings.TrimPrefix(responseText, "```json")
-	responseText = strings.TrimSuffix(responseText, "```")
-	responseText = strings.TrimSpace(responseText)
-
 	var res extractorResponse
-	if err := json.Unmarshal([]byte(responseText), &res); err != nil {
-		// Try to fallback if it returned just a list (legacy LLM behavior)
+	if err := ParseLLMJSON(cand.Content.Parts[0].Text, &res); err != nil {
+		// Legacy LLM fallback: array format
 		var descriptors []string
-		if err2 := json.Unmarshal([]byte(responseText), &descriptors); err2 == nil {
+		if err2 := ParseLLMJSON(cand.Content.Parts[0].Text, &descriptors); err2 == nil {
 			return descriptors, false, nil
 		}
-		return nil, false, fmt.Errorf("failed to parse LLM response: %v. Raw: %s", err, responseText)
+		return nil, false, err
 	}
 
 	return res.Descriptors, res.IsVolatile, nil

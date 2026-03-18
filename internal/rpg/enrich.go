@@ -2,7 +2,6 @@ package rpg
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"graphdb/internal/embedding"
 	"graphdb/internal/graph"
@@ -188,18 +187,12 @@ Code Snippets:
 			return "", "", fmt.Errorf("empty content in response")
 		}
 
-		responseText := cand.Content.Parts[0].Text
-		// Strip markdown blocks if present
-		responseText = strings.TrimPrefix(responseText, "```json")
-		responseText = strings.TrimSuffix(responseText, "```")
-		responseText = strings.TrimSpace(responseText)
-
 		var summary struct {
 			Name        string `json:"name"`
 			Description string `json:"description"`
 		}
-		if err := json.Unmarshal([]byte(responseText), &summary); err != nil {
-			return "", "", fmt.Errorf("failed to parse LLM response as JSON: %v. Raw: %s", err, responseText)
+		if err := ParseLLMJSON(cand.Content.Parts[0].Text, &summary); err != nil {
+			return "", "", err
 		}
 
 		return summary.Name, summary.Description, nil
