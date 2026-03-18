@@ -37,7 +37,7 @@ func TestEnricher_Integration_RealFile(t *testing.T) {
 		Properties: map[string]interface{}{
 			"name":     "HelloWorld",
 			"file":     filePath,
-			"line":     3,
+			"start_line":     3,
 			"end_line": 5,
 		},
 	}

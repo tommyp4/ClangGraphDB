@@ -231,7 +231,7 @@ func (p *TypeScriptParser) Parse(filePath string, content []byte) ([]*graph.Node
                                     "name":     testName,
                                     "fqn":      fqn,
                                     "file":     filePath,
-                                    "line":     int(c.Node.StartPoint().Row + 1),
+                                    "start_line": int(c.Node.StartPoint().Row + 1),
                                     "is_test":  true,
                                 },
                             })
@@ -274,7 +274,7 @@ func (p *TypeScriptParser) Parse(filePath string, content []byte) ([]*graph.Node
                         "name": nodeContent,
                         "fqn":  fqn,
                         "file": filePath,
-                        "line": int(c.Node.StartPoint().Row + 1),
+                        "start_line": int(c.Node.StartPoint().Row + 1),
                         "end_line": int(c.Node.EndPoint().Row + 1),
                     },
                 }
@@ -308,7 +308,7 @@ func (p *TypeScriptParser) Parse(filePath string, content []byte) ([]*graph.Node
                         "fqn":  fieldFqn,
                         "type": fieldType,
                         "file": filePath,
-                        "line": int(fieldNode.StartPoint().Row + 1),
+                        "start_line": int(fieldNode.StartPoint().Row + 1),
                     },
                 })
                 

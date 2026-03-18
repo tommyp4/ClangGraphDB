@@ -10,9 +10,9 @@ import (
 func TestGlobalEmbeddingClusterer_Cluster(t *testing.T) {
 	// Setup nodes
 	nodes := []graph.Node{
-		{ID: "fn1", Properties: map[string]interface{}{"file": "auth/login.go", "line": 10, "end_line": 20, "content": "func Login() {}"}},
-		{ID: "fn2", Properties: map[string]interface{}{"file": "auth/logout.go", "line": 15, "end_line": 25, "content": "func Logout() {}"}},
-		{ID: "fn3", Properties: map[string]interface{}{"file": "payment/process.go", "line": 5, "end_line": 15, "content": "func Process() {}"}},
+		{ID: "fn1", Properties: map[string]interface{}{"file": "auth/login.go", "start_line": 10, "end_line": 20, "content": "func Login() {}"}},
+		{ID: "fn2", Properties: map[string]interface{}{"file": "auth/logout.go", "start_line": 15, "end_line": 25, "content": "func Logout() {}"}},
+		{ID: "fn3", Properties: map[string]interface{}{"file": "payment/process.go", "start_line": 5, "end_line": 15, "content": "func Process() {}"}},
 	}
 
 	// Setup PrecomputedEmbeddings
@@ -101,5 +101,63 @@ func TestGlobalEmbeddingClusterer_Cluster(t *testing.T) {
 	authGroup := result[0]
 	if len(authGroup.Nodes) != 2 {
 		t.Errorf("Expected 2 nodes in Auth System, got %d", len(authGroup.Nodes))
+	}
+}
+
+func TestGlobalEmbeddingClusterer_SnippetPropertyMismatch(t *testing.T) {
+	// Setup nodes using "start_line" as it would be returned if the DB schema used it instead of "start_line"
+	// This simulates the gap between orchestrator.go using "start_line" and cluster_global.go expecting "start_line"
+	nodes := []graph.Node{
+		{
+			ID: "fn1",
+			Properties: map[string]interface{}{
+				"file":            "auth/login.go",
+				"start_line":            10,
+				"end_line":        20,
+				"atomic_features": []string{"fallback-feature"},
+			},
+		},
+	}
+
+	embeddings := map[string][]float32{
+		"fn1": {1.0, 0.0},
+	}
+
+	mockInner := &MockClusterer{
+		ClusterFunc: func(n []graph.Node, d string) ([]ClusterGroup, error) {
+			return []ClusterGroup{
+				{Name: "root-cluster-0", Nodes: []graph.Node{nodes[0]}},
+			}, nil
+		},
+	}
+
+	var loaderCalled bool
+	mockLoader := func(path string, start, end int) (string, error) {
+		loaderCalled = true
+		return "func Login() {}", nil
+	}
+
+	var passedSnippets []string
+	mockSummarizer := &MockSummarizer{
+		SummarizeFunc: func(snippets []string) (string, string, error) {
+			passedSnippets = append(passedSnippets, snippets...)
+			return "Test System", "Desc", nil
+		},
+	}
+
+	gc := &GlobalEmbeddingClusterer{
+		Inner:                 mockInner,
+		Summarizer:            mockSummarizer,
+		Loader:                mockLoader,
+		PrecomputedEmbeddings: embeddings,
+	}
+
+	_, err := gc.Cluster(nodes, "root")
+	if err != nil {
+		t.Fatalf("Cluster failed: %v", err)
+	}
+
+	if !loaderCalled {
+		t.Errorf("Expected snippet loader to be called, but it was skipped. Ensure 'start_line' is used.")
 	}
 }

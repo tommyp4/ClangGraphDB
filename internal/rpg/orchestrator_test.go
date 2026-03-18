@@ -294,3 +294,56 @@ func TestCalculateDomainK(t *testing.T) {
 		})
 	}
 }
+
+func TestOrchestratorExtraction_HappyPath(t *testing.T) {
+	// This test asserts that Orchestrator reads the correct 'start_line' property
+	// as per the canonical schema.
+
+	mockProvider := &MockGraphProvider{}
+
+	callCount := 0
+	mockProvider.GetUnextractedFunctionsFn = func(limit int) ([]*graph.Node, error) {
+		if callCount > 0 {
+			return nil, nil
+		}
+		callCount++
+		return []*graph.Node{
+			{
+				ID: "f1",
+				Properties: map[string]any{
+					"name":       "testFunc",
+					"file":       "test.go",
+					"start_line": 10,
+					"end_line":   20,
+				},
+			},
+		}, nil
+	}
+
+	var updatedFeatures []string
+	mockProvider.UpdateAtomicFeaturesFn = func(id string, features []string, isVolatile bool) error {
+		updatedFeatures = features
+		return nil
+	}
+
+	orchestrator := &Orchestrator{
+		Provider:  mockProvider,
+		Extractor: &MockFeatureExtractor{Descriptors: []string{"real", "feature"}},
+		Loader: func(path string, start, end int) (string, error) {
+			return "func testFunc() {}", nil
+		},
+	}
+
+	err := orchestrator.RunExtraction(10)
+	if err != nil {
+		t.Fatalf("RunExtraction failed: %v", err)
+	}
+	
+	if len(updatedFeatures) == 0 {
+		t.Errorf("UpdateAtomicFeatures not called")
+	} else if updatedFeatures[0] == "unknown" {
+		t.Errorf("Expected real features, but got 'unknown' fallback. Ensure 'start_line' is correctly read.")
+	} else if updatedFeatures[0] != "real" {
+		t.Errorf("Expected 'real' feature, got %v", updatedFeatures[0])
+	}
+}

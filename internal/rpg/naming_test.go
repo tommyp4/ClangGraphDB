@@ -16,13 +16,13 @@ func TestGenerateDomainName(t *testing.T) {
 			name:     "Specific LCA",
 			lca:      "internal/auth",
 			nodes:    []graph.Node{},
-			expected: "auth",
+			expected: "Auth",
 		},
 		{
 			name:     "Specific LCA Deep",
 			lca:      "internal/services/payment",
 			nodes:    []graph.Node{},
-			expected: "payment",
+			expected: "Payment",
 		},
 		{
 			name: "Root LCA with Dominant Term",
@@ -32,7 +32,7 @@ func TestGenerateDomainName(t *testing.T) {
 				{Properties: map[string]interface{}{"name": "LogoutUser"}},
 				{Properties: map[string]interface{}{"name": "RegisterUser"}},
 			},
-			expected: "user",
+			expected: "User",
 		},
 		{
 			name: "Root LCA with Dominant Term (Case Insensitive)",
@@ -42,7 +42,7 @@ func TestGenerateDomainName(t *testing.T) {
 				{Properties: map[string]interface{}{"name": "LoadData"}},
 				{Properties: map[string]interface{}{"name": "save_data"}},
 			},
-			expected: "data",
+			expected: "Data",
 		},
 		{
 			name: "Generic LCA with Dominant Term",
@@ -51,7 +51,7 @@ func TestGenerateDomainName(t *testing.T) {
 				{Properties: map[string]interface{}{"name": "ApiHandler"}},
 				{Properties: map[string]interface{}{"name": "ApiMiddleware"}},
 			},
-			expected: "api",
+			expected: "Api",
 		},
 		{
 			name: "Generic LCA with Dominant Term (pkg)",
@@ -61,7 +61,7 @@ func TestGenerateDomainName(t *testing.T) {
 				{Properties: map[string]interface{}{"name": "LogFormatter"}},
 				{Properties: map[string]interface{}{"name": "LogWriter"}},
 			},
-			expected: "log",
+			expected: "Log",
 		},
 		{
 			name: "Fallback Generic UUID",
@@ -81,5 +81,22 @@ func TestGenerateDomainName(t *testing.T) {
 				t.Errorf("GenerateDomainName() = %v, want %v", got, tt.expected)
 			}
 		})
+	}
+}
+
+func TestFindDominantTerm_SchemaMismatch_Name(t *testing.T) {
+	// Naming fallback uses the 'name' property to find dominant terms if LLM fails.
+	// If the schema uses 'func_name' instead, it silently fails and returns nothing.
+
+	nodes := []graph.Node{
+		{Properties: map[string]interface{}{"name": "GetUser"}},
+		{Properties: map[string]interface{}{"name": "GetAccount"}},
+	}
+
+	term := findDominantTerm(nodes)
+	if term == "" {
+		t.Errorf("Expected 'Get', got empty string. Check name property reading.")
+	} else if term != "Get" {
+		t.Errorf("Expected 'Get', got '%s'", term)
 	}
 }

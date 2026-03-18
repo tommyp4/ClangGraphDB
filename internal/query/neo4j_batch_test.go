@@ -1,7 +1,9 @@
 package query
 
 import (
+	"graphdb/internal/config"
 	"graphdb/internal/graph"
+	"os"
 	"testing"
 
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
@@ -25,9 +27,9 @@ func TestNeo4jBatchOperations(t *testing.T) {
 
 	// Setup initial state for batch tests
 	setupQuery := `
-		CREATE (f1:Function:CodeElement {id: 'batch-test-f1', file: 'f1.go', line: 1, start_line: 1, end_line: 10, content: 'func f1() {}'})
-		CREATE (f2:Function:CodeElement {id: 'batch-test-f2', file: 'f2.go', line: 11, start_line: 11, end_line: 20, content: 'func f2() {}'})
-		CREATE (f3:Function:CodeElement {id: 'batch-test-f3', name: 'f3', file: 'f3.go', line: 21, start_line: 21, end_line: 30, content: 'func f3() {}', atomic_features: ['feature1']})
+		CREATE (f1:Function:CodeElement {id: 'batch-test-f1', file: 'f1.go', start_line: 1, end_line: 10, content: 'func f1() {}'})
+		CREATE (f2:Function:CodeElement {id: 'batch-test-f2', file: 'f2.go', start_line: 11, end_line: 20, content: 'func f2() {}'})
+		CREATE (f3:Function:CodeElement {id: 'batch-test-f3', name: 'f3', file: 'f3.go', start_line: 21, end_line: 30, content: 'func f3() {}', atomic_features: ['feature1']})
 		CREATE (feat1:Feature {id: 'batch-test-feat1'})
 		CREATE (feat2:Feature {id: 'batch-test-feat2', name: 'Existing Name', description: 'Existing Description'})
 		CREATE (feat3:Feature {id: 'batch-test-feat-semi', name: 'Some Name'})
@@ -184,8 +186,8 @@ func TestNeo4jBatchOperations(t *testing.T) {
 			if n.Properties["file"] != "f3.go" {
 				t.Errorf("GetFunctionMetadata missing/wrong file: %v", n.Properties["file"])
 			}
-			if n.Properties["line"] != int64(21) {
-				t.Errorf("GetFunctionMetadata missing/wrong line: %v", n.Properties["line"])
+			if n.Properties["start_line"] != int64(21) {
+				t.Errorf("GetFunctionMetadata missing/wrong start_line: %v", n.Properties["start_line"])
 			}
 			if n.Properties["end_line"] != int64(30) {
 				t.Errorf("GetFunctionMetadata missing/wrong end_line: %v", n.Properties["end_line"])
@@ -250,5 +252,67 @@ func TestNeo4jBatchOperations(t *testing.T) {
 	count, _, _ := neo4j.GetRecordValue[int64](res.Records[0], "count")
 	if count != 1 {
 		t.Errorf("Expected 1 CONTAINS relationship, got %d", count)
+	}
+}
+
+func TestGetUnextractedFunctions_HappyPath(t *testing.T) {
+	// This test asserts that GetUnextractedFunctions properly retrieves nodes 
+	// using the canonical 'start_line' property.
+
+	if os.Getenv("NEO4J_URI") == "" {
+		t.Skip("Skipping integration test: NEO4J_URI not set")
+	}
+
+	cfg := config.Config{
+		Neo4jURI:  os.Getenv("NEO4J_URI"),
+		Neo4jUser: os.Getenv("NEO4J_USER"),
+		Neo4jPassword: os.Getenv("NEO4J_PASSWORD"),
+	}
+
+	p, err := NewNeo4jProvider(cfg)
+	if err != nil {
+		t.Fatalf("Failed to connect: %v", err)
+	}
+	defer p.Close()
+
+	// 1. Setup Data with 'start_line' (canonical schema)
+	setupQuery := `
+		CREATE (n:CodeElement:Function {
+			id: 'schema-test-happy',
+			name: 'TestFunc',
+			file: 'test_file.go',
+			start_line: 10,
+			end_line: 20
+		})
+	`
+	_, err = neo4j.ExecuteQuery(p.ctx, p.driver, setupQuery, nil, neo4j.EagerResultTransformer)
+	if err != nil {
+		t.Fatalf("Setup failed: %v", err)
+	}
+
+	defer func() {
+		cleanupQuery := `MATCH (n) WHERE n.id = 'schema-test-happy' DETACH DELETE n`
+		neo4j.ExecuteQuery(p.ctx, p.driver, cleanupQuery, nil, neo4j.EagerResultTransformer)
+	}()
+
+	// 2. Execute Method
+	nodes, err := p.GetUnextractedFunctions(10)
+	if err != nil {
+		t.Fatalf("Query failed: %v", err)
+	}
+
+	// 3. Assert
+	found := false
+	for _, n := range nodes {
+		if n.ID == "schema-test-happy" {
+			found = true
+			if _, ok := n.Properties["start_line"]; !ok {
+				t.Errorf("Node found but property mapping expected 'start_line' in properties, got: %v", n.Properties)
+			}
+		}
+	}
+
+	if !found {
+		t.Errorf("GetUnextractedFunctions failed to find the node.")
 	}
 }

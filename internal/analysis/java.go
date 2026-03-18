@@ -174,7 +174,7 @@ func (p *JavaParser) Parse(filePath string, content []byte) ([]*graph.Node, []*g
 									"name":     nodeContent,
 									"fqn":      fqn,
 									"file":     filePath,
-									"line":     int(c.Node.StartPoint().Row + 1),
+									"start_line":     int(c.Node.StartPoint().Row + 1),
 									"end_line": int(c.Node.EndPoint().Row + 1),
 								},
 							})
@@ -230,7 +230,7 @@ func (p *JavaParser) Parse(filePath string, content []byte) ([]*graph.Node, []*g
 																	"name":     nodeContent,
 																	"fqn":      methodFQN,
 																	"file":     filePath,
-																	"line":     int(c.Node.StartPoint().Row + 1),
+																	"start_line":     int(c.Node.StartPoint().Row + 1),
 																	"end_line": int(c.Node.EndPoint().Row + 1),
 																}
 
@@ -320,7 +320,7 @@ func (p *JavaParser) Parse(filePath string, content []byte) ([]*graph.Node, []*g
 								"fqn":      fieldFQN,
 								"type":     resolvedType,
 								"file":     filePath,
-								"line":     int(fieldNode.StartPoint().Row + 1),
+								"start_line":     int(fieldNode.StartPoint().Row + 1),
 								"end_line": int(fieldNode.EndPoint().Row + 1),
 							},
 						})

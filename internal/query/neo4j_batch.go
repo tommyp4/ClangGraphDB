@@ -147,11 +147,11 @@ func (p *Neo4jProvider) GetEmbeddingsOnly() (map[string][]float32, error) {
 	return embeddings, nil
 }
 
-// GetFunctionMetadata returns all functions with minimal properties (id, file, line, end_line, atomic_features) for clustering.
+// GetFunctionMetadata returns all functions with minimal properties (id, file, start_line, end_line, atomic_features) for clustering.
 func (p *Neo4jProvider) GetFunctionMetadata() ([]*graph.Node, error) {
 	query := `
 		MATCH (n:Function)
-		RETURN n.id as id, n.name as name, n.file as file, n.line as line, n.end_line as end_line, n.atomic_features as atomic_features
+		RETURN n.id as id, n.name as name, n.file as file, n.start_line as start_line, n.end_line as end_line, n.atomic_features as atomic_features
 	`
 	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, nil, neo4j.EagerResultTransformer)
 
@@ -164,7 +164,7 @@ func (p *Neo4jProvider) GetFunctionMetadata() ([]*graph.Node, error) {
 		id, _, _ := neo4j.GetRecordValue[string](record, "id")
 		name, _, _ := neo4j.GetRecordValue[string](record, "name")
 		file, _, _ := neo4j.GetRecordValue[string](record, "file")
-		line, _, _ := neo4j.GetRecordValue[int64](record, "line")
+		startLine, _, _ := neo4j.GetRecordValue[int64](record, "start_line")
 		endLine, _, _ := neo4j.GetRecordValue[int64](record, "end_line")
 		
 		var atomicFeatures []string
@@ -184,7 +184,7 @@ func (p *Neo4jProvider) GetFunctionMetadata() ([]*graph.Node, error) {
 			Properties: map[string]any{
 				"name":            name,
 				"file":            file,
-				"line":            line,
+				"start_line":      startLine,
 				"end_line":        endLine,
 				"atomic_features": atomicFeatures,
 			},

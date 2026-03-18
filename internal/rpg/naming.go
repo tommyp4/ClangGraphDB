@@ -30,7 +30,7 @@ func GenerateDomainName(lca string, nodes []graph.Node) string {
 
 	// 3. If Strong, use it
 	if !isWeak {
-		return strings.ToLower(base)
+		return strings.ToUpper(base[:1]) + base[1:]
 	}
 
 	// 4. If Weak, try to extract a dominant term from nodes
@@ -83,7 +83,11 @@ func findDominantTerm(nodes []graph.Node) string {
 		}
 	}
 
-	return bestTerm
+	if bestTerm != "" {
+		return strings.ToUpper(bestTerm[:1]) + bestTerm[1:]
+	}
+
+	return ""
 }
 
 // splitNameIntoWords handles CamelCase, snake_case, etc.

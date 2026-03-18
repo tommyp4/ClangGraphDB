@@ -17,6 +17,7 @@ type Orchestrator struct {
 	Embedder   embedding.Embedder
 	Summarizer Summarizer
 	Seed       int64
+	Loader     func(string, int, int) (string, error)
 }
 
 func (o *Orchestrator) RunExtraction(batchSize int) error {
@@ -57,7 +58,12 @@ func (o *Orchestrator) RunExtraction(batchSize int) error {
 				continue
 			}
 
-			code, err := snippet.SliceFile(file, startLine, endLine)
+			loader := o.Loader
+			if loader == nil {
+				loader = snippet.SliceFile
+			}
+
+			code, err := loader(file, startLine, endLine)
 			if err != nil {
 				log.Printf("Warning: failed to slice file %s:%d-%d: %v", file, startLine, endLine, err)
 				_ = o.Provider.UpdateAtomicFeatures(node.ID, []string{"unreadable_source"}, false)

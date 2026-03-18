@@ -56,8 +56,8 @@ func (p *AspParser) Parse(filePath string, content []byte) ([]*graph.Node, []*gr
 		
 		// Adjust line numbers: -1
 		for _, n := range nodes {
-			if line, ok := n.Properties["line"].(int); ok {
-				n.Properties["line"] = line - 1
+			if line, ok := n.Properties["start_line"].(int); ok {
+				n.Properties["start_line"] = line - 1
 			}
 		}
 		

@@ -36,11 +36,11 @@ func (e *Enricher) Enrich(feature *Feature, functions []graph.Node) error {
 		}
 
 		file, okFile := fn.Properties["file"].(string)
-		line, okLine := getInt(fn.Properties["line"])
+		startLine, okLine := getInt(fn.Properties["start_line"])
 		endLine, okEnd := getInt(fn.Properties["end_line"])
 
 		if okFile && okLine && okEnd && e.Loader != nil {
-			if content, err := e.Loader(file, line, endLine); err == nil {
+			if content, err := e.Loader(file, startLine, endLine); err == nil {
 				if len(content) > 3000 {
 					snippet += content[:3000] + "..."
 				} else {

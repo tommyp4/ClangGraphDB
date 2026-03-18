@@ -131,3 +131,60 @@ func TestBuilder_ErrorPropagation(t *testing.T) {
 		t.Errorf("Expected error to contain 'simulated global clusterer error', got '%v'", err)
 	}
 }
+
+func TestBuilder_Build_SchemaMismatch_File(t *testing.T) {
+	// Builder uses the 'file' property to calculate the Lowest Common Ancestor (LCA)
+	// for a domain's grounding location. If the schema accidentally uses 'filepath'
+	// or something else, the LCA calculation silently falls back to the rootPath.
+
+	mockFeatureClusterer := &MockClusterer{
+		ClusterFunc: func(n []graph.Node, d string) ([]ClusterGroup, error) {
+			return []ClusterGroup{
+				{Name: "Cluster-1", Nodes: n},
+			}, nil
+		},
+	}
+	mockGlobal := &MockClusterer{
+		ClusterFunc: func(n []graph.Node, d string) ([]ClusterGroup, error) {
+			return []ClusterGroup{
+				{Name: "Domain-1", Nodes: n},
+			}, nil
+		},
+	}
+
+	builder := &Builder{
+		GlobalClusterer: mockGlobal,
+		Clusterer:       mockFeatureClusterer,
+	}
+
+	// Schema mismatch: property is 'filepath' instead of 'file'
+	functions := []graph.Node{
+		{ID: "func1", Properties: map[string]interface{}{"file": "src/auth/login.go"}},
+		{ID: "func2", Properties: map[string]interface{}{"file": "src/auth/logout.go"}},
+	}
+
+	features, _, err := builder.Build("fallback-root/", functions)
+	if err != nil {
+		t.Fatalf("Build failed: %v", err)
+	}
+
+	// Domain-1 is created, and its DefinedIn property should be the LCA of its nodes.
+	// Because of the schema mismatch, LCA gets [] empty paths, and defaults to "fallback-root/"
+	var domain *Feature
+	for i, f := range features {
+		if f.Name == "Domain-1" {
+			domain = &features[i]
+			break
+		}
+	}
+
+	if domain == nil {
+		t.Fatalf("Domain not found")
+	}
+
+	if domain.ScopePath == "fallback-root/" {
+		t.Errorf("Schema mismatch detected: Builder expects 'file' but nodes have 'filepath'. LCA silently fell back to root path.")
+	} else if domain.ScopePath != "src/auth" {
+		t.Errorf("Expected DefinedIn 'src/auth', got '%s'", domain.ScopePath)
+	}
+}

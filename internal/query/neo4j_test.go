@@ -4,6 +4,7 @@ import (
 	"graphdb/internal/config"
 	"os"
 	"testing"
+	"strings"
 
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 )
@@ -389,5 +390,121 @@ func TestSanitizeEmbeddings(t *testing.T) {
 	}
 	if val, ok := node.Properties["other"].(string); !ok || val != "keep_me" {
 		t.Error("Expected 'other' property to be preserved")
+	}
+}
+
+func TestNeo4jProvider_FetchSource_SchemaMismatch(t *testing.T) {
+	// This test asserts that FetchSource queries the correct line properties.
+	// Parsers output 'line' and 'end_line'. FetchSource queries 'start_line'.
+
+	if os.Getenv("NEO4J_URI") == "" {
+		t.Skip("Skipping integration test: NEO4J_URI not set")
+	}
+
+	cfg := config.Config{
+		Neo4jURI:  os.Getenv("NEO4J_URI"),
+		Neo4jUser: os.Getenv("NEO4J_USER"),
+		Neo4jPassword: os.Getenv("NEO4J_PASSWORD"),
+	}
+
+	p, err := NewNeo4jProvider(cfg)
+	if err != nil {
+		t.Fatalf("Failed to connect: %v", err)
+	}
+	defer p.Close()
+
+	// 1. Setup Data with 'line' (matching parser schema), NOT 'start_line'
+	setupQuery := `
+		CREATE (n:CodeElement:Function {
+			id: 'schema-test-source',
+			name: 'TestSourceFunc',
+			file: 'README.md',
+			line: 10,
+			end_line: 20
+		})
+	`
+	_, err = neo4j.ExecuteQuery(p.ctx, p.driver, setupQuery, nil, neo4j.EagerResultTransformer)
+	if err != nil {
+		t.Fatalf("Setup failed: %v", err)
+	}
+
+	defer func() {
+		cleanupQuery := `MATCH (n) WHERE n.id = 'schema-test-source' DETACH DELETE n`
+		neo4j.ExecuteQuery(p.ctx, p.driver, cleanupQuery, nil, neo4j.EagerResultTransformer)
+	}()
+
+	// 2. Fetch the source. If it queries `start_line` which is missing, 
+	// it will get start=0, end=0, or throw an error depending on the snippet loader.
+	// Actually snippet loader fails if start/end are 0 for a file that exists.
+	// Let's just check the result of the query.
+	_, err = p.FetchSource("schema-test-source")
+	if err != nil && strings.Contains(err.Error(), "start=0") {
+		// This is good, we caught the bug
+	} else if err != nil {
+		t.Errorf("FetchSource failed for other reasons: %v. Expected schema mismatch failure.", err)
+	} else {
+		// If it succeeded, it read the whole file or something, which means it didn't respect line/end_line 
+		t.Errorf("FetchSource succeeded, but it should have failed because 'start_line' is missing in the DB.")
+	}
+}
+
+
+func TestLocateUsage_SchemaMismatch(t *testing.T) {
+	// This test asserts that LocateUsage queries the correct line properties.
+	// Parsers output 'line' and 'end_line'. LocateUsage queries 'start_line'.
+
+	if os.Getenv("NEO4J_URI") == "" {
+		t.Skip("Skipping integration test: NEO4J_URI not set")
+	}
+
+	cfg := config.Config{
+		Neo4jURI:      os.Getenv("NEO4J_URI"),
+		Neo4jUser:     os.Getenv("NEO4J_USER"),
+		Neo4jPassword: os.Getenv("NEO4J_PASSWORD"),
+	}
+
+	p, err := NewNeo4jProvider(cfg)
+	if err != nil {
+		t.Fatalf("Failed to connect: %v", err)
+	}
+	defer p.Close()
+
+	// 1. Setup Data with 'line' (matching parser schema), NOT 'start_line'
+	setupQuery := `
+		CREATE (n:CodeElement:Function {
+			id: 'schema-test-source',
+			name: 'TestSourceFunc',
+			file: 'README.md',
+			line: 10,
+			end_line: 20
+		})
+		CREATE (m:CodeElement:Function {
+			id: 'schema-test-target',
+			name: 'TestTargetFunc',
+			file: 'README.md',
+			line: 30,
+			end_line: 40
+		})
+		CREATE (n)-[:CALLS]->(m)
+	`
+	_, err = neo4j.ExecuteQuery(p.ctx, p.driver, setupQuery, nil, neo4j.EagerResultTransformer)
+	if err != nil {
+		t.Fatalf("Setup failed: %v", err)
+	}
+
+	defer func() {
+		cleanupQuery := `MATCH (n) WHERE n.id STARTS WITH 'schema-test-' DETACH DELETE n`
+		neo4j.ExecuteQuery(p.ctx, p.driver, cleanupQuery, nil, neo4j.EagerResultTransformer)
+	}()
+
+	// 2. Fetch the usage
+	_, err = p.LocateUsage("schema-test-source", "schema-test-target")
+	if err != nil && strings.Contains(err.Error(), "start=0") {
+		// It failed correctly due to the 0 start line because DB has line instead of start_line
+	} else if err != nil {
+		t.Errorf("LocateUsage failed for other reasons: %v", err)
+	} else {
+		// If it succeeded, it bypassed the missing 'start_line' error, which is a silent failure on the snippet loader
+		t.Errorf("LocateUsage succeeded but it should have failed because 'start_line' is missing in the DB.")
 	}
 }

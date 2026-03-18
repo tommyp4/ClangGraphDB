@@ -52,13 +52,13 @@ func TestAspParser_Parse_CSharp(t *testing.T) {
 		if node.Properties["name"] == "MyMethod" {
 			foundMyMethod = true
 			// Check line number - should be 15 in the file
-			line := toInt(node.Properties["line"])
+			line := toInt(node.Properties["start_line"])
 			assert.Equal(t, 15, line, "MyMethod should be on line 15")
 		}
 		if node.Properties["name"] == "Calculate" {
 			foundCalculate = true
 			// Check line number - should be 20
-			line := toInt(node.Properties["line"])
+			line := toInt(node.Properties["start_line"])
 			assert.Equal(t, 20, line, "Calculate should be on line 20")
 		}
 	}
@@ -96,13 +96,13 @@ func TestAspParser_Parse_VB(t *testing.T) {
 			// ...
 			// 8: <script runat="server">
 			// 9:     Sub MySub()
-			line := toInt(node.Properties["line"])
+			line := toInt(node.Properties["start_line"])
 			assert.Equal(t, 9, line, "MySub should be on line 9")
 		}
 		if node.Properties["name"] == "Add" {
 			foundAdd = true
 			// Check line number - should be 13
-			line := toInt(node.Properties["line"])
+			line := toInt(node.Properties["start_line"])
 			assert.Equal(t, 13, line, "Add should be on line 13")
 		}
 	}

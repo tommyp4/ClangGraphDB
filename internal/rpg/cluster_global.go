@@ -157,11 +157,11 @@ func (c *GlobalEmbeddingClusterer) collectSnippets(nodes []graph.Node) []string 
 		// Try to read content from file
 		if c.Loader != nil {
 			file, okFile := n.Properties["file"].(string)
-			line, okLine := getInt(n.Properties["line"])
+			startLine, okLine := getInt(n.Properties["start_line"])
 			endLine, okEnd := getInt(n.Properties["end_line"])
 
 			if okFile && okLine && okEnd {
-				content, err := c.Loader(file, line, endLine)
+				content, err := c.Loader(file, startLine, endLine)
 				if err == nil && content != "" {
 					if len(content) > 1000 {
 						content = content[:1000] + "..."

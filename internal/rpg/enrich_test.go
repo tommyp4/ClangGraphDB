@@ -73,12 +73,12 @@ func TestEnricher_Enrich(t *testing.T) {
 	functions := []graph.Node{
 		{Properties: map[string]interface{}{
 			"file":     "auth.go",
-			"line":     10,
+			"start_line":     10,
 			"end_line": 20,
 		}},
 		{Properties: map[string]interface{}{
 			"file":     "auth.go",
-			"line":     30,
+			"start_line":     30,
 			"end_line": 40,
 		}},
 	}
@@ -120,7 +120,7 @@ func TestEnricher_Enrich_NilEmbedder(t *testing.T) {
 	functions := []graph.Node{
 		{Properties: map[string]interface{}{
 			"file":     "auth.go",
-			"line":     10,
+			"start_line":     10,
 			"end_line": 20,
 		}},
 	}
@@ -175,7 +175,7 @@ func TestEnricher_Enrich_Float64Props(t *testing.T) {
 	functions := []graph.Node{
 		{Properties: map[string]interface{}{
 			"file":     "auth.go",
-			"line":     float64(10), // As if from JSON
+			"start_line":     float64(10), // As if from JSON
 			"end_line": float64(20),
 		}},
 	}
@@ -187,5 +187,51 @@ func TestEnricher_Enrich_Float64Props(t *testing.T) {
 	// If loader was called, name will be User Login. If not, Unknown.
 	if feature.Name != "User Login" {
 		t.Errorf("Expected name 'User Login', got '%s'", feature.Name)
+	}
+}
+
+func TestEnricher_Enrich_SchemaMismatch(t *testing.T) {
+	// Tests that the enricher fails gracefully (or falls back to atomic features)
+	// when the node has 'start_line' instead of the expected 'line' (schema mismatch).
+
+	var loaderCalled bool
+	var passedSnippets []string
+
+	mockLoader := func(path string, start, end int) (string, error) {
+		loaderCalled = true
+		return "func login() { ... }", nil
+	}
+
+	summarizer := &MockSummarizer{
+		SummarizeFunc: func(snippets []string) (string, string, error) {
+			passedSnippets = append(passedSnippets, snippets...)
+			return "Named Feature", "Desc", nil
+		},
+	}
+
+	enricher := &Enricher{
+		Client: summarizer,
+		Loader: mockLoader,
+	}
+
+	feature := &Feature{ID: "feat-temp", Name: "Cluster-001"}
+
+	// Note 'start_line' instead of 'line'
+	functions := []graph.Node{
+		{Properties: map[string]interface{}{
+			"file":            "auth.go",
+			"start_line":            10, 
+			"end_line":        20,
+			"atomic_features": []string{"fallback-feature"},
+		}},
+	}
+
+	err := enricher.Enrich(feature, functions)
+	if err != nil {
+		t.Fatalf("Enrich failed: %v", err)
+	}
+
+	if !loaderCalled {
+		t.Errorf("Expected snippet loader to be called using 'start_line' property, but it was skipped.")
 	}
 }

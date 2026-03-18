@@ -161,7 +161,7 @@ func (p *CppParser) Parse(filePath string, content []byte) ([]*graph.Node, []*gr
                                         "fqn":  fieldFqn,
                                         "type": typeStr,
                                         "file": filePath,
-                                        "line": int(c.Node.StartPoint().Row + 1),
+                                        "start_line": int(c.Node.StartPoint().Row + 1),
                                     },
                                 })
                                 
@@ -289,7 +289,7 @@ func (p *CppParser) Parse(filePath string, content []byte) ([]*graph.Node, []*gr
                                 "name": nodeContent,
                                 "fqn":  fqn,
                                 "file": filePath,
-                                "line": c.Node.StartPoint().Row + 1,
+                                "start_line": c.Node.StartPoint().Row + 1,
                                 "end_line": c.Node.EndPoint().Row + 1,
                         }
                         if namespace != "" {
