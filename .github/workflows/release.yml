@@ -41,6 +41,9 @@ jobs:
 
       - name: Package Bundle
         run: |
+          echo "*" > .gemini/skills/graphdb/.gitignore
+          echo "*" > .gemini/skills/neo4j-manager/.gitignore
+
           tar -czvf graphdb-skill-bundle.tar.gz \
             --exclude=".gemini/tools" \
             --exclude=".gemini/skills/release-manager" \
