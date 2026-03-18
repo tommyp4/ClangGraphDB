@@ -120,4 +120,34 @@ func TestCLI_Query_Seams(t *testing.T) {
 	}
 }
 
+func TestCLI_GlobalLogFile(t *testing.T) {
+	cliPath := buildCLI(t)
+	root := getRepoRoot(t)
+
+	logFilePath := filepath.Join(root, "test_global.log")
+	defer os.Remove(logFilePath)
+
+	// Run an ingest command that will quickly fail or complete, but we pass the new global flag
+	cmd := exec.Command(cliPath, "--log-file="+logFilePath, "ingest", "-dir", "nonexistent_dir_for_test")
+	cmd.Env = append(os.Environ(), "GRAPHDB_MOCK_ENABLED=true")
+	_ = cmd.Run() // It's okay if it fails (due to nonexistent dir), we just care that it logs
+
+	// Verify log file exists
+	content, err := os.ReadFile(logFilePath)
+	if err != nil {
+		t.Fatalf("Log file was not created: %v", err)
+	}
+
+	// Verify log content has standard log formatting (timestamp) and contains an expected message
+	outStr := string(content)
+	if !strings.Contains(outStr, "nonexistent_dir_for_test") && !strings.Contains(outStr, "Found") && !strings.Contains(outStr, "failed") {
+		t.Errorf("Log file missing expected content. Got: %s", outStr)
+	}
+
+	// Check that we see shortfile info (main.go or cmd_ingest.go)
+	if !strings.Contains(outStr, ".go:") {
+		t.Errorf("Log file missing file/line numbers. Got: %s", outStr)
+	}
+}
+
 

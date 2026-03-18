@@ -3,7 +3,10 @@ package main
 import (
 	"fmt"
 	"graphdb/internal/config"
+	"io"
+	"log"
 	"os"
+	"strings"
 )
 
 // Version is injected at build time
@@ -22,36 +25,76 @@ func main() {
 	// Attempt to load .env file from current or parent directories
 	_ = config.LoadEnv()
 
-	if len(os.Args) < 2 {
+	// Extract global logging flags before subcommand routing
+	var logFile string
+	var args []string
+
+	for i := 1; i < len(os.Args); i++ {
+		arg := os.Args[i]
+		if strings.HasPrefix(arg, "--log-file=") || strings.HasPrefix(arg, "-log-file=") {
+			parts := strings.SplitN(arg, "=", 2)
+			logFile = parts[1]
+		} else if (arg == "--log-file" || arg == "-log-file") && i+1 < len(os.Args) {
+			logFile = os.Args[i+1]
+			i++ // skip next arg
+		} else {
+			args = append(args, arg)
+		}
+	}
+
+	// Fallback to environment variable
+	if logFile == "" {
+		logFile = os.Getenv("GRAPHDB_LOG_FILE")
+	}
+
+	// Configure logging if requested
+	if logFile != "" {
+		f, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+		if err != nil {
+			log.Fatalf("Failed to open log file %s: %v", logFile, err)
+		}
+		defer f.Close()
+
+		// Write to both standard error (default) and the log file
+		mw := io.MultiWriter(os.Stderr, f)
+		log.SetOutput(mw)
+		// Add timestamp, microseconds, and file/line number for robust debugging
+		log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile)
+	}
+
+	if len(args) < 1 {
 		printUsage()
 		os.Exit(1)
 	}
 
-	switch os.Args[1] {
+	cmd := args[0]
+	cmdArgs := args[1:]
+
+	switch cmd {
 	case "ingest":
-		ingestCmd(os.Args[2:])
+		ingestCmd(cmdArgs)
 	case "query":
-		handleQuery(os.Args[2:])
+		handleQuery(cmdArgs)
 	case "enrich-features":
-		enrichCmd(os.Args[2:])
+		enrichCmd(cmdArgs)
 	case "enrich-contamination":
-		handleEnrichContamination(os.Args[2:])
+		handleEnrichContamination(cmdArgs)
 	case "enrich-history":
-		handleEnrichHistory(os.Args[2:])
+		handleEnrichHistory(cmdArgs)
 	case "enrich-tests":
-		handleEnrichTests(os.Args[2:])
+		handleEnrichTests(cmdArgs)
 	case "import":
-		importCmd(os.Args[2:])
+		importCmd(cmdArgs)
 	case "serve":
-		handleServe(os.Args[2:])
+		handleServe(cmdArgs)
 	case "build-all":
-		handleBuildAll(os.Args[2:])
+		handleBuildAll(cmdArgs)
 	case "version", "--version", "-v":
 		fmt.Printf("graphdb version %s\n", Version)
 	case "help", "--help", "-h":
 		printUsage()
 	default:
-		fmt.Printf("Unknown command: %s\n", os.Args[1])
+		fmt.Printf("Unknown command: %s\n", cmd)
 		printUsage()
 		os.Exit(1)
 	}
@@ -59,7 +102,9 @@ func main() {
 
 func printUsage() {
 	fmt.Printf("GraphDB Skill CLI (Version: %s)\n", Version)
-	fmt.Println("Usage: graphdb <command> [options]")
+	fmt.Println("Usage: graphdb [global options] <command> [options]")
+	fmt.Println("\nGlobal Options:")
+	fmt.Println("  --log-file <path>      Output standard logs to the specified file (or set GRAPHDB_LOG_FILE env var)")
 	fmt.Println("\nCommands:")
 	fmt.Println("  ingest                 Parse code and generate graph nodes/edges (JSONL)")
 	fmt.Println("  enrich-features        Build the RPG (Repository Planning Graph) Intent Layer")
