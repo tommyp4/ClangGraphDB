@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.2.0-beta.4] - 2026-03-18 [Pre-release]
+### Added
+- **Fail-Fast Orchestration:** Implemented error thresholds in the RPG orchestration pipelines (Extraction and Summarization) to prevent silent cascading failures during LLM processing.
+- **Robust JSON Parsing:** Introduced `ParseLLMJSON` to better handle and strip markdown syntax, extra backticks, and whitespace from unstructured LLM responses.
+
+### Changed
+- **Documentation:** Archived inactive plans and renamed design documentation to `UX_DESIGN_OVERVIEW.md`.
+- **Install Instructions:** Added specific instructions to README for pre-release version installation.
+
+### Fixed
+- Addressed silent feature extraction and summarization failures by failing fast and surfacing underlying context errors.
+
 
 ## [0.2.0-beta.3] - 2026-03-18 [Pre-release]
 ### Changed
