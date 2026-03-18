@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.2.0-beta.7] - 2026-03-18 [Pre-release]
+### Added
+- **CLI Commands:** Added global `--log-file` option (and `GRAPHDB_LOG_FILE` env var) for persistent debugging, dual-writing standard logs with `Lshortfile` tracing.
+
+### Fixed
+- **Ingest:** Properly decode JSON numbers as `int64` and `float64` to prevent silent type assertion failures during the node and edge ingestion processes.
+
 ## [0.2.0-beta.6] - 2026-03-18 [Pre-release]
 ### Fixed
 - **CLI Commands:** Removed unsupported `-module` flag from the `enrich-contamination` command, fixing crashes during the `build-all` orchestrator sequence.
