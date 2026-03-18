@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.2.0-beta.5] - 2026-03-18 [Pre-release]
+### Added
+- **UI/UX Improvements:** Stabilized D3 physics and improved neighborhood expansion UX for a smoother graph interaction.
+- **UI Tweaks:** Cleaned up layer toggles with matching heights, simplified text, equalized spacing, and removed the unused profile avatar.
+
+### Changed
+- **Install Instructions:** Simplified installation commands by auto-generating `.gitignore` files for bundled skills during the release process.
+- **Documentation:** Updated Campaign 16 Phase 2 and 3 as completed in the implementation plan.
+
 ## [0.2.0-beta.4] - 2026-03-18 [Pre-release]
 ### Added
 - **Fail-Fast Orchestration:** Implemented error thresholds in the RPG orchestration pipelines (Extraction and Summarization) to prevent silent cascading failures during LLM processing.
