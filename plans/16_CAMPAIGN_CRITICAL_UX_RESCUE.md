@@ -1,15 +1,16 @@
 # Feature Implementation Plan: Campaign 16 - Critical UX Rescue
 
 ## 📋 Todo Checklist
-- [ ] Fix Missing LLM Domain Naming (Streaming Pipeline Metadata)
+- [x] Fix Missing LLM Domain Naming (Streaming Pipeline Metadata)
 - [ ] Fix D3 Physics Instability (Center of Mass shifting during exploration)
 - [ ] Final Review and Testing
 
 ## 🔍 Analysis & Investigation
 
-**Issue 1: Missing LLM Domain Naming**
+**Issue 1: Missing LLM Domain Naming [FIXED]**
 During Campaign 6, the system transitioned to an Out-of-Core streaming pipeline for graph construction. The `GlobalEmbeddingClusterer` relies on `collectSnippets` to grab file content or `atomic_features` to send to the LLM Summarizer to generate semantic domain names (e.g., "Authentication System").
 However, the metadata query `GetFunctionMetadata` in `internal/query/neo4j_batch.go` was never updated to retrieve `line`, `end_line`, or `atomic_features`. Because these properties are missing, `collectSnippets` always returns an empty array. This triggers the LLM Summarizer's fallback logic, which returns `"Unknown Feature"`, causing the `Builder` to fall back to generic IDs like `domain-unknown-feature`.
+*Update:* This has been resolved in `internal/query/neo4j_batch.go`.
 
 **Issue 2: D3 Physics Instability (The "Sliding Graph" Problem)**
 In the D3 Visualizer (`app.js`), the physics simulation uses `d3.forceCenter(width / 2, height / 2)`. While suitable for static graphs, `forceCenter` creates severe UX issues for interactive, expanding graphs. When a user double-clicks a node to expand its neighborhood, new nodes are spawned. This changes the graph's center of mass. The `forceCenter` violently translates all existing nodes to re-center the new mass, which visually rips the graph away from the user's viewport, neutralizing the intelligent viewport zoom control added previously. Additionally, new nodes spawn at random coordinates instead of originating from their parent, causing explosive layout shifts.
@@ -21,7 +22,7 @@ None.
 
 ### Step-by-Step Implementation
 
-#### Phase 1: The Domain Naming Fix (Backend)
+#### Phase 1: The Domain Naming Fix (Backend) - COMPLETED
 1.  **Step 1.A (The Harness):** Characterize `GetFunctionMetadata` behavior.
     *   *Action:* Create/Update `internal/query/neo4j_batch_test.go` (if exists) or verify manually using the integration tests.
     *   *Goal:* Ensure `GetFunctionMetadata` properly queries and maps the needed properties.
