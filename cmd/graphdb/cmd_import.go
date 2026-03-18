@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"flag"
@@ -74,8 +75,8 @@ func handleImport(args []string) {
 		if err := processBatches(path, *batchSizePtr, func(batch []json.RawMessage) error {
 			var nodes []graph.Node
 			for _, raw := range batch {
-				var flat map[string]interface{}
-				if err := json.Unmarshal(raw, &flat); err != nil {
+				flat, err := decodeJSONRow(raw)
+				if err != nil {
 					continue
 				}
 
@@ -122,8 +123,8 @@ func handleImport(args []string) {
 		if err := processBatches(path, *batchSizePtr, func(batch []json.RawMessage) error {
 			var edges []graph.Edge
 			for _, raw := range batch {
-				var flat map[string]interface{}
-				if err := json.Unmarshal(raw, &flat); err != nil {
+				flat, err := decodeJSONRow(raw)
+				if err != nil {
 					continue
 				}
 
@@ -211,4 +212,43 @@ func processBatches(path string, batchSize int, process func([]json.RawMessage) 
 	}
 
 	return scanner.Err()
+}
+
+func convertNumbers(v interface{}) interface{} {
+	switch val := v.(type) {
+	case map[string]interface{}:
+		for k, child := range val {
+			val[k] = convertNumbers(child)
+		}
+		return val
+	case []interface{}:
+		for i, child := range val {
+			val[i] = convertNumbers(child)
+		}
+		return val
+	case json.Number:
+		if i, err := val.Int64(); err == nil {
+			return i
+		}
+		if f, err := val.Float64(); err == nil {
+			return f
+		}
+		return val
+	default:
+		return val
+	}
+}
+
+func decodeJSONRow(raw []byte) (map[string]interface{}, error) {
+	var flat map[string]interface{}
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.UseNumber()
+	if err := decoder.Decode(&flat); err != nil {
+		return nil, err
+	}
+
+	for k, v := range flat {
+		flat[k] = convertNumbers(v)
+	}
+	return flat, nil
 }
