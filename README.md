@@ -30,6 +30,21 @@ curl.exe -sL https://github.com/jjdelorme/graphdb-skill/releases/latest/download
 
 This downloads and extracts the `.gemini/` directory structure directly into your project, instantly registering the `SKILL.md` definitions, the specialized agents, and the compiled Go binary.
 
+### Pre-releases (Beta)
+
+If you want to try the latest beta features (or if the `latest` stable release does not yet include the bundle), you must specify the exact version tag instead of `latest` in the download URL. 
+
+For example, to install `v0.2.0-beta.3` on Linux/macOS:
+
+```bash
+curl -sL https://github.com/jjdelorme/graphdb-skill/releases/download/v0.2.0-beta.3/graphdb-skill-bundle.tar.gz | tar -xzv
+```
+
+**(For Windows PowerShell users):**
+```powershell
+curl.exe -sL https://github.com/jjdelorme/graphdb-skill/releases/download/v0.2.0-beta.3/graphdb-skill-bundle.tar.gz -o bundle.tar.gz; tar.exe -xzvf bundle.tar.gz; del bundle.tar.gz
+```
+
 ## ⚙️ Configuration & Credentials
 
 Before using the skill, you must create a `.env` file in your project root. This file is critical setup as it contains your credentials for configuring the Neo4j database connection, the embedding models for vector search, and the LLMs for semantic clustering.
