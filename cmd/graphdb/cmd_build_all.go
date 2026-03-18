@@ -51,7 +51,7 @@ func handleBuildAll(args []string) {
 
 	// 5. Enrich Contamination
 	fmt.Println("\n[Phase 5/6] Enriching Contamination/Risk...")
-	contaminationArgs := []string{"-module", ".*"}
+	contaminationArgs := []string{}
 	enrichContaminationCmd(contaminationArgs)
 
 	// 6. Enrich Tests

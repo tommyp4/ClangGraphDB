@@ -75,7 +75,7 @@ func TestHandleBuildAll_ImportsBothGraphs(t *testing.T) {
 	}
 
 	// Verify Enrich Contamination
-	expectedEnrichContamination := []string{"-module", ".*"}
+	expectedEnrichContamination := []string{}
 	if !reflect.DeepEqual(enrichContaminationCalledWith, expectedEnrichContamination) {
 		t.Errorf("Enrich Contamination args mismatch.\nGot: %v\nWant: %v", enrichContaminationCalledWith, expectedEnrichContamination)
 	}

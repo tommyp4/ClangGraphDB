@@ -93,10 +93,8 @@ ${graphdb_bin} enrich-features -dir .
 **Step 4: Enrich Contamination (Legacy Modernization Analysis):**
 Identifies architectural volatility (e.g., 3rd-party libraries, external namespaces) and propagates it upwards through the call graph. This is essential for finding extraction boundaries, pinch points, and calculating risk scores.
 ```bash
-${graphdb_bin} enrich-contamination -module ".*"
+${graphdb_bin} enrich-contamination
 ```
-*   *Options:*
-    *   `-module`: Regex pattern to filter file paths for analysis (default: ".*").
 
 **Step 5: Enrich History (Git Integration):**
 Analyzes the git commit history to determine file change frequencies and co-change dependencies. This populates data for the `hotspots` query.
