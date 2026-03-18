@@ -3,6 +3,7 @@ package rpg
 import (
 	"graphdb/internal/graph"
 	"math"
+	"strings"
 	"testing"
 )
 
@@ -15,17 +16,17 @@ func (d *deterministicEmbedder) EmbedBatch(texts []string) ([][]float32, error) 
 	for i, t := range texts {
 		vec := make([]float32, 4)
 		switch {
-		case t == "validate input, check credentials":
+		case strings.Contains(t, "validate input, check credentials"):
 			vec = []float32{1, 0, 0, 0}
-		case t == "verify token, authenticate user":
+		case strings.Contains(t, "verify token, authenticate user"):
 			vec = []float32{0.9, 0.1, 0, 0}
-		case t == "hash password, encrypt data":
+		case strings.Contains(t, "hash password, encrypt data"):
 			vec = []float32{0.8, 0.2, 0, 0}
-		case t == "write file, save data":
+		case strings.Contains(t, "write file, save data"):
 			vec = []float32{0, 0, 1, 0}
-		case t == "read file, load config":
+		case strings.Contains(t, "read file, load config"):
 			vec = []float32{0, 0, 0.9, 0.1}
-		case t == "serialize data, format output":
+		case strings.Contains(t, "serialize data, format output"):
 			vec = []float32{0, 0, 0.8, 0.2}
 		default:
 			vec = []float32{0.5, 0.5, 0.5, 0.5}

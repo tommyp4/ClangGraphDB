@@ -12,9 +12,32 @@ func TestNodeToText(t *testing.T) {
 		expected string
 	}{
 		{
-			name: "With Atomic Features (Slice)",
+			name: "All Signals Present",
 			node: graph.Node{
 				ID: "test-1",
+				Properties: map[string]interface{}{
+					"file":            "src/payment/processor.go",
+					"name":            "ProcessPayment",
+					"atomic_features": []string{"create payment", "validate amount"},
+				},
+			},
+			expected: "src/payment/processor.go | ProcessPayment | create payment, validate amount",
+		},
+		{
+			name: "File and Name Only",
+			node: graph.Node{
+				ID: "test-2",
+				Properties: map[string]interface{}{
+					"file": "src/user/service.go",
+					"name": "CreateUser",
+				},
+			},
+			expected: "src/user/service.go | CreateUser",
+		},
+		{
+			name: "Atomic Features (Slice) Only",
+			node: graph.Node{
+				ID: "test-3",
 				Properties: map[string]interface{}{
 					"atomic_features": []string{"feature1", "feature2"},
 				},
@@ -22,9 +45,9 @@ func TestNodeToText(t *testing.T) {
 			expected: "feature1, feature2",
 		},
 		{
-			name: "With Atomic Features (Interface Slice)",
+			name: "Atomic Features (Interface Slice) Only",
 			node: graph.Node{
-				ID: "test-2",
+				ID: "test-4",
 				Properties: map[string]interface{}{
 					"atomic_features": []interface{}{"feature1", "feature2"},
 				},
@@ -32,9 +55,9 @@ func TestNodeToText(t *testing.T) {
 			expected: "feature1, feature2",
 		},
 		{
-			name: "Fallback to Name",
+			name: "Name Only",
 			node: graph.Node{
-				ID: "test-3",
+				ID: "test-5",
 				Properties: map[string]interface{}{
 					"name": "MyFunction",
 				},
@@ -42,11 +65,34 @@ func TestNodeToText(t *testing.T) {
 			expected: "MyFunction",
 		},
 		{
-			name: "Fallback to ID",
+			name: "File and Atomic Features",
 			node: graph.Node{
-				ID: "test-4",
+				ID: "test-6",
+				Properties: map[string]interface{}{
+					"file":            "utils/helpers.go",
+					"atomic_features": []string{"helper_func"},
+				},
 			},
-			expected: "test-4",
+			expected: "utils/helpers.go | helper_func",
+		},
+		{
+			name: "Meaningless File Path",
+			node: graph.Node{
+				ID: "test-7",
+				Properties: map[string]interface{}{
+					"file":            "utils/common.go",
+					"name":            "ProcessPayment",
+					"atomic_features": []string{"create payment", "validate amount"},
+				},
+			},
+			expected: "utils/common.go | ProcessPayment | create payment, validate amount",
+		},
+		{
+			name: "ID Fallback",
+			node: graph.Node{
+				ID: "test-8",
+			},
+			expected: "test-8",
 		},
 	}
 
