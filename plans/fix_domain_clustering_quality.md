@@ -1,7 +1,7 @@
 # Implementation Plan: Fix Domain Clustering Quality
 
 ## Todo Checklist
-- [ ] Step 1: Fix `line`/`start_line` property mismatch across codebase
+- [x] Step 1: Fix `line`/`start_line` property mismatch across codebase
 - [ ] Step 2: Enrich `NodeToText` with structural context (file path + function name)
 - [ ] Step 3: Split Summarizer into Domain vs Feature prompts with DDD naming guidance
 - [ ] Step 4: Improve extraction prompt to produce domain-friendly descriptors
