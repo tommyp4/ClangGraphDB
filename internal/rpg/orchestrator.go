@@ -297,7 +297,7 @@ func (o *Orchestrator) RunSummarization(batchSize int) error {
 				Name: "",
 			}
 
-			err = enricher.Enrich(f, memberFuncs)
+			err = enricher.Enrich(f, memberFuncs, node.Label)
 			if err != nil {
 				return fmt.Errorf("failed to enrich %s: %w", node.ID, err)
 			}

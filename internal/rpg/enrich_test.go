@@ -8,12 +8,12 @@ import (
 )
 
 type MockSummarizer struct {
-	SummarizeFunc func(snippets []string) (string, string, error)
+	SummarizeFunc func(snippets []string, level string) (string, string, error)
 }
 
-func (m *MockSummarizer) Summarize(snippets []string) (string, string, error) {
+func (m *MockSummarizer) Summarize(snippets []string, level string) (string, string, error) {
 	if m.SummarizeFunc != nil {
-		return m.SummarizeFunc(snippets)
+		return m.SummarizeFunc(snippets, level)
 	}
 
 	if len(snippets) == 0 {
@@ -83,7 +83,7 @@ func TestEnricher_Enrich(t *testing.T) {
 		}},
 	}
 
-	err := enricher.Enrich(feature, functions)
+	err := enricher.Enrich(feature, functions, "Feature")
 	if err != nil {
 		t.Fatalf("Enrich failed: %v", err)
 	}
@@ -125,7 +125,7 @@ func TestEnricher_Enrich_NilEmbedder(t *testing.T) {
 		}},
 	}
 
-	err := enricher.Enrich(feature, functions)
+	err := enricher.Enrich(feature, functions, "Feature")
 	if err != nil {
 		t.Fatalf("Enrich failed: %v", err)
 	}
@@ -150,7 +150,7 @@ func TestEnricher_Enrich_MissingProps(t *testing.T) {
 		{Properties: map[string]interface{}{"other": "val"}},
 	}
 
-	err := enricher.Enrich(feature, functions)
+	err := enricher.Enrich(feature, functions, "Feature")
 	if err != nil {
 		t.Fatalf("Enrich failed: %v", err)
 	}
@@ -180,7 +180,7 @@ func TestEnricher_Enrich_Float64Props(t *testing.T) {
 		}},
 	}
 
-	err := enricher.Enrich(feature, functions)
+	err := enricher.Enrich(feature, functions, "Feature")
 	if err != nil {
 		t.Fatalf("Enrich failed: %v", err)
 	}
@@ -203,7 +203,7 @@ func TestEnricher_Enrich_SchemaMismatch(t *testing.T) {
 	}
 
 	summarizer := &MockSummarizer{
-		SummarizeFunc: func(snippets []string) (string, string, error) {
+		SummarizeFunc: func(snippets []string, level string) (string, string, error) {
 			passedSnippets = append(passedSnippets, snippets...)
 			return "Named Feature", "Desc", nil
 		},
@@ -226,7 +226,7 @@ func TestEnricher_Enrich_SchemaMismatch(t *testing.T) {
 		}},
 	}
 
-	err := enricher.Enrich(feature, functions)
+	err := enricher.Enrich(feature, functions, "Feature")
 	if err != nil {
 		t.Fatalf("Enrich failed: %v", err)
 	}

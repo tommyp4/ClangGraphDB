@@ -37,7 +37,7 @@ func TestGlobalEmbeddingClusterer_Cluster(t *testing.T) {
 
 	// Setup Summarizer
 	mockSummarizer := &MockSummarizer{
-		SummarizeFunc: func(snippets []string) (string, string, error) {
+		SummarizeFunc: func(snippets []string, level string) (string, string, error) {
 			// Simple logic to name based on content
 			content := strings.Join(snippets, " ")
 			if strings.Contains(content, "Login") || strings.Contains(content, "Logout") {
@@ -139,7 +139,7 @@ func TestGlobalEmbeddingClusterer_SnippetPropertyMismatch(t *testing.T) {
 
 	var passedSnippets []string
 	mockSummarizer := &MockSummarizer{
-		SummarizeFunc: func(snippets []string) (string, string, error) {
+		SummarizeFunc: func(snippets []string, level string) (string, string, error) {
 			passedSnippets = append(passedSnippets, snippets...)
 			return "Test System", "Desc", nil
 		},

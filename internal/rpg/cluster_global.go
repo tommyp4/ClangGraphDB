@@ -50,7 +50,7 @@ func (c *GlobalEmbeddingClusterer) Cluster(nodes []graph.Node, domain string) ([
 
 		// Generate Name
 		log.Printf("  Naming domain %d/%d (%d functions)...", clusterIdx, len(rawClusters), len(cluster.Nodes))
-		name, description, err := c.Summarizer.Summarize(snippets)
+		name, description, err := c.Summarizer.Summarize(snippets, "domain")
 		if err != nil {
 			return nil, fmt.Errorf("domain summarization failed for cluster %d: %w", clusterIdx, err)
 		}

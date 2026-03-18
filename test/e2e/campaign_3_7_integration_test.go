@@ -15,7 +15,7 @@ type MockSummarizer struct {
 	CapturedSnippets []string
 }
 
-func (m *MockSummarizer) Summarize(snippets []string) (string, string, error) {
+func (m *MockSummarizer) Summarize(snippets []string, level string) (string, string, error) {
 	m.CapturedSnippets = snippets
 	return "Mock Feature", "This is a mock description.", nil
 }
@@ -54,7 +54,7 @@ func TestEnricher_Integration_RealFile(t *testing.T) {
 	}
 
 	// 4. Run Enrich
-	if err := enricher.Enrich(feature, []graph.Node{fn}); err != nil {
+	if err := enricher.Enrich(feature, []graph.Node{fn}, "Feature"); err != nil {
 		t.Fatalf("Enrich failed: %v", err)
 	}
 

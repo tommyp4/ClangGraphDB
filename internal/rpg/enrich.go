@@ -16,7 +16,7 @@ import (
 type SourceLoader func(path string, start, end int) (string, error)
 
 type Summarizer interface {
-	Summarize(snippets []string) (string, string, error)
+	Summarize(snippets []string, level string) (string, string, error)
 }
 
 type Enricher struct {
@@ -25,7 +25,7 @@ type Enricher struct {
 	Loader   SourceLoader
 }
 
-func (e *Enricher) Enrich(feature *Feature, functions []graph.Node) error {
+func (e *Enricher) Enrich(feature *Feature, functions []graph.Node, level string) error {
 	var snippets []string
 	for _, fn := range functions {
 		var snippet string
@@ -57,7 +57,7 @@ func (e *Enricher) Enrich(feature *Feature, functions []graph.Node) error {
 		}
 	}
 
-	name, desc, err := e.Client.Summarize(snippets)
+	name, desc, err := e.Client.Summarize(snippets, level)
 	if err != nil {
 		return err
 	}
@@ -115,21 +115,51 @@ func NewVertexSummarizer(ctx context.Context, projectID, location, model string)
 	}, nil
 }
 
-func (s *VertexSummarizer) Summarize(snippets []string) (string, string, error) {
+func (s *VertexSummarizer) Summarize(snippets []string, level string) (string, string, error) {
 	if len(snippets) == 0 {
 		return "Feature-" + GenerateShortUUID(), "No code snippets provided for analysis.", nil
 	}
 
-	prompt := fmt.Sprintf(`You are a technical architect. Below are code snippets from a group of functions.
-Your task is to:
-1. Provide a concise, professional name for this "Feature" (e.g., "User Authentication", "Database Migration Service").
-2. Provide a 1-2 sentence description of what this feature does.
+	var prompt string
+	if strings.ToLower(level) == "domain" {
+		prompt = fmt.Sprintf(`You are a software architect performing Domain-Driven Design (DDD) analysis.
+Below are representative code snippets from a cluster of related functions.
 
-Return your response in JSON format ONLY:
-{"name": "...", "description": "..."}
+Your task is to identify the Bounded Context (business domain) these functions belong to.
+
+1. Provide a concise name for this domain using the Ubiquitous Language of the business.
+   - GOOD examples: "Payment Processing", "User Authentication", "Order Fulfillment", "Inventory Management"
+   - BAD examples: "Create Operations", "Data Retrieval", "Async Handlers", "Delete Functions"
+   - The name should answer: "What area of the business does this code serve?"
+   - Use nouns and noun phrases that describe the business capability, NOT verbs that describe implementation operations.
+   - If the code spans multiple concerns, pick the dominant business theme.
+
+2. Provide a 2-3 sentence description of this domain's responsibility and boundaries.
+   Describe what business problems it solves, not how it implements them.
+
+Return JSON ONLY: {"name": "...", "description": "..."}
 
 Code Snippets:
 %s`, strings.Join(snippets, "\n---\n"))
+	} else {
+		prompt = fmt.Sprintf(`You are a software architect performing Domain-Driven Design (DDD) analysis.
+Below are code snippets from a group of closely related functions within a larger domain.
+
+Your task is to name the specific capability or service these functions provide.
+
+1. Provide a concise name for this feature.
+   - GOOD examples: "Payment Validation", "Session Token Management", "Invoice Generation", "Refund Processing"
+   - BAD examples: "Helper Functions", "Utility Methods", "Data Access", "CRUD Operations"
+   - The name should answer: "What specific capability does this group provide?"
+   - Be more specific than the parent domain, but still use business language.
+
+2. Provide a 1-2 sentence description of what this feature does.
+
+Return JSON ONLY: {"name": "...", "description": "..."}
+
+Code Snippets:
+%s`, strings.Join(snippets, "\n---\n"))
+	}
 
 	const maxRetries = 3
 	const requestTimeout = 120 * time.Second
