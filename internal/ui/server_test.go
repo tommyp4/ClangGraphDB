@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"graphdb/internal/config"
 	"graphdb/internal/embedding"
 	"graphdb/internal/graph"
 	"graphdb/internal/query"
@@ -14,7 +15,7 @@ import (
 
 func TestHealthCheck(t *testing.T) {
 	// Initialize Server with nil dependencies.
-	s := NewServer(nil, nil)
+	s := NewServer(nil, nil, config.Config{})
 
 	// Issue GET /api/health via httptest.NewRecorder().
 	req, err := http.NewRequest("GET", "/api/health", nil)
@@ -90,7 +91,7 @@ func TestQueryNeighbors(t *testing.T) {
 			return &query.NeighborResult{}, nil
 		},
 	}
-	s := NewServer(mockProvider, nil)
+	s := NewServer(mockProvider, nil, config.Config{})
 
 	req, err := http.NewRequest("GET", "/api/query?type=neighbors&target=main&depth=2", nil)
 	if err != nil {
@@ -145,7 +146,7 @@ func TestQuerySearchSimilar(t *testing.T) {
 		},
 	}
 
-	s := NewServer(mockProvider, mockEmbedder)
+	s := NewServer(mockProvider, mockEmbedder, config.Config{})
 
 	body, _ := json.Marshal(QueryRequest{
 		Type:   "search-similar",
@@ -184,7 +185,7 @@ func TestQueryWhatIf(t *testing.T) {
 			return &query.WhatIfResult{}, nil
 		},
 	}
-	s := NewServer(mockProvider, nil)
+	s := NewServer(mockProvider, nil, config.Config{})
 
 	req, err := http.NewRequest("GET", "/api/query?type=what-if&target=funcA,funcB", nil)
 	if err != nil {
@@ -214,7 +215,7 @@ func TestQuerySemanticTrace(t *testing.T) {
 			return []*graph.Path{}, nil
 		},
 	}
-	s := NewServer(mockProvider, nil)
+	s := NewServer(mockProvider, nil, config.Config{})
 
 	req, err := http.NewRequest("GET", "/api/query?type=semantic-trace&target=func1", nil)
 	if err != nil {

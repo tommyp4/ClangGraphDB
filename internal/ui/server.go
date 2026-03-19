@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"graphdb/internal/config"
 	"graphdb/internal/embedding"
 	"graphdb/internal/query"
 )
@@ -19,14 +20,16 @@ var webFiles embed.FS
 type Server struct {
 	provider query.GraphProvider
 	embedder embedding.Embedder
+	config   config.Config
 	mux      *http.ServeMux
 }
 
 // NewServer Constructor:
-func NewServer(p query.GraphProvider, e embedding.Embedder) *Server {
+func NewServer(p query.GraphProvider, e embedding.Embedder, cfg config.Config) *Server {
 	s := &Server{
 		provider: p,
 		embedder: e,
+		config:   cfg,
 		mux:      http.NewServeMux(),
 	}
 	s.routes()
@@ -41,11 +44,25 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (s *Server) routes() {
 	s.mux.HandleFunc("/api/health", s.handleHealth())
 	s.mux.HandleFunc("/api/query", s.handleQuery())
+	s.mux.HandleFunc("/api/config", s.handleConfig())
 
 	// Serve embedded static files
 	staticFS, _ := fs.Sub(webFiles, "web")
 	s.mux.Handle("/", http.FileServer(http.FS(staticFS)))
 }
+
+func (s *Server) handleConfig() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		
+		// Hide password
+		safeConfig := s.config
+		safeConfig.Neo4jPassword = "***"
+		
+		json.NewEncoder(w).Encode(safeConfig)
+	}
+}
+
 func (s *Server) handleHealth() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -245,8 +262,14 @@ func (s *Server) handleQuery() http.HandlerFunc {
 				s.error(w, "Status check failed: "+err.Error(), http.StatusInternalServerError)
 				return
 			}
-			result = map[string]string{
+			stats, err := s.provider.GetStats()
+			if err != nil {
+				// Don't fail the whole request if stats fail, just log or omit
+				stats = map[string]int64{}
+			}
+			result = map[string]interface{}{
 				"commit": commit,
+				"stats":  stats,
 			}
 		case "semantic-seams":
 			result, err = s.provider.GetSemanticSeams(r.Context(), req.Similarity)

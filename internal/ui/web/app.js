@@ -1,8 +1,58 @@
 import { nodes, links, nodesMap, linksMap } from './js/state.js';
-import { fetchOverview } from './js/api.js';
+import { fetchOverview, fetchStatus, fetchConfig } from './js/api.js';
 import { initGraph, updateGraph, renderGraph } from './js/graph.js';
 import { updateLegend } from './js/ui.js';
 import { initEventListeners, getHandlers } from './js/interactions.js';
+
+async function pollStatus() {
+    try {
+        const status = await fetchStatus();
+        const nodesCount = status.stats && status.stats.nodes ? status.stats.nodes.toLocaleString() : '0';
+        document.getElementById('status-indexed').textContent = `INDEXED: ${nodesCount} NODES`;
+        
+        const indicator = document.getElementById('status-indicator');
+        const text = document.getElementById('status-text');
+        
+        indicator.className = 'size-1.5 rounded-full bg-green-500 animate-pulse';
+        text.textContent = 'LIVE SYNC';
+    } catch (err) {
+        document.getElementById('status-indicator').className = 'size-1.5 rounded-full bg-red-500';
+        document.getElementById('status-text').textContent = 'OFFLINE';
+    }
+    setTimeout(pollStatus, 5000);
+}
+
+function initSettingsModal() {
+    const btnSettings = document.getElementById('btn-settings');
+    const modal = document.getElementById('settings-modal');
+    const btnClose = document.getElementById('btn-close-settings');
+    const btnOk = document.getElementById('btn-settings-ok');
+
+    const showModal = async () => {
+        try {
+            const cfg = await fetchConfig();
+            document.getElementById('cfg-neo4j-uri').textContent = cfg.Neo4jURI || 'N/A';
+            document.getElementById('cfg-neo4j-user').textContent = cfg.Neo4jUser || 'N/A';
+            document.getElementById('cfg-gcp-project').textContent = cfg.GoogleCloudProject || 'N/A';
+            document.getElementById('cfg-embedding-model').textContent = cfg.GeminiEmbeddingModel || 'N/A';
+            document.getElementById('cfg-generative-model').textContent = cfg.GeminiGenerativeModel || 'N/A';
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        } catch (err) {
+            console.error("Failed to load config:", err);
+            alert("Failed to load configuration.");
+        }
+    };
+
+    const hideModal = () => {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    };
+
+    if (btnSettings) btnSettings.addEventListener('click', showModal);
+    if (btnClose) btnClose.addEventListener('click', hideModal);
+    if (btnOk) btnOk.addEventListener('click', hideModal);
+}
 
 async function bootstrap() {
     console.log("GraphDB Visualizer bootstrapping...");
@@ -19,9 +69,11 @@ async function bootstrap() {
 
     // Bind UI events
     initEventListeners();
+    initSettingsModal();
 
     // Initial render and data fetch
     updateLegend();
+    pollStatus();
     
     try {
         const data = await fetchOverview();

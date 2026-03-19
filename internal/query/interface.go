@@ -127,6 +127,7 @@ type GraphProvider interface {
 	SemanticTrace(nodeID string) ([]*graph.Path, error)
 	GetOverview() (*graph.Path, error)
 	GetGraphState() (string, error)
+	GetStats() (map[string]int64, error)
 	WhatIf(targets []string) (*WhatIfResult, error)
 	GetSemanticSeams(ctx context.Context, similarityThreshold float64) ([]*SemanticSeamResult, error)
 

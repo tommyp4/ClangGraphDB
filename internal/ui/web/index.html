@@ -121,7 +121,7 @@
 
         <!-- Profile/Settings (Right) -->
         <div class="flex items-center gap-4 w-[250px] justify-end">
-            <button class="p-2 hover:bg-slate-800 rounded-lg transition-colors">
+            <button id="btn-settings" class="p-2 hover:bg-slate-800 rounded-lg transition-colors">
                 <span class="material-symbols-outlined">settings</span>
             </button>
         </div>
@@ -249,8 +249,8 @@
             </button>
         </div>
         <div class="ml-auto flex items-center gap-4 text-[10px] font-mono text-slate-500">
-            <span>INDEXED: 124,092 NODES</span>
-            <span class="flex items-center gap-1"><span class="size-1.5 rounded-full bg-green-500 animate-pulse"></span> LIVE SYNC</span>
+            <span id="status-indexed">INDEXED: FETCHING...</span>
+            <span class="flex items-center gap-1"><span id="status-indicator" class="size-1.5 rounded-full bg-yellow-500 animate-pulse"></span> <span id="status-text">CONNECTING</span></span>
         </div>
     </footer>
 
@@ -259,6 +259,43 @@
             <li id="menu-simulate-extraction" class="hover:bg-slate-100 dark:hover:bg-slate-700 p-2 cursor-pointer">Simulate Extraction</li>
             <li id="menu-unpin-node" class="hover:bg-slate-100 dark:hover:bg-slate-700 p-2 cursor-pointer">Unpin Node</li>
         </ul>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-[100] backdrop-blur-sm">
+        <div class="bg-background-light dark:bg-background-dark border border-primary/20 rounded-xl p-6 w-[500px] shadow-2xl relative">
+            <button id="btn-close-settings" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2"><span class="material-symbols-outlined text-primary">settings</span> Configuration</h2>
+            
+            <div class="space-y-4 text-sm">
+                <div>
+                    <label class="block text-xs font-mono text-slate-400 mb-1">Neo4j URI</label>
+                    <div id="cfg-neo4j-uri" class="bg-slate-900 p-2 rounded border border-slate-800 font-mono text-slate-300 break-all"></div>
+                </div>
+                <div>
+                    <label class="block text-xs font-mono text-slate-400 mb-1">Neo4j User</label>
+                    <div id="cfg-neo4j-user" class="bg-slate-900 p-2 rounded border border-slate-800 font-mono text-slate-300"></div>
+                </div>
+                <div>
+                    <label class="block text-xs font-mono text-slate-400 mb-1">GCP Project</label>
+                    <div id="cfg-gcp-project" class="bg-slate-900 p-2 rounded border border-slate-800 font-mono text-slate-300"></div>
+                </div>
+                <div>
+                    <label class="block text-xs font-mono text-slate-400 mb-1">Embedding Model</label>
+                    <div id="cfg-embedding-model" class="bg-slate-900 p-2 rounded border border-slate-800 font-mono text-slate-300"></div>
+                </div>
+                <div>
+                    <label class="block text-xs font-mono text-slate-400 mb-1">Generative Model</label>
+                    <div id="cfg-generative-model" class="bg-slate-900 p-2 rounded border border-slate-800 font-mono text-slate-300"></div>
+                </div>
+            </div>
+            
+            <div class="mt-6 flex justify-end">
+                <button id="btn-settings-ok" class="bg-primary/20 text-primary border border-primary hover:bg-primary hover:text-background-dark px-4 py-2 rounded transition-colors text-sm font-bold">OK</button>
+            </div>
+        </div>
     </div>
 
     <script type="module" src="app.js"></script>

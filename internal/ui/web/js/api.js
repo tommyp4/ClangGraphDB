@@ -42,3 +42,15 @@ export async function fetchNeighbors(targetId) {
     if (!response.ok) throw new Error('Failed to fetch neighbors');
     return await response.json();
 }
+
+export async function fetchStatus() {
+    const response = await fetch('/api/query?type=status');
+    if (!response.ok) throw new Error('Failed to fetch status');
+    return await response.json();
+}
+
+export async function fetchConfig() {
+    const response = await fetch('/api/config');
+    if (!response.ok) throw new Error('Failed to fetch config');
+    return await response.json();
+}

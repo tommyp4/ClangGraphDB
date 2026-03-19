@@ -932,6 +932,28 @@ func (p *Neo4jProvider) GetGraphState() (string, error) {
 	return commit, nil
 }
 
+// GetStats returns basic statistics about the graph like total nodes.
+func (p *Neo4jProvider) GetStats() (map[string]int64, error) {
+	stats := make(map[string]int64)
+
+	query := `MATCH (n) RETURN count(n) as total`
+	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, nil, neo4j.EagerResultTransformer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get node count: %w", err)
+	}
+
+	if len(result.Records) > 0 {
+		val, _ := result.Records[0].Get("total")
+		if count, ok := val.(int64); ok {
+			stats["nodes"] = count
+		} else if countInt, ok := val.(int); ok {
+			stats["nodes"] = int64(countInt)
+		}
+	}
+
+	return stats, nil
+}
+
 // sanitizeProperties removes heavy fields like embeddings from node properties
 // to prevent context flooding in CLI output.
 func sanitizeProperties(props map[string]any) map[string]any {
