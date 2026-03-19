@@ -52,3 +52,12 @@ The binaries will be automatically placed in the required skill folder:
 *   Linux: `.gemini/skills/graphdb/scripts/graphdb`
 *   Windows: `.gemini/skills/graphdb/scripts/graphdb-win.exe`
 
+## Testing
+
+**CRITICAL:**
+Always run the project tests using the Makefile target rather than `go test` directly.
+
+```bash
+make test
+```
+

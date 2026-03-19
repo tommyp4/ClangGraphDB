@@ -54,13 +54,6 @@ func TestGroupNodesByLabel(t *testing.T) {
 	}
 }
 
-func TestBuildWipeQuery(t *testing.T) {
-	query := buildWipeQuery()
-	if !strings.Contains(query, "MATCH (n) DETACH DELETE n") {
-		t.Error("Missing DETACH DELETE clause")
-	}
-}
-
 func TestBuildGraphStateQuery(t *testing.T) {
 	query := buildGraphStateQuery()
 	if !strings.Contains(query, "MERGE (s:GraphState)") {

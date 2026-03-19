@@ -24,7 +24,6 @@ func handleImport(args []string) {
 	edgesPtr := fs.String("edges", "", "Path to edges JSONL file")
 	inputPtr := fs.String("input", "", "Path to combined JSONL file (nodes + edges)")
 	batchSizePtr := fs.Int("batch-size", 500, "Batch size for insertion")
-	cleanPtr := fs.Bool("clean", false, "Wipe database before importing")
 
 	fs.Parse(args)
 
@@ -47,15 +46,7 @@ func handleImport(args []string) {
 
 	ctx := context.Background()
 
-	// 1. Clean Database (Phase 3)
-	if *cleanPtr {
-		log.Println("Wiping database...")
-		if err := loader.Wipe(ctx); err != nil {
-			log.Fatalf("Failed to wipe database: %v", err)
-		}
-	}
-
-	// 2. Apply Constraints
+	// 1. Apply Constraints
 	log.Println("Applying schema constraints...")
 	if err := loader.ApplyConstraints(ctx); err != nil {
 		log.Printf("Warning: failed to apply constraints: %v", err)

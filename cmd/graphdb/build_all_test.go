@@ -93,53 +93,9 @@ func TestHandleBuildAll_ImportsBothGraphs(t *testing.T) {
 	}
 
 	// Check Call 1: Structural
-	expectedImport1 := []string{"-nodes", "nodes.jsonl", "-edges", "edges.jsonl", "-clean"}
-	if !reflect.DeepEqual(importCalls[0], expectedImport1) {
-		t.Errorf("First import call mismatch.\nGot: %v\nWant: %v", importCalls[0], expectedImport1)
-	}
-}
-
-func TestHandleBuildAll_RespectsCleanFlag(t *testing.T) {
-	// Setup Mocks
-	var importCalls [][]string
-
-	// Swap handlers
-	originalIngest := ingestCmd
-	originalEnrich := enrichCmd
-	originalImport := importCmd
-	originalEnrichHistory := enrichHistoryCmd
-	originalEnrichContamination := enrichContaminationCmd
-	originalEnrichTests := enrichTestsCmd
-	defer func() {
-		ingestCmd = originalIngest
-		enrichCmd = originalEnrich
-		importCmd = originalImport
-		enrichHistoryCmd = originalEnrichHistory
-		enrichContaminationCmd = originalEnrichContamination
-		enrichTestsCmd = originalEnrichTests
-	}()
-
-	ingestCmd = func(args []string) {}
-	enrichCmd = func(args []string) {}
-	importCmd = func(args []string) {
-		importCalls = append(importCalls, args)
-	}
-	enrichHistoryCmd = func(args []string) {}
-	enrichContaminationCmd = func(args []string) {}
-	enrichTestsCmd = func(args []string) {}
-
-	// Run with clean=false
-	args := []string{"-clean=false"}
-	handleBuildAll(args)
-
-	if len(importCalls) != 1 {
-		t.Fatalf("Expected 1 import call, got %d", len(importCalls))
-	}
-
-	// Check Call 1: Structural (NO clean flag)
 	expectedImport1 := []string{"-nodes", "nodes.jsonl", "-edges", "edges.jsonl"}
 	if !reflect.DeepEqual(importCalls[0], expectedImport1) {
-		t.Errorf("First import call mismatch (clean=false).\nGot: %v\nWant: %v", importCalls[0], expectedImport1)
+		t.Errorf("First import call mismatch.\nGot: %v\nWant: %v", importCalls[0], expectedImport1)
 	}
 }
 

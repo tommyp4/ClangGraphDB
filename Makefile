@@ -1,4 +1,4 @@
-.PHONY: build build-linux build-windows build-mocks
+.PHONY: build build-linux build-windows build-mocks test
 
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS := -ldflags "-X main.Version=$(VERSION)"
@@ -25,3 +25,6 @@ build-windows:
 
 build-mocks:
 	go build -tags test_mocks -o .gemini/skills/graphdb/scripts/graphdb_test ./cmd/graphdb
+
+test:
+	go test -count=1 ./...

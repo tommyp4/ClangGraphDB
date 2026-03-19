@@ -12,7 +12,6 @@ func handleBuildAll(args []string) {
 
 	fs := flag.NewFlagSet("build-all", flag.ExitOnError)
 	dirPtr := fs.String("dir", ".", "Directory to process")
-	cleanPtr := fs.Bool("clean", true, "Clean DB before import")
 	nodesPtr := fs.String("nodes", "nodes.jsonl", "Intermediate output file for nodes")
 	edgesPtr := fs.String("edges", "edges.jsonl", "Intermediate output file for edges")
 	fs.Parse(args)
@@ -25,9 +24,6 @@ func handleBuildAll(args []string) {
 	// 2. Import Structural Graph
 	fmt.Println("\n[Phase 2/6] Importing to Neo4j...")
 	importArgs1 := []string{"-nodes", *nodesPtr, "-edges", *edgesPtr}
-	if *cleanPtr {
-		importArgs1 = append(importArgs1, "-clean")
-	}
 	importCmd(importArgs1)
 
 	// 2.5 Cleanup intermediate files

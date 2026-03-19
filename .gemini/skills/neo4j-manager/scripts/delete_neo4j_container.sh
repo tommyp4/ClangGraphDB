@@ -32,9 +32,7 @@ fi
 # Handle data wiping
 if [ "$WIPE_DATA" = true ]; then
     echo "Wiping Neo4j data directories at ${BASE_PATH}..."
-    rm -rf "${BASE_PATH}/data"
-    rm -rf "${BASE_PATH}/logs"
-    rm -rf "${BASE_PATH}/conf"
+    podman unshare rm -rf "${BASE_PATH}/data" "${BASE_PATH}/logs" "${BASE_PATH}/conf"
     echo "Data wiped."
 else
     echo "Note: Local graph data in ${BASE_PATH} was NOT removed."

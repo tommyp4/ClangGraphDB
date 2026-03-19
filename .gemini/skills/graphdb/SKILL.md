@@ -53,9 +53,6 @@ To rebuild the entire graph from scratch (Ingest -> Import -> All Enrichment Pha
 ```bash
 ${graphdb_bin} build-all -dir .
 ```
-*   *Options:*
-    *   `-clean`: Wipe the database before importing (default: `true`).
-
 ### 2. Manual Pipeline
 If you need granular control over each step (or if a specific enrichment step fails and needs to be re-run), follow this sequence. Note that `build-all` automatically runs all 6 of these steps.
 
@@ -77,9 +74,9 @@ ${graphdb_bin} ingest -dir . -nodes nodes.jsonl -edges edges.jsonl
 **Step 2: Import (Load Structural Graph to Neo4j):**
 Loads the structural graph into the active Neo4j database. This must be done **before** enrichment in the new streaming pipeline. Using separate nodes and edges files prevents a massive CPU penalty from scanning a combined file multiple times.
 ```bash
-${graphdb_bin} import -nodes nodes.jsonl -edges edges.jsonl -clean
+${graphdb_bin} import -nodes nodes.jsonl -edges edges.jsonl
 ```
-*   *Options:* `-clean` (wipe DB first), `-batch-size`.
+*   *Options:* `-batch-size`.
 
 **Step 3: Enrich (Build Intent Layer - In-Database):**
 Performs **Global Semantic Clustering** directly against the live database. Identifies latent functional domains, extracts features, and generates summaries. Memory usage is bounded by batch sizes.
