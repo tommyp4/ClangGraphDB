@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [0.3.290-beta] - 2026-03-19 [Pre-release]
+### Added
+- **UI:** Added password visibility toggle to settings modal.
+- **UI:** Added configuration modal and live database stats.
+
+### Changed
+- **UI:** Repositioned physical and semantic layer controls into an overlay panel for better UX.
+
+### Fixed
+- **Parsing:** Resolved parser line span boundary issues for C++, C#, Java, SQL, and TypeScript.
+- **Orchestrator:** Implemented retry and abort logic to handle errors robustly.
+- **Testing:** Fixed flakiness in integration tests and removed breaking scratchpad scripts.
+- **Release Manager:** Updated beta versioning format rules.
+
 ## [0.3.0-beta.2] - 2026-03-19 [Pre-release]
 ### Changed
 - **Database Management:** Removed `-clean` flag from `build-all` and `import` CLI commands and removed `Wipe`, `RecreateDatabase`, `DropSchema` from `neo4j_loader`.
