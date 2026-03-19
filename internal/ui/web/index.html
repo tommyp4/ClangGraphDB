@@ -107,16 +107,6 @@
                 </div>
                 <button id="search-button" class="px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold hover:bg-primary/90 transition-colors">Search</button>
             </div>
-            <div class="flex items-center gap-2">
-                <button id="btn-physical-layer" title="Toggle Physical components (Files, Functions, Classes). Toggling ON will fetch associated physical components for visible semantic nodes." class="h-10 px-4 text-sm font-medium rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-2 text-slate-900 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
-                    <span class="size-2 rounded-full bg-physical-blue"></span>
-                    Physical
-                </button>
-                <button id="btn-semantic-layer" title="Toggle Semantic context (Domains, Features). Toggling ON will fetch associated semantic context for visible physical nodes." class="h-10 px-4 text-sm font-medium rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-2 text-slate-900 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
-                    <span class="size-2 rounded-full bg-semantic-purple"></span>
-                    Semantic
-                </button>
-            </div>
         </div>
 
         <!-- Profile/Settings (Right) -->
@@ -128,6 +118,18 @@
     </header>
     <main class="flex-1 flex overflow-hidden relative">
         <div id="graph-container" class="flex-1 relative bg-background-dark canvas-grid overflow-hidden">
+            <!-- Layer Controls Overlay -->
+            <div class="absolute top-6 right-6 flex flex-col gap-2 bg-slate-100/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 p-3 z-30">
+                <h3 class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1 px-1">Graph Layers</h3>
+                <button id="btn-physical-layer" title="Toggle Physical components (Files, Functions, Classes). Toggling ON will fetch associated physical components for visible semantic nodes." class="h-9 px-3 text-xs font-medium rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 shadow-sm flex items-center gap-2 text-slate-900 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors w-full justify-start">
+                    <span class="size-2 rounded-full bg-physical-blue"></span>
+                    Physical
+                </button>
+                <button id="btn-semantic-layer" title="Toggle Semantic context (Domains, Features). Toggling ON will fetch associated semantic context for visible physical nodes." class="h-9 px-3 text-xs font-medium rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 shadow-sm flex items-center gap-2 text-slate-900 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors w-full justify-start">
+                    <span class="size-2 rounded-full bg-semantic-purple"></span>
+                    Semantic
+                </button>
+            </div>
             <!-- Visualization Controls Overlay -->
             <div class="absolute bottom-6 right-6 flex flex-col gap-3 z-30">
                 <div class="flex flex-col bg-slate-100 dark:bg-slate-800 rounded-lg shadow-2xl border border-slate-200 dark:border-slate-700">
