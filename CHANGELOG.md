@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.3.0-beta.2] - 2026-03-19 [Pre-release]
+### Changed
+- **Database Management:** Removed `-clean` flag from `build-all` and `import` CLI commands and removed `Wipe`, `RecreateDatabase`, `DropSchema` from `neo4j_loader`.
+- **Documentation:** Added `make test` target and updated documentation in `GEMINI.md`. Archived completed feature plans and audit reports.
+
+### Fixed
+- **Container Cleanup:** Fixed data wipe permissions in `delete_neo4j_container.sh` using `podman unshare rm -rf`.
 ## [0.3.0-beta.1] - 2026-03-19 [Pre-release]
 ### Added
 - **RPG Extraction:** Added progress tracking and robust reporting for batch operations. Integrated `CountUnextractedFunctions` for precise sizing, UI progress bars into `RunExtraction`, and periodic progress logging in `RunEmbedding`.
