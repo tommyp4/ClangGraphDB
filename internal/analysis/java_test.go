@@ -38,6 +38,13 @@ func TestParseJava(t *testing.T) {
 				if _, ok := n.Properties["end_line"]; !ok {
 					t.Errorf("Node '%s' (%s) missing end_line", name, label)
 				}
+				if label == "Function" || label == "Class" || label == "Interface" || label == "Constructor" {
+					startLine, _ := n.Properties["start_line"].(int)
+					endLine, _ := n.Properties["end_line"].(int)
+					if startLine == endLine {
+						t.Errorf("Node '%s' (%s) should span multiple lines, got start_line=%d end_line=%d", name, label, startLine, endLine)
+					}
+				}
 				if _, ok := n.Properties["content"]; ok {
 					t.Errorf("Node '%s' (%s) should not have content", name, label)
 				}

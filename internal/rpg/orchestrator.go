@@ -94,7 +94,6 @@ func (o *Orchestrator) RunExtraction(batchSize int) error {
 				if consecutiveErrors >= maxConsecutiveErrors {
 					return fmt.Errorf("extraction aborted: too many consecutive errors (last error: %w)", err)
 				}
-				pb.Add(1)
 				continue
 			}
 			consecutiveErrors = 0

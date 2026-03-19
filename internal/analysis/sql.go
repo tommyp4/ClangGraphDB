@@ -79,8 +79,8 @@ func (p *SqlParser) Parse(filePath string, content []byte) ([]*graph.Node, []*gr
 					"name": nodeName,
 					"fqn":  fqn,
 					"file": filePath,
-					"start_line": c.Node.StartPoint().Row + 1,
-					"end_line": c.Node.EndPoint().Row + 1,
+					"start_line": c.Node.Parent().StartPoint().Row + 1,
+					"end_line": c.Node.Parent().EndPoint().Row + 1,
 				},
 			}
 			nodes = append(nodes, n)

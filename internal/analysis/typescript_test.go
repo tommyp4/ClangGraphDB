@@ -65,6 +65,11 @@ func TestParseTypeScript(t *testing.T) {
 			if _, ok := n.Properties["end_line"]; !ok {
 				t.Errorf("Function 'hello' missing end_line")
 			}
+			startLine, _ := n.Properties["start_line"].(int)
+			endLine, _ := n.Properties["end_line"].(int)
+			if startLine == endLine {
+				t.Errorf("Function 'hello' should span multiple lines, got start_line=%d end_line=%d", startLine, endLine)
+			}
 			if _, ok := n.Properties["content"]; ok {
 				t.Errorf("Function 'hello' should not have content")
 			}
@@ -73,6 +78,11 @@ func TestParseTypeScript(t *testing.T) {
 			foundGreeter = true
 			if _, ok := n.Properties["end_line"]; !ok {
 				t.Errorf("Class 'Greeter' missing end_line")
+			}
+			startLine, _ := n.Properties["start_line"].(int)
+			endLine, _ := n.Properties["end_line"].(int)
+			if startLine == endLine {
+				t.Errorf("Class 'Greeter' should span multiple lines, got start_line=%d end_line=%d", startLine, endLine)
 			}
 			if _, ok := n.Properties["content"]; ok {
 				t.Errorf("Class 'Greeter' should not have content")

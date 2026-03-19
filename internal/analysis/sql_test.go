@@ -59,6 +59,11 @@ $$ LANGUAGE plpgsql;
 					if _, ok := n.Properties["end_line"]; !ok {
 						t.Errorf("Function 'CalculateTotal' missing end_line")
 					}
+					startLine, _ := n.Properties["start_line"].(uint32)
+					endLine, _ := n.Properties["end_line"].(uint32)
+					if startLine == endLine {
+						t.Errorf("Function 'CalculateTotal' should span multiple lines, got start_line=%d end_line=%d", startLine, endLine)
+					}
 					if _, ok := n.Properties["content"]; ok {
 						t.Errorf("Function 'CalculateTotal' should not have content")
 					}
@@ -67,6 +72,11 @@ $$ LANGUAGE plpgsql;
 					foundProcessOrder = true
 					if _, ok := n.Properties["end_line"]; !ok {
 						t.Errorf("Function 'ProcessOrder' missing end_line")
+					}
+					startLine, _ := n.Properties["start_line"].(uint32)
+					endLine, _ := n.Properties["end_line"].(uint32)
+					if startLine == endLine {
+						t.Errorf("Function 'ProcessOrder' should span multiple lines, got start_line=%d end_line=%d", startLine, endLine)
 					}
 					if _, ok := n.Properties["content"]; ok {
 						t.Errorf("Function 'ProcessOrder' should not have content")

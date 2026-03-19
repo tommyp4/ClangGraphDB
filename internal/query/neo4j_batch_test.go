@@ -43,12 +43,19 @@ func TestNeo4jBatchOperations(t *testing.T) {
 	}
 
 	// 1. Test GetUnextractedFunctions
-	unextracted, err := p.GetUnextractedFunctions(10)
+	unextracted, err := p.GetUnextractedFunctions(10000)
 	if err != nil {
 		t.Fatalf("GetUnextractedFunctions failed: %v", err)
 	}
-	if len(unextracted) != 2 {
-		t.Errorf("Expected 2 unextracted functions, got %d", len(unextracted))
+
+	unextractedTestNodes := 0
+	for _, n := range unextracted {
+		if len(n.ID) > 11 && n.ID[:11] == "batch-test-" {
+			unextractedTestNodes++
+		}
+	}
+	if unextractedTestNodes != 2 {
+		t.Errorf("Expected 2 unextracted functions, got %d", unextractedTestNodes)
 	}
 
 	// 2. Test UpdateAtomicFeatures
@@ -70,17 +77,23 @@ func TestNeo4jBatchOperations(t *testing.T) {
 	if !isVolatile {
 		t.Errorf("Expected is_volatile to be true")
 	}
-	
+
 	// Verify it was updated by re-fetching
-	unextractedAfter, _ := p.GetUnextractedFunctions(10)
-	if len(unextractedAfter) != 1 {
-		t.Errorf("Expected 1 unextracted function after update, got %d", len(unextractedAfter))
+	unextractedAfter, _ := p.GetUnextractedFunctions(10000)
+	unextractedAfterTestNodes := 0
+	for _, n := range unextractedAfter {
+		if len(n.ID) > 11 && n.ID[:11] == "batch-test-" {
+			unextractedAfterTestNodes++
+		}
+	}
+	if unextractedAfterTestNodes != 1 {
+		t.Errorf("Expected 1 unextracted function after update, got %d", unextractedAfterTestNodes)
 	}
 
 	// 3. Test GetUnembeddedNodes
 	// GetUnembeddedNodes queries Function and Feature labels (not Domain),
 	// so we expect: f1, f2, f3, feat1, feat2, feat-semi, feat-empty = 7 nodes
-	unembedded, err := p.GetUnembeddedNodes(100)
+	unembedded, err := p.GetUnembeddedNodes(10000)
 	if err != nil {
 		t.Fatalf("GetUnembeddedNodes failed: %v", err)
 	}
@@ -297,7 +310,7 @@ func TestGetUnextractedFunctions_HappyPath(t *testing.T) {
 	}()
 
 	// 2. Execute Method
-	nodes, err := p.GetUnextractedFunctions(10)
+	nodes, err := p.GetUnextractedFunctions(10000)
 	if err != nil {
 		t.Fatalf("Query failed: %v", err)
 	}

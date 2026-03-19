@@ -285,12 +285,23 @@ func (p *CppParser) Parse(filePath string, content []byte) ([]*graph.Node, []*gr
                                 signature = extractCppSignature(c.Node, content)
                         }
                         nodeID := GenerateNodeID(label, fqn, signature)
+                        // Use declaration node for line span (function.name is nested 2 levels deep)
+                        declNode := c.Node
+                        if label == "Function" {
+                                if p := c.Node.Parent(); p != nil {
+                                        if pp := p.Parent(); pp != nil {
+                                                declNode = pp
+                                        }
+                                }
+                        } else if parent := c.Node.Parent(); parent != nil {
+                                declNode = parent
+                        }
                         props := map[string]interface{}{
                                 "name": nodeContent,
                                 "fqn":  fqn,
                                 "file": filePath,
-                                "start_line": c.Node.StartPoint().Row + 1,
-                                "end_line": c.Node.EndPoint().Row + 1,
+                                "start_line": declNode.StartPoint().Row + 1,
+                                "end_line": declNode.EndPoint().Row + 1,
                         }
                         if namespace != "" {
                                 props["namespace"] = namespace

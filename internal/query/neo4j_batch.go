@@ -18,7 +18,7 @@ func (p *Neo4jProvider) GetUnextractedFunctions(limit int) ([]*graph.Node, error
 	query := `
 		MATCH (n:Function)
 		WHERE n.atomic_features IS NULL AND n.file IS NOT NULL AND n.start_line IS NOT NULL
-		RETURN n.id as id, n.file as file, n.start_line as start, n.end_line as end
+		RETURN n.id as id, n.name as name, n.file as file, n.start_line as start, n.end_line as end
 		LIMIT $limit
 	`
 	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
@@ -32,6 +32,7 @@ func (p *Neo4jProvider) GetUnextractedFunctions(limit int) ([]*graph.Node, error
 	nodes := make([]*graph.Node, 0, len(result.Records))
 	for _, record := range result.Records {
 		id, _, _ := neo4j.GetRecordValue[string](record, "id")
+		name, _, _ := neo4j.GetRecordValue[string](record, "name")
 		file, _, _ := neo4j.GetRecordValue[string](record, "file")
 		start, _, _ := neo4j.GetRecordValue[int64](record, "start")
 		end, _, _ := neo4j.GetRecordValue[int64](record, "end")
@@ -40,6 +41,7 @@ func (p *Neo4jProvider) GetUnextractedFunctions(limit int) ([]*graph.Node, error
 			ID:    id,
 			Label: "Function",
 			Properties: map[string]any{
+				"name":       name,
 				"file":       file,
 				"start_line": start,
 				"end_line":   end,

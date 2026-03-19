@@ -42,6 +42,11 @@ public class Greeter {
 			if _, ok := n.Properties["end_line"]; !ok {
 				t.Errorf("Function 'Greet' missing end_line")
 			}
+			startLine, _ := n.Properties["start_line"].(uint32)
+			endLine, _ := n.Properties["end_line"].(uint32)
+			if startLine == endLine {
+				t.Errorf("Function 'Greet' should span multiple lines, got start_line=%d end_line=%d", startLine, endLine)
+			}
 			if _, ok := n.Properties["content"]; ok {
 				t.Errorf("Function 'Greet' should not have content property")
 			}

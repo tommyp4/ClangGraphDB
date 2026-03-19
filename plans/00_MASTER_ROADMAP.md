@@ -316,6 +316,15 @@ Plan: Ref: `plans/12_CAMPAIGN_D3_VISUALIZER.md`
 - [ ] **Interactive Impact Sidebar:** Add click-to-focus/expand capabilities to sidebar items.
 - [ ] **Focus & Expand UI:** Implement robust viewport centering and automatic context expansion for focused nodes.
 
+### Campaign 18: C++ Parser Reliability (Structural & Signature Fixes)
+**Goal:** Resolve critical bugs in the C++ parser where functions were erroneously tagged as "Class" nodes during edge generation and signature extraction failed to capture parameter lists.
+**Status:** In Progress
+**Plan:** Ref: `plans/feat_cpp_parser_bugfix.md`
+**Key Deliverables:**
+- [ ] **Fix Node ID Generation:** Correct `Usage/Reference` logic to use `"Function"` label instead of `"Class"` for caller nodes.
+- [ ] **Signature Extraction Fix:** Update `extractCppSignature` to correctly parse parameter lists by passing the `function_definition` node.
+- [ ] **Automated Regression Testing:** Implement E2E tests to verify correct node labeling and signature fidelity.
+
 ---
 
 

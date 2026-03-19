@@ -57,6 +57,7 @@ func (m *MockGraphProvider) LocateUsage(sourceID string, targetID string) (any, 
 func (m *MockGraphProvider) GetGraphState() (string, error)                       { return "", nil }
 func (m *MockGraphProvider) SemanticTrace(nodeID string) ([]*graph.Path, error)   { return nil, nil }
 func (m *MockGraphProvider) GetOverview() (*graph.Path, error)                    { return nil, nil }
+func (m *MockGraphProvider) GetStats() (map[string]int64, error)               { return nil, nil }
 func (m *MockGraphProvider) WhatIf(targets []string) (*query.WhatIfResult, error) { return nil, nil }
 func (m *MockGraphProvider) GetSemanticSeams(ctx context.Context, similarityThreshold float64) ([]*query.SemanticSeamResult, error) {
 	return nil, nil

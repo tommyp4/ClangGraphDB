@@ -274,8 +274,8 @@ func (p *TypeScriptParser) Parse(filePath string, content []byte) ([]*graph.Node
                         "name": nodeContent,
                         "fqn":  fqn,
                         "file": filePath,
-                        "start_line": int(c.Node.StartPoint().Row + 1),
-                        "end_line": int(c.Node.EndPoint().Row + 1),
+                        "start_line": int(c.Node.Parent().StartPoint().Row + 1),
+                        "end_line": int(c.Node.Parent().EndPoint().Row + 1),
                     },
                 }
                 nodes = append(nodes, n)

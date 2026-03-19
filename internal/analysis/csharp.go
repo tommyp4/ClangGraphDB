@@ -308,12 +308,20 @@ func (p *CSharpParser) Parse(filePath string, content []byte) ([]*graph.Node, []
 				fqn := strings.Join(parts, ".")
 				fullID := GenerateNodeID(label, fqn, signature)
 
+				// Use parent (declaration) node for line span so we capture the full body
+				declNode := c.Node
+				if nodeType == "function" || nodeType == "class" {
+					if parent := c.Node.Parent(); parent != nil {
+						declNode = parent
+					}
+				}
+
 				var properties = map[string]interface{}{
 					"name":     nodeName,
 					"fqn":      fqn,
 					"file":     filePath,
-					"start_line":     c.Node.StartPoint().Row + 1,
-					"end_line": c.Node.EndPoint().Row + 1,
+					"start_line":     declNode.StartPoint().Row + 1,
+					"end_line": declNode.EndPoint().Row + 1,
 				}
 
 				// Structural Test Detection via Attributes
