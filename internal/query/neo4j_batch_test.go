@@ -78,7 +78,8 @@ func TestNeo4jBatchOperations(t *testing.T) {
 	}
 
 	// 3. Test GetUnembeddedNodes
-	// f1, f2, f3, feat1, feat2, dom1, dom2 should all lack embeddings initially
+	// GetUnembeddedNodes queries Function and Feature labels (not Domain),
+	// so we expect: f1, f2, f3, feat1, feat2, feat-semi, feat-empty = 7 nodes
 	unembedded, err := p.GetUnembeddedNodes(100)
 	if err != nil {
 		t.Fatalf("GetUnembeddedNodes failed: %v", err)
@@ -89,8 +90,8 @@ func TestNeo4jBatchOperations(t *testing.T) {
 			unembeddedTestNodes++
 		}
 	}
-	if unembeddedTestNodes != 9 {
-		t.Errorf("Expected 9 unembedded test nodes, got %d", unembeddedTestNodes)
+	if unembeddedTestNodes != 7 {
+		t.Errorf("Expected 7 unembedded test nodes, got %d", unembeddedTestNodes)
 	}
 
 	// 4. Test UpdateEmbeddings

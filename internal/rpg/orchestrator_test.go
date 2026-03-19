@@ -9,8 +9,9 @@ import (
 )
 
 type MockGraphProvider struct {
-	GetUnextractedFunctionsFn func(limit int) ([]*graph.Node, error)
-	UpdateAtomicFeaturesFn    func(id string, features []string, isVolatile bool) error
+	GetUnextractedFunctionsFn    func(limit int) ([]*graph.Node, error)
+	CountUnextractedFunctionsFn func() (int64, error)
+	UpdateAtomicFeaturesFn      func(id string, features []string, isVolatile bool) error
 	GetUnembeddedNodesFn      func(limit int) ([]*graph.Node, error)
 	UpdateEmbeddingsFn        func(id string, embedding []float32) error
 	GetEmbeddingsOnlyFn       func() (map[string][]float32, error)
@@ -79,6 +80,12 @@ func (m *MockGraphProvider) GetUnextractedFunctions(limit int) ([]*graph.Node, e
 		return m.GetUnextractedFunctionsFn(limit)
 	}
 	return nil, nil
+}
+func (m *MockGraphProvider) CountUnextractedFunctions() (int64, error) {
+	if m.CountUnextractedFunctionsFn != nil {
+		return m.CountUnextractedFunctionsFn()
+	}
+	return 0, nil
 }
 func (m *MockGraphProvider) UpdateAtomicFeatures(id string, features []string, isVolatile bool) error {
 	if m.UpdateAtomicFeaturesFn != nil {
@@ -150,6 +157,7 @@ func (m *MockGraphProvider) ExploreDomain(featureID string) (*query.DomainExplor
 
 func TestOrchestratorExtraction(t *testing.T) {
 	mockProvider := &MockGraphProvider{}
+	mockProvider.CountUnextractedFunctionsFn = func() (int64, error) { return 1, nil }
 
 	callCount := 0
 	mockProvider.GetUnextractedFunctionsFn = func(limit int) ([]*graph.Node, error) {
@@ -301,6 +309,7 @@ func TestOrchestratorExtraction_HappyPath(t *testing.T) {
 	// as per the canonical schema.
 
 	mockProvider := &MockGraphProvider{}
+	mockProvider.CountUnextractedFunctionsFn = func() (int64, error) { return 1, nil }
 
 	callCount := 0
 	mockProvider.GetUnextractedFunctionsFn = func(limit int) ([]*graph.Node, error) {
@@ -351,6 +360,7 @@ func TestOrchestratorExtraction_HappyPath(t *testing.T) {
 
 func TestOrchestratorExtraction_ErrorThreshold_Aborts(t *testing.T) {
 	mockProvider := &MockGraphProvider{}
+	mockProvider.CountUnextractedFunctionsFn = func() (int64, error) { return 6, nil }
 
 	var nodes []*graph.Node
 	for i := 0; i < 6; i++ {

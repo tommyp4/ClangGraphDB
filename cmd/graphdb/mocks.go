@@ -91,6 +91,7 @@ func (m *MockProvider) UpdateFileHistory(metrics map[string]query.FileHistoryMet
 }
 
 func (m *MockProvider) GetUnextractedFunctions(limit int) ([]*graph.Node, error)    { return nil, nil }
+func (m *MockProvider) CountUnextractedFunctions() (int64, error)                   { return 0, nil }
 func (m *MockProvider) UpdateAtomicFeatures(id string, features []string, isVolatile bool) error {
 	return nil
 }

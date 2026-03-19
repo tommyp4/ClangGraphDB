@@ -23,7 +23,18 @@ type Orchestrator struct {
 func (o *Orchestrator) RunExtraction(batchSize int) error {
 	log.Printf("Starting resumable extraction (batch size: %d)...", batchSize)
 
-	totalProcessed := 0
+	total, err := o.Provider.CountUnextractedFunctions()
+	if err != nil {
+		return fmt.Errorf("failed to count unextracted functions: %w", err)
+	}
+	if total == 0 {
+		log.Println("No unextracted functions to process")
+		return nil
+	}
+
+	pb := ui.NewProgressBar(total, "Extracting features")
+	defer pb.Finish()
+
 	consecutiveErrors := 0
 	const maxConsecutiveErrors = 5
 
@@ -58,6 +69,7 @@ func (o *Orchestrator) RunExtraction(batchSize int) error {
 
 			if file == "" || startLine == 0 || endLine == 0 {
 				_ = o.Provider.UpdateAtomicFeatures(node.ID, []string{"unknown"}, false)
+				pb.Add(1)
 				continue
 			}
 
@@ -70,6 +82,7 @@ func (o *Orchestrator) RunExtraction(batchSize int) error {
 			if err != nil {
 				log.Printf("Warning: failed to slice file %s:%d-%d: %v", file, startLine, endLine, err)
 				_ = o.Provider.UpdateAtomicFeatures(node.ID, []string{"unreadable_source"}, false)
+				pb.Add(1)
 				continue
 			}
 
@@ -81,6 +94,7 @@ func (o *Orchestrator) RunExtraction(batchSize int) error {
 				if consecutiveErrors >= maxConsecutiveErrors {
 					return fmt.Errorf("extraction aborted: too many consecutive errors (last error: %w)", err)
 				}
+				pb.Add(1)
 				continue
 			}
 			consecutiveErrors = 0
@@ -93,10 +107,11 @@ func (o *Orchestrator) RunExtraction(batchSize int) error {
 			if err != nil {
 				return fmt.Errorf("failed to update atomic features for %s: %w", node.ID, err)
 			}
-			totalProcessed++
+			pb.Add(1)
 		}
 	}
-	log.Printf("Finished extraction for %d functions", totalProcessed)
+
+	log.Println("Finished extraction")
 	return nil
 }
 
@@ -136,12 +151,13 @@ func (o *Orchestrator) RunEmbedding(batchSize int) error {
 			}
 			totalProcessed++
 		}
+
+		log.Printf("Embedding progress: processed %d nodes...", totalProcessed)
 	}
 
 	log.Printf("Finished embedding for %d nodes", totalProcessed)
 	return nil
 }
-
 // CalculateDomainK determines the number of top-level domains based on unique file count.
 func CalculateDomainK(fileCount int) int {
 	if fileCount == 0 {

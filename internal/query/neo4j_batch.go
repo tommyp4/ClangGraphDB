@@ -49,6 +49,24 @@ func (p *Neo4jProvider) GetUnextractedFunctions(limit int) ([]*graph.Node, error
 	return nodes, nil
 }
 
+// CountUnextractedFunctions returns the total number of functions without atomic features.
+func (p *Neo4jProvider) CountUnextractedFunctions() (int64, error) {
+	query := `
+		MATCH (n:Function)
+		WHERE n.atomic_features IS NULL AND n.file IS NOT NULL AND n.start_line IS NOT NULL
+		RETURN count(n) as total
+	`
+	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, nil, neo4j.EagerResultTransformer)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count unextracted functions: %w", err)
+	}
+	if len(result.Records) == 0 {
+		return 0, nil
+	}
+	total, _, _ := neo4j.GetRecordValue[int64](result.Records[0], "total")
+	return total, nil
+}
+
 // UpdateAtomicFeatures saves the extracted atomic features for a node.
 func (p *Neo4jProvider) UpdateAtomicFeatures(id string, features []string, isVolatile bool) error {
 	query := `

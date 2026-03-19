@@ -143,6 +143,7 @@ type GraphProvider interface {
 
 	// Batch/Streaming Operations
 	GetUnextractedFunctions(limit int) ([]*graph.Node, error)
+	CountUnextractedFunctions() (int64, error)
 	UpdateAtomicFeatures(id string, features []string, isVolatile bool) error
 	GetUnembeddedNodes(limit int) ([]*graph.Node, error)
 	UpdateEmbeddings(id string, embedding []float32) error
