@@ -54,15 +54,9 @@ func (s *Server) routes() {
 func (s *Server) handleConfig() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		
-		// Hide password
-		safeConfig := s.config
-		safeConfig.Neo4jPassword = "***"
-		
-		json.NewEncoder(w).Encode(safeConfig)
+		json.NewEncoder(w).Encode(s.config)
 	}
 }
-
 func (s *Server) handleHealth() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

@@ -27,15 +27,29 @@ function initSettingsModal() {
     const modal = document.getElementById('settings-modal');
     const btnClose = document.getElementById('btn-close-settings');
     const btnOk = document.getElementById('btn-settings-ok');
+    const btnTogglePassword = document.getElementById('btn-toggle-password');
+    const iconTogglePassword = document.getElementById('icon-toggle-password');
+    const elPassword = document.getElementById('cfg-neo4j-password');
 
     const showModal = async () => {
         try {
             const cfg = await fetchConfig();
             document.getElementById('cfg-neo4j-uri').textContent = cfg.Neo4jURI || 'N/A';
             document.getElementById('cfg-neo4j-user').textContent = cfg.Neo4jUser || 'N/A';
+            
+            // Set up masked password initially
+            if (elPassword) {
+                elPassword.dataset.password = cfg.Neo4jPassword || '';
+                elPassword.textContent = '******';
+            }
+            if (iconTogglePassword) {
+                iconTogglePassword.textContent = 'visibility_off';
+            }
+
             document.getElementById('cfg-gcp-project').textContent = cfg.GoogleCloudProject || 'N/A';
             document.getElementById('cfg-embedding-model').textContent = cfg.GeminiEmbeddingModel || 'N/A';
             document.getElementById('cfg-generative-model').textContent = cfg.GeminiGenerativeModel || 'N/A';
+            
             modal.classList.remove('hidden');
             modal.classList.add('flex');
         } catch (err) {
@@ -49,9 +63,23 @@ function initSettingsModal() {
         modal.classList.remove('flex');
     };
 
+    const togglePassword = () => {
+        if (!elPassword || !iconTogglePassword) return;
+        const isHidden = iconTogglePassword.textContent === 'visibility_off';
+        
+        if (isHidden) {
+            elPassword.textContent = elPassword.dataset.password || '';
+            iconTogglePassword.textContent = 'visibility';
+        } else {
+            elPassword.textContent = '******';
+            iconTogglePassword.textContent = 'visibility_off';
+        }
+    };
+
     if (btnSettings) btnSettings.addEventListener('click', showModal);
     if (btnClose) btnClose.addEventListener('click', hideModal);
     if (btnOk) btnOk.addEventListener('click', hideModal);
+    if (btnTogglePassword) btnTogglePassword.addEventListener('click', togglePassword);
 }
 
 async function bootstrap() {
