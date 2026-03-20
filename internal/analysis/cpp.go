@@ -465,8 +465,10 @@ func (p *CppParser) Parse(filePath string, content []byte) ([]*graph.Node, []*gr
 					if cls != "" { parts = append(parts, cls) }
 					parts = append(parts, funcName)
 					
-                                sourceFqn := fmt.Sprintf("%s:%s", filePath, strings.Join(parts, "::"))
-                        sourceID := GenerateNodeID("Class", sourceFqn, "")
+					sourceFqn := fmt.Sprintf("%s:%s", filePath, strings.Join(parts, "::"))
+					// FIX: Use signature and "Function" label instead of "Class"
+					signature := extractCppSignature(sourceFuncNode, content)
+					sourceID := GenerateNodeID("Function", sourceFqn, signature)
 
 					targetID := localDefs[targetName]
 					if targetID == "" {
@@ -587,27 +589,39 @@ func extractCppFunctionName(n *sitter.Node, content []byte) string {
 
 
 func extractCppSignature(n *sitter.Node, content []byte) string {
-    var paramList *sitter.Node
-    var findParamList func(node *sitter.Node) *sitter.Node
-    findParamList = func(node *sitter.Node) *sitter.Node {
-        if node == nil { return nil }
-        if node.Type() == "parameter_list" { return node }
-        for i := 0; i < int(node.NamedChildCount()); i++ {
-            if res := findParamList(node.NamedChild(i)); res != nil {
-                return res
-            }
-        }
-        return nil
-    }
-    
-    paramList = findParamList(n)
-    if paramList == nil {
-        return "()"
-    }
-    
-    sig := paramList.Content(content)
-    sig = strings.ReplaceAll(sig, " ", "")
-    sig = strings.ReplaceAll(sig, "\n", "")
-    sig = strings.ReplaceAll(sig, "\t", "")
-    return sig
+	curr := n
+	for curr != nil && curr.Type() != "function_definition" && curr.Type() != "declaration" {
+		curr = curr.Parent()
+	}
+	if curr == nil {
+		curr = n
+	}
+
+	var paramList *sitter.Node
+	var findParamList func(node *sitter.Node) *sitter.Node
+	findParamList = func(node *sitter.Node) *sitter.Node {
+		if node == nil {
+			return nil
+		}
+		if node.Type() == "parameter_list" {
+			return node
+		}
+		for i := 0; i < int(node.NamedChildCount()); i++ {
+			if res := findParamList(node.NamedChild(i)); res != nil {
+				return res
+			}
+		}
+		return nil
+	}
+
+	paramList = findParamList(curr)
+	if paramList == nil {
+		return "()"
+	}
+
+	sig := paramList.Content(content)
+	sig = strings.ReplaceAll(sig, " ", "")
+	sig = strings.ReplaceAll(sig, "\n", "")
+	sig = strings.ReplaceAll(sig, "\t", "")
+	return sig
 }

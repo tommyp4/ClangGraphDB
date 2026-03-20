@@ -259,3 +259,44 @@ namespace MyApp {
 		}
 	}
 }
+
+func TestParseCPP_UsageBug(t *testing.T) {
+	parser, ok := analysis.GetParser(".cpp")
+	if !ok {
+		t.Fatalf("CPP parser not registered")
+	}
+
+	absPath, err := filepath.Abs("bug.cpp")
+	if err != nil {
+		t.Fatalf("Failed to get absolute path: %v", err)
+	}
+
+	content := []byte(`
+void targetFunc() {}
+void callerFunc(int param) { targetFunc(); }
+`)
+
+	_, edges, err := parser.Parse(absPath, content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	foundCall := false
+	for _, e := range edges {
+		if strings.Contains(e.SourceID, "callerFunc") && strings.Contains(e.TargetID, "targetFunc") {
+			foundCall = true
+			if strings.HasPrefix(e.SourceID, "Class:") {
+				t.Errorf("Bug: SourceID is a Class! Got: %s", e.SourceID)
+			}
+			if !strings.HasPrefix(e.SourceID, "Function:") {
+				t.Errorf("Expected SourceID to be a Function. Got: %s", e.SourceID)
+			}
+			if !strings.Contains(e.SourceID, "(intparam)") {
+				t.Errorf("Expected SourceID to contain parameters in signature. Got: %s", e.SourceID)
+			}
+		}
+	}
+	if !foundCall {
+		t.Errorf("Expected call edge not found")
+	}
+}

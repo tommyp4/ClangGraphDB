@@ -11,14 +11,14 @@
     * The edge source node must perfectly match the initially created node ID, which requires signature synchronization.
 
 ## 📋 Micro-Step Checklist
-- [ ] Phase 1: Verification Setup
-  - [ ] Step 1.A: Write `TestParseCPP_UsageBug` to assert edge SourceID correctness.
-- [ ] Phase 2: Fix Signature Extraction
-  - [ ] Step 2.A: Refactor `extractCppSignature` to traverse up to `function_definition`.
-- [ ] Phase 3: Fix Edge Generation
-  - [ ] Step 3.A: Correct Usage/Reference Query ID generation in `cpp.go`.
-- [ ] Phase 4: Final Verification
-  - [ ] Step 4.A: Run existing and new C++ parser tests.
+- [x] Phase 1: Verification Setup
+  - [x] Step 1.A: Write `TestParseCPP_UsageBug` to assert edge SourceID correctness. ✅ Implemented
+- [x] Phase 2: Fix Signature Extraction
+  - [x] Step 2.A: Refactor `extractCppSignature` to traverse up to `function_definition`. ✅ Implemented
+- [x] Phase 3: Fix Edge Generation
+  - [x] Step 3.A: Correct Usage/Reference Query ID generation in `cpp.go`. ✅ Implemented
+- [x] Phase 4: Final Verification
+  - [x] Step 4.A: Run existing and new C++ parser tests. ✅ Implemented
 
 ## 📝 Step-by-Step Implementation Details
 
