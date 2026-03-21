@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.3.297-beta] - 2026-03-21 [Pre-release]
+### Added
+- **RPG Enrichment:** Implemented standardized progress reporting, replacing log-based output with interactive spinners and progress bars during LLM operations.
+- **Analysis:** Added comprehensive research notes and metrics on RPG clustering behaviour and performance scaling.
+
+### Changed
+- **Testing:** Isolated database-dependent internal queries into an explicit `integration` build tag, allowing standard unit tests (`make test`) to run consistently without a local Neo4j container.
+
+### Fixed
+- **C++ Parser:** Corrected function call edge tagging and signature extraction logic to fix missing relationship data in the graph.
+- **Testing Dependencies:** Cleaned up unused environment variables and Testcontainers imports across the testing suite.
+
 ## [0.3.290-beta] - 2026-03-19 [Pre-release]
 ### Added
 - **UI:** Added password visibility toggle to settings modal.
