@@ -1,22 +1,19 @@
+//go:build integration
+
 package query
 
 import (
-	"os"
 	"testing"
 
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 )
 
 func TestSemanticTrace(t *testing.T) {
-	uri := os.Getenv("NEO4J_URI")
-	if uri == "" {
-		t.Skip("NEO4J_URI not set, skipping integration test")
-	}
 
 	p := getProvider(t)
 	defer p.Close()
-        defer cleanup(t, p)
-	
+	defer cleanup(t, p)
+
 	// Cleanup and setup fixture data
 	cleanupQuery := `
 		MATCH (n) WHERE n.name STARTS WITH 'Test' OR n.id STARTS WITH 'Test' DETACH DELETE n

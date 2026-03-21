@@ -1,3 +1,5 @@
+//go:build integration
+
 package query
 
 import (
@@ -37,7 +39,7 @@ func TestGetOverview_Phased(t *testing.T) {
 	// Verify
 	// We expect 'domain-1' and 'feat-top'
 	// We do NOT expect 'feat-nested' or 'func-1'
-	
+
 	foundDomain := false
 	foundTopFeat := false
 	foundNestedFeat := false

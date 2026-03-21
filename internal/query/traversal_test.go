@@ -1,3 +1,5 @@
+//go:build integration
+
 package query
 
 import (
@@ -84,7 +86,7 @@ func TestTraverse(t *testing.T) {
 		if len(paths) != 2 {
 			t.Errorf("Expected 2 paths, got %d", len(paths))
 		}
-		
+
 		foundD := false
 		for _, path := range paths {
 			if len(path.Nodes) == 3 && path.Nodes[2].ID == "TestD" {

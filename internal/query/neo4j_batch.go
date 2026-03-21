@@ -169,17 +169,17 @@ func (p *Neo4jProvider) GetEmbeddingsOnly() (map[string][]float32, error) {
 	embeddings := make(map[string][]float32, len(result.Records))
 	for _, record := range result.Records {
 		id, _, _ := neo4j.GetRecordValue[string](record, "id")
-		
+
 		// Neo4j returns float arrays as []any containing float64
 		embeddingRaw, _, _ := neo4j.GetRecordValue[[]any](record, "embedding")
-		
+
 		emb := make([]float32, len(embeddingRaw))
 		for i, v := range embeddingRaw {
 			if f64, ok := v.(float64); ok {
 				emb[i] = float32(f64)
 			}
 		}
-		
+
 		embeddings[id] = emb
 	}
 	return embeddings, nil
@@ -204,7 +204,7 @@ func (p *Neo4jProvider) GetFunctionMetadata() ([]*graph.Node, error) {
 		file, _, _ := neo4j.GetRecordValue[string](record, "file")
 		startLine, _, _ := neo4j.GetRecordValue[int64](record, "start_line")
 		endLine, _, _ := neo4j.GetRecordValue[int64](record, "end_line")
-		
+
 		var atomicFeatures []string
 		if val, found := record.Get("atomic_features"); found && val != nil {
 			if rawAf, ok := val.([]any); ok {

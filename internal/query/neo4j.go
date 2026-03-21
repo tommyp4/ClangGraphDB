@@ -389,7 +389,7 @@ func (p *Neo4jProvider) GetNeighbors(nodeID string, depth int) (*NeighborResult,
 		if !ok {
 			continue
 		}
-		
+
 		name, _ := item["dependency"].(string)
 		typ, _ := item["type"].(string)
 
@@ -413,7 +413,7 @@ func (p *Neo4jProvider) GetNeighbors(nodeID string, depth int) (*NeighborResult,
 	}
 
 	return &NeighborResult{
-		Node:         targetNode, 
+		Node:         targetNode,
 		Dependencies: deps,
 	}, nil
 }
@@ -708,7 +708,7 @@ func (p *Neo4jProvider) GetOverview() (*graph.Path, error) {
 		Nodes: make([]*graph.Node, 0),
 		Edges: make([]*graph.Edge, 0),
 	}
-	
+
 	nodeMap := make(map[string]bool)
 	edgeMap := make(map[string]bool)
 
@@ -719,7 +719,7 @@ func (p *Neo4jProvider) GetOverview() (*graph.Path, error) {
 			if idProp, hasId := rawN.Props["id"].(string); hasId {
 				id = idProp
 			}
-			
+
 			label := "Unknown"
 			if len(rawN.Labels) > 0 {
 				label = rawN.Labels[0]
@@ -777,7 +777,7 @@ func (p *Neo4jProvider) GetOverview() (*graph.Path, error) {
 				if idProp, hasId := n.Props["id"].(string); hasId {
 					id = idProp
 				}
-				
+
 				label := "Unknown"
 				if len(n.Labels) > 0 {
 					label = n.Labels[0]
@@ -795,25 +795,33 @@ func (p *Neo4jProvider) GetOverview() (*graph.Path, error) {
 			for _, r := range rawP.Relationships {
 				// We need string IDs for source and target which match the Node IDs
 				// Path in Neo4j-Go driver doesn't give us the string ID directly for endpoints unless we look them up in the path nodes
-				
+
 				sourceId := ""
 				targetId := ""
 				for _, n := range rawP.Nodes {
 					if n.ElementId == r.StartElementId {
-						if p, has := n.Props["id"].(string); has { sourceId = p } else { sourceId = n.ElementId }
+						if p, has := n.Props["id"].(string); has {
+							sourceId = p
+						} else {
+							sourceId = n.ElementId
+						}
 					}
 					if n.ElementId == r.EndElementId {
-						if p, has := n.Props["id"].(string); has { targetId = p } else { targetId = n.ElementId }
+						if p, has := n.Props["id"].(string); has {
+							targetId = p
+						} else {
+							targetId = n.ElementId
+						}
 					}
 				}
-				
+
 				edgeKey := fmt.Sprintf("%s-%s-%s", sourceId, targetId, r.Type)
 				if !edgeMap[edgeKey] && sourceId != "" && targetId != "" {
 					edgeMap[edgeKey] = true
 					outPath.Edges = append(outPath.Edges, &graph.Edge{
 						SourceID: sourceId,
 						TargetID: targetId,
-						Type: r.Type,
+						Type:     r.Type,
 					})
 				}
 			}

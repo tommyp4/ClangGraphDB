@@ -1,3 +1,5 @@
+//go:build integration
+
 package query
 
 import (
@@ -11,13 +13,9 @@ import (
 
 func getProvider(t *testing.T) *Neo4jProvider {
 	_ = config.LoadEnv()
-	uri := os.Getenv("NEO4J_URI")
-	if uri == "" {
-		t.Skip("NEO4J_URI not set, skipping integration test")
-	}
 
 	cfg := config.Config{
-		Neo4jURI:      uri,
+		Neo4jURI:      os.Getenv("NEO4J_URI"),
 		Neo4jUser:     os.Getenv("NEO4J_USER"),
 		Neo4jPassword: os.Getenv("NEO4J_PASSWORD"),
 	}
@@ -70,7 +68,7 @@ func TestGetNeighbors(t *testing.T) {
 	// Verify
 	foundGlobal := false
 	foundFunc := false
-	
+
 	for _, dep := range result.Dependencies {
 		if dep.Name == "TestGlobal" && dep.Type == "Global" {
 			foundGlobal = true
@@ -304,12 +302,12 @@ func TestSearchSimilarFunctions(t *testing.T) {
 
 	// Search similar to v1 (closer to index 0)
 	queryVec := makeVector32(768, 0.9, 0) // float32 for Go input
-	
+
 	// Call the new method name
 	results, err := p.SearchSimilarFunctions(queryVec, 1)
 	if err != nil {
 		t.Logf("SearchSimilarFunctions failed (index might be missing): %v", err)
-		return 
+		return
 	}
 
 	if len(results) > 0 {
@@ -341,11 +339,11 @@ func TestSearchFeatures(t *testing.T) {
 	}
 
 	queryVec := makeVector32(768, 0.9, 0)
-	
+
 	results, err := p.SearchFeatures(queryVec, 1)
 	if err != nil {
 		t.Logf("SearchFeatures failed (index might be missing): %v", err)
-		return 
+		return
 	}
 
 	if len(results) > 0 {
@@ -397,13 +395,9 @@ func TestNeo4jProvider_FetchSource_SchemaMismatch(t *testing.T) {
 	// This test asserts that FetchSource queries the correct line properties.
 	// Parsers output 'line' and 'end_line'. FetchSource queries 'start_line'.
 
-	if os.Getenv("NEO4J_URI") == "" {
-		t.Skip("Skipping integration test: NEO4J_URI not set")
-	}
-
 	cfg := config.Config{
-		Neo4jURI:  os.Getenv("NEO4J_URI"),
-		Neo4jUser: os.Getenv("NEO4J_USER"),
+		Neo4jURI:      os.Getenv("NEO4J_URI"),
+		Neo4jUser:     os.Getenv("NEO4J_USER"),
 		Neo4jPassword: os.Getenv("NEO4J_PASSWORD"),
 	}
 
@@ -447,14 +441,9 @@ func TestNeo4jProvider_FetchSource_SchemaMismatch(t *testing.T) {
 	// because it couldn't read the 'line' property (it queries 'start_line').
 }
 
-
 func TestLocateUsage_SchemaMismatch(t *testing.T) {
 	// This test asserts that LocateUsage queries the correct line properties.
 	// Parsers output 'line' and 'end_line'. LocateUsage queries 'start_line'.
-
-	if os.Getenv("NEO4J_URI") == "" {
-		t.Skip("Skipping integration test: NEO4J_URI not set")
-	}
 
 	cfg := config.Config{
 		Neo4jURI:      os.Getenv("NEO4J_URI"),

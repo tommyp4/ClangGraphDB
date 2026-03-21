@@ -42,7 +42,7 @@ func (p *Neo4jProvider) GetHotspots(modulePattern string) ([]*HotspotResult, err
 	for _, record := range result.Records {
 		name, _, _ := neo4j.GetRecordValue[string](record, "name")
 		file, _, _ := neo4j.GetRecordValue[string](record, "file")
-		
+
 		var risk float64
 		if riskVal, ok := record.Get("risk"); ok && riskVal != nil {
 			switch v := riskVal.(type) {
@@ -85,7 +85,7 @@ func (p *Neo4jProvider) UpdateFileHistory(metrics map[string]FileHistoryMetrics)
 		if len(batch) == 0 {
 			return nil
 		}
-		
+
 		query := `
 			UNWIND $batch AS row
 			MATCH (file:File {file: row.file})
@@ -93,11 +93,11 @@ func (p *Neo4jProvider) UpdateFileHistory(metrics map[string]FileHistoryMetrics)
 			    file.last_changed = row.last_changed,
 			    file.co_changes = row.co_changes
 		`
-		
+
 		_, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
 			"batch": batch,
 		}, neo4j.EagerResultTransformer)
-		
+
 		batch = batch[:0] // reset
 		return err
 	}

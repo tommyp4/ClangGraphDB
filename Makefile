@@ -28,3 +28,7 @@ build-mocks:
 
 test:
 	go test -count=1 ./...
+
+test-integration:
+	@echo "Running integration tests (requires Neo4j)..."
+	go test -count=1 -tags=integration ./internal/query/...

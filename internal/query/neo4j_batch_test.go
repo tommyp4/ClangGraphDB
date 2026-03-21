@@ -1,3 +1,5 @@
+//go:build integration
+
 package query
 
 import (
@@ -12,14 +14,14 @@ import (
 func TestNeo4jBatchOperations(t *testing.T) {
 	p := getProvider(t)
 	defer p.Close()
-	
+
 	// Ensure cleanup for this specific test
 	defer func() {
 		_, _ = neo4j.ExecuteQuery(p.ctx, p.driver, `
 			MATCH (n) WHERE n.id STARTS WITH 'batch-test-' DETACH DELETE n
 		`, nil, neo4j.EagerResultTransformer)
 	}()
-	
+
 	// Clear before running just in case
 	_, _ = neo4j.ExecuteQuery(p.ctx, p.driver, `
 		MATCH (n) WHERE n.id STARTS WITH 'batch-test-' DETACH DELETE n
@@ -134,7 +136,7 @@ func TestNeo4jBatchOperations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetUnnamedFeatures failed: %v", err)
 	}
-	// feat1 should be unnamed (no name property), 
+	// feat1 should be unnamed (no name property),
 	// feat2 is named and described, so should be excluded.
 	// feat3 has name but no description (semi-named), so should be picked up.
 	// feat4 has empty name and empty description, so should be picked up.
@@ -239,7 +241,7 @@ func TestNeo4jBatchOperations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UpdateFeatureTopology failed: %v", err)
 	}
-	
+
 	// Verify topology update: node should have :CodeElement label
 	labelQuery := `
 		MATCH (n:CodeElement {id: 'batch-test-feat3'})
@@ -270,16 +272,12 @@ func TestNeo4jBatchOperations(t *testing.T) {
 }
 
 func TestGetUnextractedFunctions_HappyPath(t *testing.T) {
-	// This test asserts that GetUnextractedFunctions properly retrieves nodes 
+	// This test asserts that GetUnextractedFunctions properly retrieves nodes
 	// using the canonical 'start_line' property.
 
-	if os.Getenv("NEO4J_URI") == "" {
-		t.Skip("Skipping integration test: NEO4J_URI not set")
-	}
-
 	cfg := config.Config{
-		Neo4jURI:  os.Getenv("NEO4J_URI"),
-		Neo4jUser: os.Getenv("NEO4J_USER"),
+		Neo4jURI:      os.Getenv("NEO4J_URI"),
+		Neo4jUser:     os.Getenv("NEO4J_USER"),
 		Neo4jPassword: os.Getenv("NEO4J_PASSWORD"),
 	}
 
