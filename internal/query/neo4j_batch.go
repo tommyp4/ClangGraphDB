@@ -118,6 +118,24 @@ func (p *Neo4jProvider) GetUnembeddedNodes(limit int) ([]*graph.Node, error) {
 	return nodes, nil
 }
 
+// CountUnembeddedNodes returns the total number of functions and features that lack an embedding.
+func (p *Neo4jProvider) CountUnembeddedNodes() (int64, error) {
+	query := `
+		MATCH (n)
+		WHERE (n:Function OR n:Feature) AND n.embedding IS NULL
+		RETURN count(n) as total
+	`
+	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, nil, neo4j.EagerResultTransformer)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count unembedded nodes: %w", err)
+	}
+	if len(result.Records) == 0 {
+		return 0, nil
+	}
+	total, _, _ := neo4j.GetRecordValue[int64](result.Records[0], "total")
+	return total, nil
+}
+
 // UpdateEmbeddings updates the embedding vector for a node.
 func (p *Neo4jProvider) UpdateEmbeddings(id string, embedding []float32) error {
 	query := `

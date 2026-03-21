@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"graphdb/internal/embedding"
 	"graphdb/internal/graph"
+	"graphdb/internal/ui"
 	"log"
 	"math"
 	"math/rand"
@@ -136,9 +137,11 @@ func kmeans(vectors [][]float32, k int, maxIterations int, seed int64, label str
 
 	assignments := make([]int, n)
 
+	pb := ui.NewSpinner(fmt.Sprintf("Refining %ss", label))
+
 	for iter := 0; iter < maxIterations; iter++ {
 		changed := false
-		log.Printf("Refining %ss, pass %d/%d", label, iter+1, maxIterations)
+		pb.UpdateDescription(fmt.Sprintf("Refining %ss (pass %d)", label, iter+1))
 
 		// Assign each vector to nearest centroid
 		for i, v := range vectors {
@@ -184,6 +187,8 @@ func kmeans(vectors [][]float32, k int, maxIterations int, seed int64, label str
 		}
 	}
 
+	pb.Finish()
+
 	return assignments
 }
 
@@ -197,37 +202,41 @@ func kmeansppInit(vectors [][]float32, k int, seed int64, label string) [][]floa
 	first := rng.Intn(n)
 	centroids = append(centroids, vectors[first])
 
-	for len(centroids) < k {
-		if len(centroids)%10 == 0 {
-			log.Printf("Seeding %s %d/%d", label, len(centroids), k)
-		}
-		// Compute distances to nearest centroid
-		dists := make([]float64, n)
-		total := 0.0
-		for i, v := range vectors {
-			minDist := math.MaxFloat64
-			for _, c := range centroids {
-				d := float64(cosineDistance(v, c))
-				if d < minDist {
-					minDist = d
+	if k > 1 {
+		pb := ui.NewProgressBar(int64(k), fmt.Sprintf("Seeding %ss", label))
+		pb.Add(1) // for the first one
+
+		for len(centroids) < k {
+			// Compute distances to nearest centroid
+			dists := make([]float64, n)
+			total := 0.0
+			for i, v := range vectors {
+				minDist := math.MaxFloat64
+				for _, c := range centroids {
+					d := float64(cosineDistance(v, c))
+					if d < minDist {
+						minDist = d
+					}
+				}
+				dists[i] = minDist * minDist
+				total += dists[i]
+			}
+
+			// Weighted random selection
+			r := rng.Float64() * total
+			cumulative := 0.0
+			chosen := 0
+			for i, d := range dists {
+				cumulative += d
+				if cumulative >= r {
+					chosen = i
+					break
 				}
 			}
-			dists[i] = minDist * minDist
-			total += dists[i]
+			centroids = append(centroids, vectors[chosen])
+			pb.Add(1)
 		}
-
-		// Weighted random selection
-		r := rng.Float64() * total
-		cumulative := 0.0
-		chosen := 0
-		for i, d := range dists {
-			cumulative += d
-			if cumulative >= r {
-				chosen = i
-				break
-			}
-		}
-		centroids = append(centroids, vectors[chosen])
+		pb.Finish()
 	}
 
 	return centroids

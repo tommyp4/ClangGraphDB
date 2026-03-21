@@ -115,9 +115,18 @@ func (o *Orchestrator) RunExtraction(batchSize int) error {
 }
 
 func (o *Orchestrator) RunEmbedding(batchSize int) error {
-	log.Printf("Starting resumable embedding (batch size: %d)...", batchSize)
+	totalToProcess, err := o.Provider.CountUnembeddedNodes()
+	if err != nil {
+		return fmt.Errorf("failed to count unembedded nodes: %w", err)
+	}
 
-	totalProcessed := 0
+	if totalToProcess == 0 {
+		log.Println("No unembedded nodes found.")
+		return nil
+	}
+
+	pb := ui.NewProgressBar(totalToProcess, "Embedding nodes")
+
 	for {
 		nodes, err := o.Provider.GetUnembeddedNodes(batchSize)
 		if err != nil {
@@ -148,13 +157,12 @@ func (o *Orchestrator) RunEmbedding(batchSize int) error {
 			if err != nil {
 				return fmt.Errorf("failed to update embedding for %s: %w", batchIDs[i], err)
 			}
-			totalProcessed++
+			pb.Add(1)
 		}
-
-		log.Printf("Embedding progress: processed %d nodes...", totalProcessed)
 	}
 
-	log.Printf("Finished embedding for %d nodes", totalProcessed)
+	pb.Finish()
+	log.Printf("Finished embedding for %d nodes", totalToProcess)
 	return nil
 }
 // CalculateDomainK determines the number of top-level domains based on unique file count.

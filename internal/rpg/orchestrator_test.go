@@ -13,6 +13,7 @@ type MockGraphProvider struct {
 	CountUnextractedFunctionsFn func() (int64, error)
 	UpdateAtomicFeaturesFn      func(id string, features []string, isVolatile bool) error
 	GetUnembeddedNodesFn      func(limit int) ([]*graph.Node, error)
+	CountUnembeddedNodesFn    func() (int64, error)
 	UpdateEmbeddingsFn        func(id string, embedding []float32) error
 	GetEmbeddingsOnlyFn       func() (map[string][]float32, error)
 	GetUnnamedFeaturesFn      func(limit int) ([]*graph.Node, error)
@@ -99,6 +100,12 @@ func (m *MockGraphProvider) GetUnembeddedNodes(limit int) ([]*graph.Node, error)
 		return m.GetUnembeddedNodesFn(limit)
 	}
 	return nil, nil
+}
+func (m *MockGraphProvider) CountUnembeddedNodes() (int64, error) {
+	if m.CountUnembeddedNodesFn != nil {
+		return m.CountUnembeddedNodesFn()
+	}
+	return 0, nil
 }
 func (m *MockGraphProvider) UpdateEmbeddings(id string, embedding []float32) error {
 	if m.UpdateEmbeddingsFn != nil {
@@ -199,6 +206,7 @@ func TestOrchestratorExtraction(t *testing.T) {
 
 func TestOrchestratorEmbedding(t *testing.T) {
 	mockProvider := &MockGraphProvider{}
+	mockProvider.CountUnembeddedNodesFn = func() (int64, error) { return 1, nil }
 
 	callCount := 0
 	mockProvider.GetUnembeddedNodesFn = func(limit int) ([]*graph.Node, error) {

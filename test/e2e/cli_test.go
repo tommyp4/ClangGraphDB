@@ -99,10 +99,6 @@ func TestCLI_Query_Help(t *testing.T) {
 }
 
 func TestCLI_Query_Seams(t *testing.T) {
-	if os.Getenv("NEO4J_URI") == "" {
-		t.Skip("Skipping query test: NEO4J_URI not set")
-	}
-
 	    cliPath := buildCLI(t)
 	
 	    // Run query

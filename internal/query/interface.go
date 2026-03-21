@@ -147,6 +147,7 @@ type GraphProvider interface {
 	CountUnextractedFunctions() (int64, error)
 	UpdateAtomicFeatures(id string, features []string, isVolatile bool) error
 	GetUnembeddedNodes(limit int) ([]*graph.Node, error)
+	CountUnembeddedNodes() (int64, error)
 	UpdateEmbeddings(id string, embedding []float32) error
 	GetEmbeddingsOnly() (map[string][]float32, error)
 	GetFunctionMetadata() ([]*graph.Node, error)
