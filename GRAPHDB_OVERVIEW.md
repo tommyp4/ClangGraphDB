@@ -107,13 +107,15 @@ graph TD
 *   **Seams & Risks:**
     *   The `impact` and `seams` queries rely on the `CALLS` graph to calculate "Contamination". If a function touches a UI component or a database, that "risk" propagates up the `CALLS` edges to its callers.
     *   **Pinch Points (Structural Seams):** A "chokepoint" sitting between stable business logic and volatile dependencies (UI, DB, APIs).
-        *   **Logic:** Identified by high *Internal Fan-In* (non-volatile callers) and high *Volatile Fan-Out* (volatile callees).
-        *   **Implementation:** Backend Cypher query (`internal/query/neo4j.go`).
-        *   **Threshold:** `internal_fan_in > 0 AND volatile_fan_out > 0`. Results are ranked by `Fan-In * Fan-Out`.
-    *   **Semantic Seams (Divergence Seams):** Identifies SRP violations within a container (File/Class) by finding function pairs with low semantic similarity.
-        *   **Logic:** Uses Cosine Similarity between vector embeddings.
+        *   **Goal:** Find the perfect place to introduce an interface or mock when wrapping legacy code in tests.
+        *   **Logic:** Identified by high **Internal Fan-In** (callers that are non-volatile/safe) and high **Volatile Fan-Out** (callees that are volatile/interact with external systems).
+        *   **Implementation:** Backend Cypher query (`internal/query/neo4j.go`) that finds functions matching both criteria.
+        *   **Ranking:** Results are ranked by a risk score calculated as `(internal_fan_in * volatile_fan_out)`. High scores indicate critical chokepoints.
+    *   **Semantic Seams (Divergence Seams):** Identifies SRP (Single Responsibility Principle) violations within a container (File/Class) by finding function pairs with low semantic similarity.
+        *   **Goal:** Identify files or classes that do too many unrelated things and should be split.
+        *   **Logic:** Compares every pair of functions within the same `File` or `Class` using **Cosine Similarity** between their vector embeddings.
         *   **Implementation:** Backend Cypher query (`internal/query/neo4j_semantic_seams.go`).
-        *   **Threshold:** `similarity < 0.5` (CLI default) or `0.6` (UI default).
+        *   **Threshold:** Flags pairs where `similarity < 0.5` (CLI default) or `0.6` (UI default). A near-zero similarity suggests the two functions belong in different architectural domains.
 
 ---
 
@@ -234,6 +236,11 @@ This is the most complex phase. It runs four sub-steps sequentially, each buildi
 *   Both properties are persisted on the `Function` node in Neo4j.
 
 **Why verb-object descriptors over raw names:** Raw function names like `handleRequest` carry minimal semantic signal. An LLM reading the implementation produces descriptors like `parse-http-headers, validate-auth-token, route-request`, which capture the function's actual responsibilities. These descriptors are the text that gets vectorized in the next sub-step, so their quality directly determines the quality of all downstream semantic operations (clustering, seam detection, vector search).
+
+**Handling Complex/Legacy Functions:** When dealing with massive "God functions" typical in legacy codebases, granularity is preserved through three mechanisms:
+1.  **Multiple Descriptors:** The LLM is instructed to generate 1-5 descriptors per function depending on its complexity. A massive `ProcessOrder()` function might return `["payment validation", "email notification", "inventory update"]`. When vectorized, this function sits precisely at the intersection of those concepts in the semantic space, rather than being forced into a single generic bucket.
+2.  **Object-Action Priority:** The prompt strictly enforces a Domain-First (Noun-Verb) format (e.g., "payment validation", not "validate payment"). This ensures clustering algorithms group functions by *what business entity they touch* rather than generic technical actions (like grouping all "validation" functions together).
+3.  **Truncation Limitation:** To respect LLM context limits, functions exceeding 4,000 characters are truncated. While this is a constraint, the top of a legacy function (parameters, early setup, massive switch statements) typically contains the most important structural clues regarding its primary responsibilities anyway.
 
 **Why LLM-driven volatility:** Volatility detection determines which functions touch external systems. Previous approaches used regex heuristics (e.g., matching `Database` in function names), which were brittle, language-specific, and missed indirect side effects. The LLM evaluates the actual code behavior, generalizing across all supported languages.
 
