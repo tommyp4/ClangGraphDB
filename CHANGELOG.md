@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.0.0] - 2026-03-21
+### Added
+- **Documentation:** Mapped Michael Feathers legacy modernization workflows to GraphDB and detailed RPG granularity for complex God functions.
+
 ## [0.3.297-beta] - 2026-03-21 [Pre-release]
 ### Added
 - **RPG Enrichment:** Implemented standardized progress reporting, replacing log-based output with interactive spinners and progress bars during LLM operations.
