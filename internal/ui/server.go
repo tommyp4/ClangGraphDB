@@ -48,7 +48,13 @@ func (s *Server) routes() {
 
 	// Serve embedded static files
 	staticFS, _ := fs.Sub(webFiles, "web")
-	s.mux.Handle("/", http.FileServer(http.FS(staticFS)))
+	fileServer := http.FileServer(http.FS(staticFS))
+	s.mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
+		fileServer.ServeHTTP(w, r)
+	}))
 }
 
 func (s *Server) handleConfig() http.HandlerFunc {

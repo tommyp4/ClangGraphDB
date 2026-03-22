@@ -1,7 +1,7 @@
 import { nodes, links, nodesMap, linksMap, state, seamState } from './state.js';
 import { isNodeVisible, getColor } from './ui.js';
 
-let svg, g, zoom, simulation;
+let svg, g, gLinks, gNodes, zoom, simulation;
 let width, height;
 let registeredHandlers = {};
 
@@ -37,6 +37,8 @@ export function initGraph(handleNodeClick, handleNodeMouseOver, handleNodeMouseO
         .on("dblclick.zoom", null); 
 
     g = svg.append('g');
+    gLinks = g.append('g').attr('class', 'links-layer');
+    gNodes = g.append('g').attr('class', 'nodes-layer');
 
     svg.append("defs").append("marker")
         .attr("id", "arrowhead")
@@ -152,7 +154,7 @@ export function renderGraph() {
     } = registeredHandlers;
 
     // Links
-    let linkSelection = g.selectAll(".link")
+    let linkSelection = gLinks.selectAll(".link")
         .data(links, d => `${d.source.id || d.source}-${d.target.id || d.target}-${d.type}`);
 
     linkSelection.exit().remove();
@@ -174,7 +176,7 @@ export function renderGraph() {
         });
 
     // Nodes
-    let nodeSelection = g.selectAll(".node-group")
+    let nodeSelection = gNodes.selectAll(".node-group")
         .data(nodes, d => d.id);
 
     nodeSelection.exit().remove();

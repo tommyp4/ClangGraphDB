@@ -2,7 +2,10 @@ import { nodeColors } from './config.js';
 import { nodes, nodesMap, visibilitySettings } from './state.js';
 
 export function getColor(node) {
-    const rawLabel = node.label || (node.properties && node.properties.label) || 'Unknown';
+    let rawLabel = node.label || 'Unknown';
+    if ((rawLabel === 'CodeElement' || rawLabel === 'Unknown') && node.properties && node.properties.node_label) {
+        rawLabel = node.properties.node_label;
+    }
     const match = Object.keys(nodeColors).find(k => k.toLowerCase() === rawLabel.toLowerCase());
     return match ? nodeColors[match] : nodeColors['Unknown'];
 }
@@ -40,7 +43,12 @@ export function updateLegend() {
 
 export function isSemantic(n) {
     if (!n) return false;
-    const label = (n.label || (n.properties && n.properties.label) || 'Node').toLowerCase();
+    let label = (n.label || 'Node').toLowerCase();
+    if (n.properties && n.properties.node_label) {
+        label = n.properties.node_label.toLowerCase();
+    } else if (n.properties && n.properties.label) {
+        label = n.properties.label.toLowerCase();
+    }
     return label === 'domain' || label === 'feature';
 }
 
@@ -148,4 +156,14 @@ export function showNodeDetails(d) {
             propsContainer.appendChild(row);
         }
     }
+
+    const btnExpand = document.getElementById('btn-expand-node');
+    if (btnExpand) {
+        if (d._expanded) {
+            btnExpand.innerHTML = '<span class="material-symbols-outlined text-[14px]">close_fullscreen</span> Collapse Relationships';
+        } else {
+            btnExpand.innerHTML = '<span class="material-symbols-outlined text-[14px]">open_in_full</span> Expand Relationships';
+        }
+    }
 }
+

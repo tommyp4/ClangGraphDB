@@ -22,27 +22,53 @@ export function initEventListeners() {
         svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity);
     });
 
+    document.getElementById('collapse-all').addEventListener('click', () => {
+        // Find all nodes that were expanded and collapse them iteratively
+        let didCollapse = false;
+        nodes.forEach(n => {
+            if (n._expanded) {
+                collapseNode(n);
+                n._expanded = false;
+                didCollapse = true;
+            }
+        });
+        
+        if (didCollapse) {
+            // Also refresh UI state if we had a selection
+            if (state.lastSelectedNode) {
+                showNodeDetails(state.lastSelectedNode);
+            }
+        }
+    });
+
     // Layer toggles
+    function updateLayerButtonState(btnId, isActive) {
+        const btn = document.getElementById(btnId);
+        if (!btn) return;
+        const baseClasses = "h-9 px-3 text-xs font-medium rounded-lg flex items-center gap-2 transition-colors w-full justify-start";
+        const activeClasses = "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 shadow-sm text-slate-900 dark:text-slate-100 ring-1 ring-slate-200 dark:ring-slate-600";
+        const inactiveClasses = "bg-transparent border border-transparent shadow-none text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 opacity-70";
+        btn.className = `${baseClasses} ${isActive ? activeClasses : inactiveClasses}`;
+    }
+
+    // Initialize visual state
+    updateLayerButtonState('btn-physical-layer', visibilitySettings.showPhysical);
+    updateLayerButtonState('btn-semantic-layer', visibilitySettings.showSemantic);
+
     document.getElementById('btn-physical-layer').addEventListener('click', (e) => {
         visibilitySettings.showPhysical = !visibilitySettings.showPhysical;
-        const btn = e.currentTarget;
+        updateLayerButtonState('btn-physical-layer', visibilitySettings.showPhysical);
         if (visibilitySettings.showPhysical) {
-            btn.className = `h-10 px-4 text-sm font-medium rounded-lg ${CSS_CLASSES.active} border border-primary/50 shadow-sm flex items-center gap-2 transition-colors`;
             nodes.filter(n => isNodeVisible(n) && isSemantic(n)).forEach(n => fetchAndExpandNeighborhood(n, "IMPLEMENTS"));
-        } else {
-            btn.className = `h-10 px-4 text-sm font-medium rounded-lg ${CSS_CLASSES.inactive} border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-2 text-slate-900 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors`;
         }
         renderGraph();
     });
 
     document.getElementById('btn-semantic-layer').addEventListener('click', (e) => {
         visibilitySettings.showSemantic = !visibilitySettings.showSemantic;
-        const btn = e.currentTarget;
+        updateLayerButtonState('btn-semantic-layer', visibilitySettings.showSemantic);
         if (visibilitySettings.showSemantic) {
-            btn.className = `h-10 px-4 text-sm font-medium rounded-lg ${CSS_CLASSES.active} border border-primary/50 shadow-sm flex items-center gap-2 transition-colors`;
             nodes.filter(n => isNodeVisible(n) && isPhysical(n)).forEach(n => fetchAndExpandNeighborhood(n, "IMPLEMENTS"));
-        } else {
-            btn.className = `h-10 px-4 text-sm font-medium rounded-lg ${CSS_CLASSES.inactive} border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-2 text-slate-900 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors`;
         }
         renderGraph();
     });
@@ -185,7 +211,66 @@ async function handleNodeDoubleClick(event, d) {
         .duration(750)
         .call(zoom.transform, transform);
 
-    await fetchAndExpandNeighborhood(d);
+    if (d._expanded) {
+        collapseNode(d);
+        d._expanded = false;
+    } else {
+        await fetchAndExpandNeighborhood(d);
+        d._expanded = true;
+    }
+    
+    showNodeDetails(d);
+}
+
+function collapseNode(d) {
+    console.log("Collapsing node:", d.id);
+    const nodesToRemove = new Set();
+    
+    // Find neighbors of d
+    const neighbors = new Set();
+    links.forEach(l => {
+        const sid = l.source.id || l.source;
+        const tid = l.target.id || l.target;
+        if (sid === d.id) neighbors.add(tid);
+        if (tid === d.id) neighbors.add(sid);
+    });
+
+    neighbors.forEach(nid => {
+        // Check if all links for nid are connected to d
+        const isOnlyConnectedToD = links.every(l => {
+            const sid = l.source.id || l.source;
+            const tid = l.target.id || l.target;
+            if (sid === nid || tid === nid) {
+                return sid === d.id || tid === d.id;
+            }
+            return true;
+        });
+
+        if (isOnlyConnectedToD) {
+            nodesToRemove.add(nid);
+        }
+    });
+
+    if (nodesToRemove.size > 0) {
+        // Remove nodes
+        for (let i = nodes.length - 1; i >= 0; i--) {
+            if (nodesToRemove.has(nodes[i].id)) {
+                nodesMap.delete(nodes[i].id);
+                nodes.splice(i, 1);
+            }
+        }
+        // Remove links
+        for (let i = links.length - 1; i >= 0; i--) {
+            const sid = links[i].source.id || links[i].source;
+            const tid = links[i].target.id || links[i].target;
+            if (nodesToRemove.has(sid) || nodesToRemove.has(tid)) {
+                const linkId = `${sid}-${tid}-${links[i].type}`;
+                linksMap.delete(linkId);
+                links.splice(i, 1);
+            }
+        }
+        renderGraph();
+    }
 }
 
 function handleNodeContextMenu(event, d) {
