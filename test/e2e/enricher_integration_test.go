@@ -15,7 +15,7 @@ type MockSummarizer struct {
 	CapturedSnippets []string
 }
 
-func (m *MockSummarizer) Summarize(snippets []string, level string) (string, string, error) {
+func (m *MockSummarizer) Summarize(snippets []string, level string, extraContext string) (string, string, error) {
 	m.CapturedSnippets = snippets
 	return "Mock Feature", "This is a mock description.", nil
 }

@@ -23,7 +23,7 @@ func (m *MockEmbedder) EmbedBatch(texts []string) ([][]float32, error) {
 // MockSummarizer for placeholder RPG
 type MockSummarizer struct{}
 
-func (s *MockSummarizer) Summarize(snippets []string, level string) (string, string, error) {
+func (s *MockSummarizer) Summarize(snippets []string, level string, extraContext string) (string, string, error) {
 	return "Mock Feature", "Automatically generated description based on " + fmt.Sprintf("%d", len(snippets)) + " snippets.", nil
 }
 

@@ -367,7 +367,7 @@ func TestOrchestratorExtraction_HappyPath(t *testing.T) {
 	}
 }
 
-func TestOrchestratorExtraction_ErrorThreshold_Aborts(t *testing.T) {
+func TestOrchestratorExtraction_AbortsOnFirstError(t *testing.T) {
 	mockProvider := &MockGraphProvider{}
 	mockProvider.CountUnextractedFunctionsFn = func() (int64, error) { return 6, nil }
 
@@ -406,16 +406,17 @@ func TestOrchestratorExtraction_ErrorThreshold_Aborts(t *testing.T) {
 		t.Fatalf("RunExtraction should have failed")
 	}
 
-	if updateCount != 5 {
-		t.Errorf("Expected 5 updates for failed extraction, got %d", updateCount)
+	if updateCount != 0 {
+		t.Errorf("Expected 0 updates on hard failure, got %d", updateCount)
 	}
 
-	if err.Error() != "extraction aborted: too many consecutive errors (last error: mock error)" {
-		t.Errorf("Unexpected error message: %v", err)
+	expectedErr := "extraction failed for f0: mock error"
+	if err.Error() != expectedErr {
+		t.Errorf("Unexpected error message: %v; expected: %v", err, expectedErr)
 	}
 }
 
-func TestOrchestratorSummarization_ErrorThreshold_Aborts(t *testing.T) {
+func TestOrchestratorSummarization_AbortsOnFirstError(t *testing.T) {
 	mockProvider := &MockGraphProvider{}
 
 	var nodes []*graph.Node
@@ -463,11 +464,12 @@ func TestOrchestratorSummarization_ErrorThreshold_Aborts(t *testing.T) {
 		t.Fatalf("RunSummarization should have failed")
 	}
 
-	if updateCount != 5 {
-		t.Errorf("Expected 5 updates for failed summarization, got %d", updateCount)
+	if updateCount != 0 {
+		t.Errorf("Expected 0 updates on hard failure, got %d", updateCount)
 	}
 
-	if err.Error() != "summarization aborted: too many consecutive errors (last error: mock summarizer error)" {
-		t.Errorf("Unexpected error message: %v", err)
+	expectedErr := "summarization failed for f0 (Domain): mock summarizer error"
+	if err.Error() != expectedErr {
+		t.Errorf("Unexpected error message: %v; expected: %v", err, expectedErr)
 	}
 }

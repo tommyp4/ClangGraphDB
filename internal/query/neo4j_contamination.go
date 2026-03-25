@@ -13,7 +13,7 @@ func (p *Neo4jProvider) SeedVolatility(modulePattern string, rules []Contaminati
 		MATCH (f:Function)
 		REMOVE f.ui_contaminated, f.db_contaminated, f.io_contaminated, f.is_volatile, f.volatility_score
 	`
-	_, err := neo4j.ExecuteQuery(p.ctx, p.driver, cleanupQuery, nil, neo4j.EagerResultTransformer)
+	_, err := p.executeQuery(cleanupQuery, nil)
 	if err != nil {
 		return fmt.Errorf("failed to cleanup legacy flags: %w", err)
 	}
@@ -54,7 +54,7 @@ func (p *Neo4jProvider) SeedVolatility(modulePattern string, rules []Contaminati
 		}
 
 		if query != "" {
-			_, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, params, neo4j.EagerResultTransformer)
+			_, err := p.executeQuery(query, params)
 			if err != nil {
 				return fmt.Errorf("failed to apply volatility rule (%s): %w", rule.Layer, err)
 			}
@@ -67,7 +67,7 @@ func (p *Neo4jProvider) SeedVolatility(modulePattern string, rules []Contaminati
 // CountVolatileFunctions returns the number of functions flagged as volatile.
 func (p *Neo4jProvider) CountVolatileFunctions() (int64, error) {
 	query := `MATCH (f:Function {is_volatile: true}) RETURN count(f) as count`
-	res, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, nil, neo4j.EagerResultTransformer)
+	res, err := p.executeQuery(query, nil)
 	if err != nil {
 		return 0, fmt.Errorf("failed to count volatile functions: %w", err)
 	}
@@ -92,7 +92,7 @@ func (p *Neo4jProvider) PropagateVolatility() error {
 	`
 
 	for {
-		res, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, nil, neo4j.EagerResultTransformer)
+		res, err := p.executeQuery(query, nil)
 		if err != nil {
 			return fmt.Errorf("failed to propagate volatility: %w", err)
 		}
@@ -123,7 +123,7 @@ func (p *Neo4jProvider) CalculateRiskScores() error {
 		WITH f, min(length(p)) as distance
 		SET f.volatility_score = CASE WHEN distance IS NOT NULL THEN 1.0 / (distance + 1.0) ELSE 0.0 END
 	`
-	_, err := neo4j.ExecuteQuery(p.ctx, p.driver, volatilityQuery, nil, neo4j.EagerResultTransformer)
+	_, err := p.executeQuery(volatilityQuery, nil)
 	if err != nil {
 		return fmt.Errorf("failed to calculate volatility scores: %w", err)
 	}
@@ -142,7 +142,7 @@ func (p *Neo4jProvider) CalculateRiskScores() error {
 		SET f.raw_risk_score = (fan_in * 0.4 + fan_out * 0.1 + vol_score * 3.0 + churn * 0.4)
 		RETURN max(f.raw_risk_score) as max_score
 	`
-	res, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, nil, neo4j.EagerResultTransformer)
+	res, err := p.executeQuery(query, nil)
 	if err != nil {
 		return fmt.Errorf("failed to calculate raw risk scores: %w", err)
 	}
@@ -163,7 +163,7 @@ func (p *Neo4jProvider) CalculateRiskScores() error {
 		SET f.risk_score = f.raw_risk_score / $max_score
 		REMOVE f.raw_risk_score
 	`
-	_, err = neo4j.ExecuteQuery(p.ctx, p.driver, normalizeQuery, map[string]any{"max_score": maxScore}, neo4j.EagerResultTransformer)
+	_, err = p.executeQuery(normalizeQuery, map[string]any{"max_score": maxScore})
 	if err != nil {
 		return fmt.Errorf("failed to normalize risk scores: %w", err)
 	}

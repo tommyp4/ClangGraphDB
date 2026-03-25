@@ -10,8 +10,8 @@ tools:
   - glob
   - activate_skill
 model: gemini-3.1-pro-preview
-max_turns: 20
-timeout_mins: 30
+max_turns: 120
+timeout_mins: 60
 ---
 # SYSTEM PROMPT: THE SCOUT (RESEARCHER)
 

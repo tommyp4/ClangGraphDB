@@ -16,9 +16,9 @@ func (p *Neo4jProvider) GetCoverage(nodeID string) ([]*graph.Node, error) {
 		RETURN t.id as id, labels(t) as labels, properties(t) as props
 	`
 
-	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
+	result, err := p.executeQuery(query, map[string]any{
 		"id": nodeID,
-	}, neo4j.EagerResultTransformer)
+	})
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute GetCoverage query: %w", err)
@@ -57,7 +57,7 @@ func (p *Neo4jProvider) LinkTests() error {
 		RETURN count(*) as count
 	`
 
-	res, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, nil, neo4j.EagerResultTransformer)
+	res, err := p.executeQuery(query, nil)
 	if err != nil {
 		return fmt.Errorf("failed to execute LinkTests query: %w", err)
 	}

@@ -124,7 +124,7 @@ func TestCLI_GlobalLogFile(t *testing.T) {
 	defer os.Remove(logFilePath)
 
 	// Run an ingest command that will quickly fail or complete, but we pass the new global flag
-	cmd := exec.Command(cliPath, "--log-file="+logFilePath, "ingest", "-dir", "nonexistent_dir_for_test")
+	cmd := exec.Command(cliPath, "--log="+logFilePath, "ingest", "-dir", "nonexistent_dir_for_test")
 	cmd.Env = append(os.Environ(), "GRAPHDB_MOCK_ENABLED=true")
 	_ = cmd.Run() // It's okay if it fails (due to nonexistent dir), we just care that it logs
 

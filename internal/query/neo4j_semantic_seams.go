@@ -27,7 +27,7 @@ func (p *Neo4jProvider) GetSemanticSeams(ctx context.Context, similarityThreshol
 		"threshold": similarityThreshold,
 	}
 
-	res, err := neo4j.ExecuteQuery(ctx, p.driver, query, params, neo4j.EagerResultTransformer)
+	res, err := p.executeQuery(query, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get semantic seams: %w", err)
 	}

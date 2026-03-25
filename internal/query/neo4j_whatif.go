@@ -26,7 +26,7 @@ func (p *Neo4jProvider) WhatIf(targets []string) (*WhatIfResult, error) {
 		   OR (NOT n.id IN $targets AND m.id IN $targets)
 		RETURN n as sourceNode, m as targetNode, type(r) as type
 	`
-	res, err := neo4j.ExecuteQuery(p.ctx, p.driver, severedQuery, map[string]any{"targets": targets}, neo4j.EagerResultTransformer)
+	res, err := p.executeQuery(severedQuery, map[string]any{"targets": targets})
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +96,7 @@ func (p *Neo4jProvider) WhatIf(targets []string) (*WhatIfResult, error) {
 		WHERE NOT n.id IN $targets AND m.id IN $targets
 		RETURN n as sourceNode, m as targetNode, type(r) as type
 	`
-	res, err = neo4j.ExecuteQuery(p.ctx, p.driver, crossQuery, map[string]any{"targets": targets}, neo4j.EagerResultTransformer)
+	res, err = p.executeQuery(crossQuery, map[string]any{"targets": targets})
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +169,7 @@ func (p *Neo4jProvider) WhatIf(targets []string) (*WhatIfResult, error) {
 		WHERE NOT m.id IN $targets
 		RETURN DISTINCT g
 	`
-	res, err = neo4j.ExecuteQuery(p.ctx, p.driver, sharedQuery, map[string]any{"targets": targets}, neo4j.EagerResultTransformer)
+	res, err = p.executeQuery(sharedQuery, map[string]any{"targets": targets})
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +201,7 @@ func (p *Neo4jProvider) WhatIf(targets []string) (*WhatIfResult, error) {
 		  AND ALL(n IN [(p)-[:CALLS]->(m) | p] WHERE n.id IN $targets)
 		RETURN m
 	`
-	res, err = neo4j.ExecuteQuery(p.ctx, p.driver, orphanedQuery, map[string]any{"targets": targets}, neo4j.EagerResultTransformer)
+	res, err = p.executeQuery(orphanedQuery, map[string]any{"targets": targets})
 	if err != nil {
 		return nil, err
 	}

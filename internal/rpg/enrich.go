@@ -15,7 +15,7 @@ import (
 type SourceLoader func(path string, start, end int) (string, error)
 
 type Summarizer interface {
-	Summarize(snippets []string, level string) (string, string, error)
+	Summarize(snippets []string, level string, extraContext string) (string, string, error)
 }
 
 type Enricher struct {
@@ -56,7 +56,7 @@ func (e *Enricher) Enrich(feature *Feature, functions []graph.Node, level string
 		}
 	}
 
-	name, desc, err := e.Client.Summarize(snippets, level)
+	name, desc, err := e.Client.Summarize(snippets, level, "")
 	if err != nil {
 		return err
 	}
@@ -114,32 +114,44 @@ func NewVertexSummarizer(ctx context.Context, projectID, location, model string)
 	}, nil
 }
 
-func (s *VertexSummarizer) Summarize(snippets []string, level string) (string, string, error) {
+func is429(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToUpper(err.Error())
+	return strings.Contains(msg, "429") || strings.Contains(msg, "RESOURCE_EXHAUSTED") || strings.Contains(msg, "TOO MANY REQUESTS")
+}
+
+func (s *VertexSummarizer) Summarize(snippets []string, level string, extraContext string) (string, string, error) {
 	if len(snippets) == 0 {
 		return "Feature-" + GenerateShortUUID(), "No code snippets provided for analysis.", nil
 	}
 
+	// ... (prompt generation code remains the same)
 	var prompt string
 	if strings.ToLower(level) == "domain" {
-		prompt = fmt.Sprintf(`You are a software architect performing Domain-Driven Design (DDD) analysis.
+		contextStr := ""
+		if extraContext != "" {
+			contextStr = "\nCONTEXT: You have already identified the following domains. Please ensure this new domain is distinct from them:\n" + extraContext + "\n"
+		}
+		prompt = fmt.Sprintf(`You are a software architect analyzing a small, modular repository (Functional Sub-systems / Feature Modules).
 Below are representative code snippets from a cluster of related functions.
+Notice the file paths and ensure you capture the specific feature module, not just generic base classes.
+%s
+Your task is to identify the Functional Sub-system or Feature Module these functions belong to.
 
-Your task is to identify the Bounded Context (business domain) these functions belong to.
+1. Provide a concise name for this module.
+   - GOOD examples: "Fuel Management", "Toll Processing", "PDF Generation", "Excel Conversion", "Ledger Settlement"
+   - BAD examples: "Driver Compensation", "Data Access", "Domain Models"
+   - The name should answer: "What specific sub-system or feature module does this code serve?"
+   - Be specific to the implementations shown.
 
-1. Provide a concise name for this domain using the Ubiquitous Language of the business.
-   - GOOD examples: "Payment Processing", "User Authentication", "Order Fulfillment", "Inventory Management"
-   - BAD examples: "Create Operations", "Data Retrieval", "Async Handlers", "Delete Functions"
-   - The name should answer: "What area of the business does this code serve?"
-   - Use nouns and noun phrases that describe the business capability, NOT verbs that describe implementation operations.
-   - If the code spans multiple concerns, pick the dominant business theme.
-
-2. Provide a 2-3 sentence description of this domain's responsibility and boundaries.
-   Describe what business problems it solves, not how it implements them.
+2. Provide a 2-3 sentence description of this module's responsibility and boundaries.
 
 Return JSON ONLY: {"name": "...", "description": "..."}
 
 Code Snippets:
-%s`, strings.Join(snippets, "\n---\n"))
+%s`, contextStr, strings.Join(snippets, "\n---\n"))
 	} else {
 		prompt = fmt.Sprintf(`You are a software architect performing Domain-Driven Design (DDD) analysis.
 Below are code snippets from a group of closely related functions within a larger domain.
@@ -160,21 +172,34 @@ Code Snippets:
 %s`, strings.Join(snippets, "\n---\n"))
 	}
 
-	const maxRetries = 3
+	const maxTotalWait = 5 * time.Minute
 	const requestTimeout = 120 * time.Second
 
-	var lastErr error
-	for attempt := range maxRetries {
+	startTime := time.Now()
+	attempt := 0
+
+	for {
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 		resp, err := s.Client.Models.GenerateContent(ctx, s.Model, genai.Text(prompt), nil)
 		cancel()
 
 		if err != nil {
-			lastErr = err
-			backoff := time.Duration(1<<uint(attempt)) * time.Second
-			log.Printf("Summarize attempt %d/%d failed: %v (retrying in %v)", attempt+1, maxRetries, err, backoff)
-			time.Sleep(backoff)
-			continue
+			if is429(err) {
+				attempt++
+				backoff := time.Duration(1<<uint(attempt)) * time.Second
+				if backoff > 30*time.Second {
+					backoff = 30 * time.Second
+				}
+
+				if time.Since(startTime)+backoff > maxTotalWait {
+					return "", "", fmt.Errorf("summarization failed: 429 quota exhausted after %v: %w", time.Since(startTime), err)
+				}
+
+				log.Printf("Summarize received 429 (Too Many Requests). Attempt %d, retrying in %v...", attempt, backoff)
+				time.Sleep(backoff)
+				continue
+			}
+			return "", "", fmt.Errorf("summarization failed with non-retryable error: %w", err)
 		}
 
 		if resp == nil || len(resp.Candidates) == 0 {
@@ -197,6 +222,4 @@ Code Snippets:
 
 		return summary.Name, summary.Description, nil
 	}
-
-	return "", "", fmt.Errorf("generate content failed after %d attempts: %w", maxRetries, lastErr)
 }

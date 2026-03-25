@@ -35,9 +35,6 @@ func (o *Orchestrator) RunExtraction(batchSize int) error {
 	pb := ui.NewProgressBar(total, "Extracting features")
 	defer pb.Finish()
 
-	consecutiveErrors := 0
-	const maxConsecutiveErrors = 5
-
 	for {
 		nodes, err := o.Provider.GetUnextractedFunctions(batchSize)
 		if err != nil {
@@ -88,15 +85,8 @@ func (o *Orchestrator) RunExtraction(batchSize int) error {
 
 			descriptors, isVolatile, err := o.Extractor.Extract(code, name)
 			if err != nil {
-				log.Printf("Warning: failed to extract features for %s: %v", node.ID, err)
-				_ = o.Provider.UpdateAtomicFeatures(node.ID, []string{"extraction_failed"}, false)
-				consecutiveErrors++
-				if consecutiveErrors >= maxConsecutiveErrors {
-					return fmt.Errorf("extraction aborted: too many consecutive errors (last error: %w)", err)
-				}
-				continue
+				return fmt.Errorf("extraction failed for %s: %w", node.ID, err)
 			}
-			consecutiveErrors = 0
 
 			if len(descriptors) == 0 {
 				descriptors = []string{"no_features_detected"}
@@ -235,7 +225,7 @@ func (o *Orchestrator) RunClustering(dir string) error {
 
 	globalClusterer := &GlobalEmbeddingClusterer{
 		Inner:                 innerGlobalClusterer,
-		Summarizer:            o.Summarizer,
+		Summarizer:            nil, // Naming handled in RunSummarization step (resumable)
 		Loader:                snippet.SliceFile,
 		PrecomputedEmbeddings: embeddings,
 	}
@@ -296,9 +286,6 @@ func (o *Orchestrator) RunSummarization(batchSize int) error {
 	pb := ui.NewProgressBar(total, "Summarizing features")
 	defer pb.Finish()
 
-	consecutiveErrors := 0
-	const maxConsecutiveErrors = 5
-
 	for {
 		nodes, err := o.Provider.GetUnnamedFeatures(batchSize)
 		if err != nil {
@@ -333,15 +320,8 @@ func (o *Orchestrator) RunSummarization(batchSize int) error {
 
 			err = enricher.Enrich(f, memberFuncs, node.Label)
 			if err != nil {
-				log.Printf("Warning: failed to enrich %s: %v", node.ID, err)
-				_ = o.Provider.UpdateFeatureSummary(node.ID, "summarization_failed", "Summarization failed due to LLM error")
-				consecutiveErrors++
-				if consecutiveErrors >= maxConsecutiveErrors {
-					return fmt.Errorf("summarization aborted: too many consecutive errors (last error: %w)", err)
-				}
-				continue
+				return fmt.Errorf("summarization failed for %s (%s): %w", node.ID, node.Label, err)
 			}
-			consecutiveErrors = 0
 
 			err = o.Provider.UpdateFeatureSummary(node.ID, f.Name, f.Description)
 			if err != nil {

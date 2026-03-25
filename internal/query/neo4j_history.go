@@ -10,7 +10,7 @@ import (
 func (p *Neo4jProvider) GetHotspots(modulePattern string) ([]*HotspotResult, error) {
 	// Pre-flight check: Is risk_score data present?
 	checkQuery := `MATCH (f:Function) WHERE f.risk_score IS NOT NULL RETURN count(f) AS count LIMIT 1`
-	checkRes, err := neo4j.ExecuteQuery(p.ctx, p.driver, checkQuery, nil, neo4j.EagerResultTransformer)
+	checkRes, err := p.executeQuery(checkQuery, nil)
 	if err != nil {
 		return nil, fmt.Errorf("pre-flight check failed: %w", err)
 	}
@@ -30,9 +30,9 @@ func (p *Neo4jProvider) GetHotspots(modulePattern string) ([]*HotspotResult, err
 		ORDER BY (coalesce(f.risk_score, 0) * coalesce(fi.change_frequency, 0)) DESC, f.risk_score DESC
 		LIMIT 20
 	`
-	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
+	result, err := p.executeQuery(query, map[string]any{
 		"pattern": modulePattern,
-	}, neo4j.EagerResultTransformer)
+	})
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute GetHotspots query: %w", err)
@@ -94,9 +94,9 @@ func (p *Neo4jProvider) UpdateFileHistory(metrics map[string]FileHistoryMetrics)
 			    file.co_changes = row.co_changes
 		`
 
-		_, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
+		_, err := p.executeQuery(query, map[string]any{
 			"batch": batch,
-		}, neo4j.EagerResultTransformer)
+		})
 
 		batch = batch[:0] // reset
 		return err
