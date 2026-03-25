@@ -10,6 +10,7 @@ import (
 func (p *Neo4jProvider) SeedVolatility(modulePattern string, rules []ContaminationRule) error {
 	// Cleanup legacy flags first
 	cleanupQuery := `
+		// Cleanup legacy contamination flags
 		MATCH (f:Function)
 		REMOVE f.ui_contaminated, f.db_contaminated, f.io_contaminated, f.is_volatile, f.volatility_score
 	`
@@ -28,6 +29,7 @@ func (p *Neo4jProvider) SeedVolatility(modulePattern string, rules []Contaminati
 		if rule.Type == "file" {
 			// Seed based on file path
 			query = `
+				// Seed volatility by file path
 				MATCH (f:Function)-[:DEFINED_IN]->(file:File)
 				WHERE file.file =~ $pattern AND file.file =~ $rule_pattern
 				SET f.is_volatile = true
@@ -37,6 +39,7 @@ func (p *Neo4jProvider) SeedVolatility(modulePattern string, rules []Contaminati
 			if rule.Heuristic == "path" {
 				// Seed based on function name
 				query = `
+					// Seed volatility by function path
 					MATCH (f:Function)-[:DEFINED_IN]->(file:File)
 					WHERE file.file =~ $pattern AND f.name =~ $rule_pattern
 					SET f.is_volatile = true
@@ -45,6 +48,7 @@ func (p *Neo4jProvider) SeedVolatility(modulePattern string, rules []Contaminati
 			} else if rule.Heuristic == "content" {
 				// Seed based on function content/body (if available)
 				query = `
+					// Seed volatility by function content
 					MATCH (f:Function)-[:DEFINED_IN]->(file:File)
 					WHERE file.file =~ $pattern AND f.content =~ $rule_pattern
 					SET f.is_volatile = true
@@ -66,7 +70,10 @@ func (p *Neo4jProvider) SeedVolatility(modulePattern string, rules []Contaminati
 
 // CountVolatileFunctions returns the number of functions flagged as volatile.
 func (p *Neo4jProvider) CountVolatileFunctions() (int64, error) {
-	query := `MATCH (f:Function {is_volatile: true}) RETURN count(f) as count`
+	query := `
+		// Count Volatile Functions
+		MATCH (f:Function {is_volatile: true}) RETURN count(f) as count
+	`
 	res, err := p.executeQuery(query, nil)
 	if err != nil {
 		return 0, fmt.Errorf("failed to count volatile functions: %w", err)
@@ -84,6 +91,7 @@ func (p *Neo4jProvider) PropagateVolatility() error {
 	// Cypher query to propagate one level at a time UPWARD.
 	// We run this until no more nodes are updated.
 	query := `
+		// Propagate Volatility Upward
 		MATCH (caller:Function)-[:CALLS]->(callee:Function {is_volatile: true})
 		WHERE caller.is_volatile IS NULL OR caller.is_volatile = false
 		WITH caller LIMIT 5000
@@ -118,6 +126,7 @@ func (p *Neo4jProvider) CalculateRiskScores() error {
 	// Seeded/Propagated nodes have is_volatile=true.
 	// We use the distance to the nearest volatile node.
 	volatilityQuery := `
+		// Calculate Volatility Scores
 		MATCH (f:Function)
 		OPTIONAL MATCH p = (f)-[:CALLS*0..2]->(v:Function {is_volatile: true})
 		WITH f, min(length(p)) as distance
@@ -130,6 +139,7 @@ func (p *Neo4jProvider) CalculateRiskScores() error {
 
 	// 2. Calculate raw scores and store them temporarily
 	query := `
+		// Calculate Raw Risk Scores
 		MATCH (f:Function)
 		OPTIONAL MATCH (f)-[:DEFINED_IN]->(file:File)
 		WITH f, coalesce(file.change_frequency, 0) as churn
@@ -158,6 +168,7 @@ func (p *Neo4jProvider) CalculateRiskScores() error {
 
 	// 2. Normalize scores to [0.0, 1.0]
 	normalizeQuery := `
+		// Normalize Risk Scores
 		MATCH (f:Function)
 		WHERE f.raw_risk_score IS NOT NULL
 		SET f.risk_score = f.raw_risk_score / $max_score

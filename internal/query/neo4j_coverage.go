@@ -10,6 +10,7 @@ import (
 // GetCoverage returns the test functions that test a given function.
 func (p *Neo4jProvider) GetCoverage(nodeID string) ([]*graph.Node, error) {
 	query := `
+		// Get Coverage
 		MATCH (p) WHERE p.id = $id OR p.fqn = $id OR p.name = $id
 		MATCH (t)-[:TESTS]->(p)
 		WHERE (t:Function OR t:Method)
@@ -50,6 +51,7 @@ func (p *Neo4jProvider) GetCoverage(nodeID string) ([]*graph.Node, error) {
 // LinkTests creates TESTS edges between test functions and production functions based on naming conventions.
 func (p *Neo4jProvider) LinkTests() error {
 	query := `
+		// Link Tests
 		MATCH (t) WHERE (t:Function OR t:Method) AND t.is_test = true
 		MATCH (p) WHERE (p:Function OR p:Method) AND (p.is_test IS NULL OR p.is_test = false)
 		  AND (t.name = "Test" + p.name OR t.name = p.name + "Test" OR t.name = p.name + "Tests")

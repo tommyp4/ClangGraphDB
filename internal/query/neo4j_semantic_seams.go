@@ -10,6 +10,7 @@ import (
 // GetSemanticSeams finds pairs of functions within the same file/class that have low semantic similarity.
 func (p *Neo4jProvider) GetSemanticSeams(ctx context.Context, similarityThreshold float64) ([]*SemanticSeamResult, error) {
 	query := `
+      // Get Semantic Seams
       MATCH (container)-[:DEFINES|DEFINED_IN]-(f1:Function),
             (container)-[:DEFINES|DEFINED_IN]-(f2:Function)
       WHERE (container:File OR container:Class)

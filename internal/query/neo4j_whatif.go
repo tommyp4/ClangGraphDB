@@ -21,6 +21,7 @@ func (p *Neo4jProvider) WhatIf(targets []string) (*WhatIfResult, error) {
 	// 1. Severed Edges
 	// Edges from Outside to Inside OR Inside to Outside
 	severedQuery := `
+		// What-If: Severed Edges
 		MATCH (n)-[r]->(m)
 		WHERE (n.id IN $targets AND NOT m.id IN $targets)
 		   OR (NOT n.id IN $targets AND m.id IN $targets)
@@ -92,6 +93,7 @@ func (p *Neo4jProvider) WhatIf(targets []string) (*WhatIfResult, error) {
 	// 2. Cross-Boundary Calls (subset of severed edges)
 	// Specifically CALLS from Outside to Inside
 	crossQuery := `
+		// What-If: Cross-Boundary Calls
 		MATCH (n:Function)-[r:CALLS]->(m:Function)
 		WHERE NOT n.id IN $targets AND m.id IN $targets
 		RETURN n as sourceNode, m as targetNode, type(r) as type
@@ -162,6 +164,7 @@ func (p *Neo4jProvider) WhatIf(targets []string) (*WhatIfResult, error) {
 	// 3. Shared State
 	// Globals used by both Inside and Outside
 	sharedQuery := `
+		// What-If: Shared State
 		MATCH (n:Function)-[:USES_GLOBAL]->(g:Global)
 		WHERE n.id IN $targets
 		WITH g
@@ -193,6 +196,7 @@ func (p *Neo4jProvider) WhatIf(targets []string) (*WhatIfResult, error) {
 	// Wait, "unreachable from any non-extracted node" is better.
 	// But let's start simple: Nodes whose incoming edges are ALL from targets.
 	orphanedQuery := `
+		// What-If: Orphaned Nodes
 		MATCH (m)
 		WHERE NOT m.id IN $targets
 		  AND NOT m:File // Files aren't really orphaned in this sense

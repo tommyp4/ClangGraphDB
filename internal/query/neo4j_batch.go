@@ -16,6 +16,7 @@ const featureTopologyBatchSize = 500
 // GetUnextractedFunctions returns functions that haven't had atomic features extracted yet.
 func (p *Neo4jProvider) GetUnextractedFunctions(limit int) ([]*graph.Node, error) {
 	query := `
+		// Get Unextracted Functions
 		MATCH (n:Function)
 		WHERE n.atomic_features IS NULL AND n.file IS NOT NULL AND n.start_line IS NOT NULL
 		RETURN n.id as id, n.name as name, n.file as file, n.start_line as start, n.end_line as end
@@ -54,6 +55,7 @@ func (p *Neo4jProvider) GetUnextractedFunctions(limit int) ([]*graph.Node, error
 // CountUnextractedFunctions returns the total number of functions without atomic features.
 func (p *Neo4jProvider) CountUnextractedFunctions() (int64, error) {
 	query := `
+		// Count Unextracted Functions
 		MATCH (n:Function)
 		WHERE n.atomic_features IS NULL AND n.file IS NOT NULL AND n.start_line IS NOT NULL
 		RETURN count(n) as total
@@ -72,6 +74,7 @@ func (p *Neo4jProvider) CountUnextractedFunctions() (int64, error) {
 // UpdateAtomicFeatures saves the extracted atomic features for a node.
 func (p *Neo4jProvider) UpdateAtomicFeatures(id string, features []string, isVolatile bool) error {
 	query := `
+		// Update Atomic Features
 		MATCH (n:Function {id: $id})
 		SET n.atomic_features = $features, n.is_volatile = $isVolatile
 	`
@@ -90,6 +93,7 @@ func (p *Neo4jProvider) UpdateAtomicFeatures(id string, features []string, isVol
 // GetUnembeddedNodes returns functions and features that lack an embedding.
 func (p *Neo4jProvider) GetUnembeddedNodes(limit int) ([]*graph.Node, error) {
 	query := `
+		// Get Unembedded Nodes
 		MATCH (n)
 		WHERE (n:Function OR n:Feature) AND n.embedding IS NULL
 		RETURN n.id as id, labels(n)[0] as label, properties(n) as props
@@ -121,6 +125,7 @@ func (p *Neo4jProvider) GetUnembeddedNodes(limit int) ([]*graph.Node, error) {
 // CountUnembeddedNodes returns the total number of functions and features that lack an embedding.
 func (p *Neo4jProvider) CountUnembeddedNodes() (int64, error) {
 	query := `
+		// Count Unembedded Nodes
 		MATCH (n)
 		WHERE (n:Function OR n:Feature) AND n.embedding IS NULL
 		RETURN count(n) as total
@@ -139,6 +144,7 @@ func (p *Neo4jProvider) CountUnembeddedNodes() (int64, error) {
 // UpdateEmbeddings updates the embedding vector for a node.
 func (p *Neo4jProvider) UpdateEmbeddings(id string, embedding []float32) error {
 	query := `
+		// Update Embeddings
 		MATCH (n {id: $id})
 		SET n.embedding = $embedding
 	`
@@ -156,6 +162,7 @@ func (p *Neo4jProvider) UpdateEmbeddings(id string, embedding []float32) error {
 // GetEmbeddingsOnly returns all IDs and their embeddings from the graph.
 func (p *Neo4jProvider) GetEmbeddingsOnly() (map[string][]float32, error) {
 	query := `
+		// Get Embeddings Only
 		MATCH (n)
 		WHERE (n:Function OR n:Feature) AND n.embedding IS NOT NULL
 		RETURN n.id as id, n.embedding as embedding
@@ -188,6 +195,7 @@ func (p *Neo4jProvider) GetEmbeddingsOnly() (map[string][]float32, error) {
 // GetFunctionMetadata returns all functions with minimal properties (id, file, start_line, end_line, atomic_features) for clustering.
 func (p *Neo4jProvider) GetFunctionMetadata() ([]*graph.Node, error) {
 	query := `
+		// Get Function Metadata
 		MATCH (n:Function)
 		RETURN n.id as id, n.name as name, n.file as file, n.start_line as start_line, n.end_line as end_line, n.atomic_features as atomic_features
 	`
@@ -234,6 +242,7 @@ func (p *Neo4jProvider) GetFunctionMetadata() ([]*graph.Node, error) {
 // GetUnnamedFeatures returns features and domains without a generated name/description.
 func (p *Neo4jProvider) GetUnnamedFeatures(limit int) ([]*graph.Node, error) {
 	query := `
+		// Get Unnamed Features
 		MATCH (n)
 		WHERE (n:Feature OR n:Domain) AND (coalesce(n.name, '') = '' OR coalesce(n.description, '') = '')
 		RETURN n.id as id, labels(n)[0] as label, properties(n) as props
@@ -265,6 +274,7 @@ func (p *Neo4jProvider) GetUnnamedFeatures(limit int) ([]*graph.Node, error) {
 // CountUnnamedFeatures returns the total number of features and domains without a name/description.
 func (p *Neo4jProvider) CountUnnamedFeatures() (int64, error) {
 	query := `
+		// Count Unnamed Features
 		MATCH (n)
 		WHERE (n:Feature OR n:Domain) AND (coalesce(n.name, '') = '' OR coalesce(n.description, '') = '')
 		RETURN count(n) as total
@@ -282,7 +292,10 @@ func (p *Neo4jProvider) CountUnnamedFeatures() (int64, error) {
 
 // ClearFeatureTopology deletes all Feature and Domain nodes.
 func (p *Neo4jProvider) ClearFeatureTopology() error {
-	query := `MATCH (n) WHERE n:Feature OR n:Domain DETACH DELETE n`
+	query := `
+		// Clear Feature Topology
+		MATCH (n) WHERE n:Feature OR n:Domain DETACH DELETE n
+	`
 	_, err := p.executeQuery(query, nil)
 	if err != nil {
 		return fmt.Errorf("failed to clear feature topology: %w", err)
@@ -348,7 +361,9 @@ func (p *Neo4jProvider) batchWriteNodes(ctx context.Context, nodes []*graph.Node
 				FOREACH (ignore IN CASE WHEN row.node_label = 'Domain' THEN [1] ELSE [] END | SET n:Domain)
 				FOREACH (ignore IN CASE WHEN row.node_label = 'Feature' THEN [1] ELSE [] END | SET n:Feature)
 			`
-			log.Printf("Neo4j Batch Query (Nodes): %s", query)
+			if !isProgressActive() {
+				log.Printf("Query: Batch Write Nodes (%d nodes)", len(nodeBatch))
+			}
 			_, txErr := tx.Run(batchCtx, query, map[string]any{"batch": nodeBatch})
 			return nil, txErr
 		})
@@ -359,7 +374,9 @@ func (p *Neo4jProvider) batchWriteNodes(ctx context.Context, nodes []*graph.Node
 			return fmt.Errorf("failed to write node batch %d/%d: %w", batchNum, totalBatches, err)
 		}
 
-		log.Printf("Writing feature topology: nodes batch %d/%d (%d/%d)", batchNum, totalBatches, end, len(nodes))
+		if !isProgressActive() {
+			log.Printf("Writing feature topology: nodes batch %d/%d (%d/%d)", batchNum, totalBatches, end, len(nodes))
+		}
 	}
 
 	return nil
@@ -406,7 +423,9 @@ func (p *Neo4jProvider) batchWriteEdges(ctx context.Context, edges []*graph.Edge
 					MATCH (target:CodeElement {id: row.targetId})
 					MERGE (source)-[r:%s]->(target)
 				`, sanitizedRelType)
-				log.Printf("Neo4j Batch Query (Edges): %s", query)
+				if !isProgressActive() {
+					log.Printf("Query: Batch Write Edges [%s] (%d edges)", relType, len(batch))
+				}
 				_, txErr := tx.Run(batchCtx, query, map[string]any{"batch": batch})
 				return nil, txErr
 			})
@@ -417,7 +436,9 @@ func (p *Neo4jProvider) batchWriteEdges(ctx context.Context, edges []*graph.Edge
 				return fmt.Errorf("failed to write edge batch [%s] %d/%d: %w", relType, batchNum, totalBatches, err)
 			}
 
-			log.Printf("Writing feature topology: edges [%s] batch %d/%d (%d/%d)", relType, batchNum, totalBatches, end, len(groupEdges))
+			if !isProgressActive() {
+				log.Printf("Writing feature topology: edges [%s] batch %d/%d (%d/%d)", relType, batchNum, totalBatches, end, len(groupEdges))
+			}
 		}
 	}
 
@@ -427,6 +448,7 @@ func (p *Neo4jProvider) batchWriteEdges(ctx context.Context, edges []*graph.Edge
 // UpdateFeatureSummary saves the generated name and description for a feature or domain.
 func (p *Neo4jProvider) UpdateFeatureSummary(id string, name string, description string) error {
 	query := `
+		// Update Feature Summary
 		MATCH (n {id: $id})
 		WHERE n:Feature OR n:Domain
 		SET n.name = $name, n.description = $description
