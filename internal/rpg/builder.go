@@ -25,7 +25,7 @@ type Builder struct {
 
 	// Callbacks for progress reporting
 	OnPhaseStart func(phaseName string, total int)
-	OnStepStart  func(stepName string)
+	OnStepStart  func(stepName string, index, total int)
 	OnStepEnd    func(stepName string)
 }
 
@@ -51,9 +51,9 @@ func (b *Builder) buildGlobal(rootPath string, functions []graph.Node) ([]Featur
 	var rootFeatures []Feature
 	var allEdges []graph.Edge
 
-	for _, group := range domainGroups {
+	for i, group := range domainGroups {
 		if b.OnStepStart != nil {
-			b.OnStepStart(group.Name)
+			b.OnStepStart(group.Name, i+1, len(domainGroups))
 		}
 
 		// 2. Grounding (LCA)
@@ -95,7 +95,8 @@ func (b *Builder) buildGlobal(rootPath string, functions []graph.Node) ([]Featur
 
 		// 4. Standard Construction (Feature Clustering)
 		var err error
-		allEdges, err = b.buildTwoLevel(&domainFeature, group.Nodes, domainName, lca, allEdges)
+		domainProgress := fmt.Sprintf("%s (%d/%d)", domainName, i+1, len(domainGroups))
+		allEdges, err = b.buildTwoLevel(&domainFeature, group.Nodes, domainProgress, lca, allEdges)
 		if err != nil {
 			return nil, nil, err
 		}

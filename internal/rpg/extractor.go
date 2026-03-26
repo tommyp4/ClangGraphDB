@@ -3,6 +3,8 @@ package rpg
 import (
 	"context"
 	"fmt"
+	"log"
+	"time"
 
 	"google.golang.org/genai"
 )
@@ -82,34 +84,58 @@ func (e *LLMFeatureExtractor) Extract(code string, functionName string) ([]strin
 		"}\n\n" +
 		fmt.Sprintf("Function name: %s\n\n%s", functionName, code)
 
-	ctx := context.Background()
+	const maxTotalWait = 5 * time.Minute
+	const requestTimeout = 120 * time.Second
 
-	resp, err := e.Client.Models.GenerateContent(ctx, e.Model, genai.Text(prompt), nil)
-	if err != nil {
-		return nil, false, fmt.Errorf("generate content failed: %w", err)
-	}
+	startTime := time.Now()
+	attempt := 0
 
-	if resp == nil || len(resp.Candidates) == 0 {
-		return nil, false, fmt.Errorf("no candidates returned from Vertex AI")
-	}
+	for {
+		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+		resp, err := e.Client.Models.GenerateContent(ctx, e.Model, genai.Text(prompt), nil)
+		cancel()
 
-	// Check content parts
-	cand := resp.Candidates[0]
-	if cand.Content == nil || len(cand.Content.Parts) == 0 {
-		return nil, false, fmt.Errorf("empty content in response")
-	}
+		if err != nil {
+			if is429(err) {
+				attempt++
+				backoff := time.Duration(1<<uint(attempt)) * time.Second
+				if backoff > 30*time.Second {
+					backoff = 30 * time.Second
+				}
 
-	var res extractorResponse
-	if err := ParseLLMJSON(cand.Content.Parts[0].Text, &res); err != nil {
-		// Legacy LLM fallback: array format
-		var descriptors []string
-		if err2 := ParseLLMJSON(cand.Content.Parts[0].Text, &descriptors); err2 == nil {
-			return descriptors, false, nil
+				if time.Since(startTime)+backoff > maxTotalWait {
+					return nil, false, fmt.Errorf("extraction failed: 429 quota exhausted after %v: %w", time.Since(startTime), err)
+				}
+
+				log.Printf("Extraction received 429 (Too Many Requests). Attempt %d, retrying in %v...", attempt, backoff)
+				time.Sleep(backoff)
+				continue
+			}
+			return nil, false, fmt.Errorf("generate content failed with non-retryable error: %w", err)
 		}
-		return nil, false, err
-	}
 
-	return res.Descriptors, res.IsVolatile, nil
+		if resp == nil || len(resp.Candidates) == 0 {
+			return nil, false, fmt.Errorf("no candidates returned from Vertex AI")
+		}
+
+		// Check content parts
+		cand := resp.Candidates[0]
+		if cand.Content == nil || len(cand.Content.Parts) == 0 {
+			return nil, false, fmt.Errorf("empty content in response")
+		}
+
+		var res extractorResponse
+		if err := ParseLLMJSON(cand.Content.Parts[0].Text, &res); err != nil {
+			// Legacy LLM fallback: array format
+			var descriptors []string
+			if err2 := ParseLLMJSON(cand.Content.Parts[0].Text, &descriptors); err2 == nil {
+				return descriptors, false, nil
+			}
+			return nil, false, err
+		}
+
+		return res.Descriptors, res.IsVolatile, nil
+	}
 }
 
 // MockFeatureExtractor returns fixed descriptors for testing.

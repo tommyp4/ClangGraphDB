@@ -6,12 +6,40 @@ import (
 	"graphdb/internal/config"
 	"graphdb/internal/graph"
 	"graphdb/internal/tools/snippet"
+	"log"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j/dbtype"
 )
+
+var (
+	activePbs   int
+	activePbsMu sync.Mutex
+)
+
+// SetProgressActive increments or decrements the active progress bar count.
+// When activePbs > 0, query logging is suppressed.
+func SetProgressActive(active bool) {
+	activePbsMu.Lock()
+	defer activePbsMu.Unlock()
+	if active {
+		activePbs++
+	} else {
+		activePbs--
+		if activePbs < 0 {
+			activePbs = 0
+		}
+	}
+}
+
+func isProgressActive() bool {
+	activePbsMu.Lock()
+	defer activePbsMu.Unlock()
+	return activePbs > 0
+}
 
 // Neo4jProvider implements GraphProvider using the official Neo4j Go driver.
 type Neo4jProvider struct {
@@ -50,6 +78,35 @@ func (p *Neo4jProvider) Close() error {
 	return p.driver.Close(p.ctx)
 }
 
+// executeQuery logs the Cypher query and executes it via the driver.
+func (p *Neo4jProvider) executeQuery(query string, params map[string]any) (*neo4j.EagerResult, error) {
+	// Extract description from first line comment if it exists
+	lines := strings.SplitN(strings.TrimSpace(query), "\n", 2)
+	description := "Neo4j Query"
+	if len(lines) > 0 && strings.HasPrefix(strings.TrimSpace(lines[0]), "//") {
+		description = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(lines[0]), "//"))
+	}
+
+	// Only log if no progress bar is active to avoid messing up the UI
+	if !isProgressActive() {
+		log.Printf("Query: %s", description)
+	}
+
+	if params != nil && !isProgressActive() {
+		// Sanitize params for logging to avoid bloat (redact large vectors/embeddings)
+		sanitized := make(map[string]any)
+		for k, v := range params {
+			if k == "embedding" || k == "v1" || k == "v2" {
+				sanitized[k] = "[redacted/large vector]"
+			} else {
+				sanitized[k] = v
+			}
+		}
+		log.Printf("Params: %v", sanitized)
+	}
+	return neo4j.ExecuteQuery(p.ctx, p.driver, query, params, neo4j.EagerResultTransformer)
+}
+
 // Traverse traverses the graph from a start node.
 func (p *Neo4jProvider) Traverse(startNodeID string, relationship string, direction Direction, depth int) ([]*graph.Path, error) {
 	// 1. Format relationships for Cypher (e.g., "CALLS,USES" -> "CALLS|USES")
@@ -72,14 +129,15 @@ func (p *Neo4jProvider) Traverse(startNodeID string, relationship string, direct
 
 	// 3. Construct Cypher query
 	query := fmt.Sprintf(`
+		// Traverse Graph
 		MATCH (n) WHERE n.id = $id OR n.fqn = $id OR n.name = $id
 		MATCH p = (n)%s[%s*1..%d]%s(m)
 		RETURN p
 	`, arrowStart, relPattern, depth, arrowEnd)
 
-	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
+	result, err := p.executeQuery(query, map[string]any{
 		"id": startNodeID,
-	}, neo4j.EagerResultTransformer)
+	})
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute Traverse query: %w", err)
@@ -154,14 +212,15 @@ func (p *Neo4jProvider) Traverse(startNodeID string, relationship string, direct
 func (p *Neo4jProvider) SemanticTrace(nodeID string) ([]*graph.Path, error) {
 	// targeted hierarchy: [Domain] --(PARENT_OF)--> [Feature] --(IMPLEMENTS)--> [Function] --(DEFINED_IN)--> [File]
 	query := `
+		// Semantic Trace
 		MATCH (func:Function) WHERE func.id = $targetId OR func.fqn = $targetId OR func.name = $targetId
 		MATCH path = (d:Domain)-[:PARENT_OF*0..1]->(feat:Feature)-[:IMPLEMENTS*0..1]->(func)-[:DEFINED_IN*0..1]->(file:File)
 		RETURN path
 	`
 
-	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
+	result, err := p.executeQuery(query, map[string]any{
 		"targetId": nodeID,
-	}, neo4j.EagerResultTransformer)
+	})
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute SemanticTrace query: %w", err)
@@ -231,15 +290,16 @@ func (p *Neo4jProvider) SemanticTrace(nodeID string) ([]*graph.Path, error) {
 // SearchSimilarFunctions searches for function nodes using vector embeddings.
 func (p *Neo4jProvider) SearchSimilarFunctions(embedding []float32, limit int) ([]*FeatureResult, error) {
 	query := `
+		// Search Similar Functions
 		CALL db.index.vector.queryNodes('function_embeddings', $limit, $embedding)
 		YIELD node, score
 		RETURN node.id as id, labels(node)[0] as label, score, properties(node) as props
 	`
 
-	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
+	result, err := p.executeQuery(query, map[string]any{
 		"limit":     limit,
 		"embedding": embedding,
-	}, neo4j.EagerResultTransformer)
+	})
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute vector search on functions: %w", err)
@@ -275,15 +335,16 @@ func (p *Neo4jProvider) SearchSimilarFunctions(embedding []float32, limit int) (
 // SearchFeatures searches for Feature nodes using vector embeddings.
 func (p *Neo4jProvider) SearchFeatures(embedding []float32, limit int) ([]*FeatureResult, error) {
 	query := `
+		// Search Features
 		CALL db.index.vector.queryNodes('feature_embeddings', $limit, $embedding)
 		YIELD node, score
 		RETURN node.id as id, labels(node)[0] as label, score, properties(node) as props
 	`
 
-	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
+	result, err := p.executeQuery(query, map[string]any{
 		"limit":     limit,
 		"embedding": embedding,
-	}, neo4j.EagerResultTransformer)
+	})
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute vector search on features: %w", err)
@@ -316,6 +377,7 @@ func (p *Neo4jProvider) SearchFeatures(embedding []float32, limit int) ([]*Featu
 // GetNeighbors retrieves the dependencies (functions, globals) of a node.
 func (p *Neo4jProvider) GetNeighbors(nodeID string, depth int) (*NeighborResult, error) {
 	query := fmt.Sprintf(`
+		// Get Neighbors
 		MATCH (n)
 		WHERE n.id = $func OR n.fqn = $func OR n.name = $func
 		WITH n LIMIT 1
@@ -340,9 +402,9 @@ func (p *Neo4jProvider) GetNeighbors(nodeID string, depth int) (*NeighborResult,
 		RETURN globals + funcs as dependencies
 	`, depth)
 
-	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
+	result, err := p.executeQuery(query, map[string]any{
 		"func": nodeID,
-	}, neo4j.EagerResultTransformer)
+	})
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute GetNeighbors query: %w", err)
@@ -421,14 +483,15 @@ func (p *Neo4jProvider) GetNeighbors(nodeID string, depth int) (*NeighborResult,
 // GetCallers retrieves the callers of a node.
 func (p *Neo4jProvider) GetCallers(nodeID string) ([]string, error) {
 	query := `
+		// Get Callers
 		MATCH (n) WHERE n.id = $func OR n.fqn = $func OR n.name = $func
 		MATCH (caller)-[:CALLS]->(n)
 		RETURN collect(DISTINCT caller.name) as callers
 	`
 
-	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
+	result, err := p.executeQuery(query, map[string]any{
 		"func": nodeID,
-	}, neo4j.EagerResultTransformer)
+	})
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute GetCallers query: %w", err)
@@ -457,14 +520,15 @@ func (p *Neo4jProvider) GetCallers(nodeID string) ([]string, error) {
 func (p *Neo4jProvider) GetImpact(nodeID string, depth int) (*ImpactResult, error) {
 	// Construct dynamic query for variable path length
 	query := fmt.Sprintf(`
+		// Get Impact
 		MATCH (n) WHERE n.id = $nodeID OR n.fqn = $nodeID OR n.name = $nodeID
 		MATCH (caller)-[:CALLS*1..%d]->(n) 
 		RETURN DISTINCT caller.name as caller, caller.is_volatile as volatile
 	`, depth)
 
-	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
+	result, err := p.executeQuery(query, map[string]any{
 		"nodeID": nodeID,
-	}, neo4j.EagerResultTransformer)
+	})
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute GetImpact query: %w", err)
@@ -497,14 +561,15 @@ func (p *Neo4jProvider) GetImpact(nodeID string, depth int) (*ImpactResult, erro
 // GetGlobals identifies global variable usage.
 func (p *Neo4jProvider) GetGlobals(nodeID string) (*GlobalUsageResult, error) {
 	query := `
+		// Get Globals
 		MATCH (n) WHERE n.id = $nodeID OR n.fqn = $nodeID OR n.name = $nodeID
 		MATCH (n)-[:USES_GLOBAL]->(g:Global) 
 		RETURN g.name as name, g.file as defined_in
 	`
 
-	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
+	result, err := p.executeQuery(query, map[string]any{
 		"nodeID": nodeID,
-	}, neo4j.EagerResultTransformer)
+	})
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute GetGlobals query: %w", err)
@@ -536,8 +601,11 @@ func (p *Neo4jProvider) GetGlobals(nodeID string) (*GlobalUsageResult, error) {
 // GetSeams suggests architectural seams (boundaries) using Pinch Point detection.
 func (p *Neo4jProvider) GetSeams(modulePattern string, layer string) ([]*SeamResult, error) {
 	// Pre-flight check: Is is_volatile data present?
-	checkQuery := `MATCH (f:Function) WHERE f.is_volatile IS NOT NULL RETURN count(f) AS count LIMIT 1`
-	checkRes, err := neo4j.ExecuteQuery(p.ctx, p.driver, checkQuery, nil, neo4j.EagerResultTransformer)
+	checkQuery := `
+		// Check Volatility Data Presence
+		MATCH (f:Function) WHERE f.is_volatile IS NOT NULL RETURN count(f) AS count LIMIT 1
+	`
+	checkRes, err := p.executeQuery(checkQuery, nil)
 	if err != nil {
 		return nil, fmt.Errorf("pre-flight check failed: %w", err)
 	}
@@ -554,6 +622,7 @@ func (p *Neo4jProvider) GetSeams(modulePattern string, layer string) ([]*SeamRes
 	// and high volatile fan-out (volatile callees).
 	// This represents a 'pinch point' or 'chokepoint' between internal and external worlds.
 	query := `
+		// Find Pinch Points
 		MATCH (f:Function)
 		// Filter by module pattern if provided
 		OPTIONAL MATCH (f)-[:DEFINED_IN]->(file:File)
@@ -575,9 +644,9 @@ func (p *Neo4jProvider) GetSeams(modulePattern string, layer string) ([]*SeamRes
 		LIMIT 20
 	`
 
-	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
+	result, err := p.executeQuery(query, map[string]any{
 		"pattern": modulePattern,
-	}, neo4j.EagerResultTransformer)
+	})
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute GetSeams (Pinch Point) query: %w", err)
@@ -619,12 +688,13 @@ func (p *Neo4jProvider) GetSeams(modulePattern string, layer string) ([]*SeamRes
 // FetchSource retrieves the source code for a node.
 func (p *Neo4jProvider) FetchSource(nodeID string) (string, error) {
 	query := `
+		// Fetch Source
 		MATCH (n) WHERE n.id = $id OR n.fqn = $id OR n.name = $id
 		RETURN n.file as file, n.start_line as start, n.end_line as end
 	`
-	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
+	result, err := p.executeQuery(query, map[string]any{
 		"id": nodeID,
-	}, neo4j.EagerResultTransformer)
+	})
 
 	if err != nil {
 		return "", fmt.Errorf("failed to query source info: %w", err)
@@ -655,14 +725,15 @@ func (p *Neo4jProvider) FetchSource(nodeID string) (string, error) {
 // LocateUsage identifies where a dependency is used within a function.
 func (p *Neo4jProvider) LocateUsage(sourceID string, targetID string) (any, error) {
 	query := `
+		// Locate Usage
 		MATCH (source) WHERE source.id = $sourceId OR source.fqn = $sourceId OR source.name = $sourceId
 		MATCH (target) WHERE target.id = $targetId OR target.fqn = $targetId OR target.name = $targetId
 		RETURN source.file as file, source.start_line as start, source.end_line as end, target.name as target_name, properties(target).name as target_name_alt
 	`
-	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
+	result, err := p.executeQuery(query, map[string]any{
 		"sourceId": sourceID,
 		"targetId": targetID,
-	}, neo4j.EagerResultTransformer)
+	})
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to query usage info: %w", err)
@@ -696,10 +767,11 @@ func (p *Neo4jProvider) LocateUsage(sourceID string, targetID string) (any, erro
 // GetOverview returns a high-level graph of top-level semantic nodes.
 func (p *Neo4jProvider) GetOverview() (*graph.Path, error) {
 	query := `
+		// Get Overview
 		MATCH (n) WHERE n:Domain OR (n:Feature AND NOT ()-[]->(n)) 
 		RETURN n, null as p
 	`
-	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, nil, neo4j.EagerResultTransformer)
+	result, err := p.executeQuery(query, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute GetOverview query: %w", err)
 	}
@@ -834,6 +906,7 @@ func (p *Neo4jProvider) GetOverview() (*graph.Path, error) {
 // the feature itself, its parent, children, siblings, and implementing functions.
 func (p *Neo4jProvider) ExploreDomain(featureID string) (*DomainExplorationResult, error) {
 	query := `
+		// Explore Domain
 		// Find the target feature or domain
 		MATCH (f {id: $featureID})
 		WHERE f:Feature OR f:Domain
@@ -861,9 +934,9 @@ func (p *Neo4jProvider) ExploreDomain(featureID string) (*DomainExplorationResul
 		       collect(DISTINCT {id: fn.id, props: properties(fn)}) as functions
 	`
 
-	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
+	result, err := p.executeQuery(query, map[string]any{
 		"featureID": featureID,
-	}, neo4j.EagerResultTransformer)
+	})
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute ExploreDomain query: %w", err)
@@ -919,11 +992,12 @@ func (p *Neo4jProvider) ExploreDomain(featureID string) (*DomainExplorationResul
 // GetGraphState retrieves the stored commit hash from the graph.
 func (p *Neo4jProvider) GetGraphState() (string, error) {
 	query := `
+		// Get Graph State
 		MATCH (s:GraphState)
 		RETURN s.commit as commit
 		LIMIT 1
 	`
-	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, nil, neo4j.EagerResultTransformer)
+	result, err := p.executeQuery(query, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to query graph state: %w", err)
 	}
@@ -944,8 +1018,11 @@ func (p *Neo4jProvider) GetGraphState() (string, error) {
 func (p *Neo4jProvider) GetStats() (map[string]int64, error) {
 	stats := make(map[string]int64)
 
-	query := `MATCH (n) RETURN count(n) as total`
-	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, nil, neo4j.EagerResultTransformer)
+	query := `
+		// Get Graph Stats
+		MATCH (n) RETURN count(n) as total
+	`
+	result, err := p.executeQuery(query, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get node count: %w", err)
 	}

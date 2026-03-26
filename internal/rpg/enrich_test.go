@@ -11,7 +11,7 @@ type MockSummarizer struct {
 	SummarizeFunc func(snippets []string, level string) (string, string, error)
 }
 
-func (m *MockSummarizer) Summarize(snippets []string, level string) (string, string, error) {
+func (m *MockSummarizer) Summarize(snippets []string, level string, extraContext string) (string, string, error) {
 	if m.SummarizeFunc != nil {
 		return m.SummarizeFunc(snippets, level)
 	}

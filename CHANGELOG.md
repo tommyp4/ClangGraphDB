@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.1.307-beta] - 2026-03-25 [Pre-release]
+### Changed
+- **UI:** Suppressed query logging in `neo4j.go` when progress bars are active to prevent UI flickering.
+- **Observability:** Updated `executeQuery` to extract concise query descriptions from Cypher comments, improving log clarity.
+- **Observability:** Added `// description` comments to all major Cypher queries.
+
+## [1.1.305-beta] - 2026-03-25 [Pre-release]
+### Added
+- **RPG:** Decoupled topology generation from LLM-based semantic naming to ensure clustering progress is persisted even if summarization fails later.
+- **Scout:** Modernized the Scout agent with the Feathers Workflow and established a 'graceful fallback' protocol for tool usage.
+- **Observability:** Centralized Neo4j query logging with parameter sanitization for better transparency across all providers.
+
+### Changed
+- **RPG:** Refined domain discovery with diverse sampling (edge-aware) and hierarchical context in LLM prompts.
+- **Retry Logic:** Implemented exponential backoff for 429 errors in Summarization, Extraction, and Embedding with a 5-minute safety cap.
+- **CLI:** Renamed `--log-file` to `--log` and updated `GRAPHDB_LOG` environment variable for consistency.
+- **Agent Tuning:** Increased Scout agent turn limit to 120 and timeout to 60 minutes for deeper research.
+
+### Fixed
+- **RPG:** Removed soft-failing fallbacks in favor of hard failures for non-retryable errors to ensure process integrity.
+- **CI:** Added `.gemini/graph_data/.gitignore` to the release bundle to prevent tracking of local graph data.
+
+
 ## [1.0.1] - 2026-03-22
 ### Fixed
 - **UI:** Synchronized physical and semantic layer toggle states to prevent UI desyncs on initialization.

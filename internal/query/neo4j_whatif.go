@@ -21,12 +21,13 @@ func (p *Neo4jProvider) WhatIf(targets []string) (*WhatIfResult, error) {
 	// 1. Severed Edges
 	// Edges from Outside to Inside OR Inside to Outside
 	severedQuery := `
+		// What-If: Severed Edges
 		MATCH (n)-[r]->(m)
 		WHERE (n.id IN $targets AND NOT m.id IN $targets)
 		   OR (NOT n.id IN $targets AND m.id IN $targets)
 		RETURN n as sourceNode, m as targetNode, type(r) as type
 	`
-	res, err := neo4j.ExecuteQuery(p.ctx, p.driver, severedQuery, map[string]any{"targets": targets}, neo4j.EagerResultTransformer)
+	res, err := p.executeQuery(severedQuery, map[string]any{"targets": targets})
 	if err != nil {
 		return nil, err
 	}
@@ -92,11 +93,12 @@ func (p *Neo4jProvider) WhatIf(targets []string) (*WhatIfResult, error) {
 	// 2. Cross-Boundary Calls (subset of severed edges)
 	// Specifically CALLS from Outside to Inside
 	crossQuery := `
+		// What-If: Cross-Boundary Calls
 		MATCH (n:Function)-[r:CALLS]->(m:Function)
 		WHERE NOT n.id IN $targets AND m.id IN $targets
 		RETURN n as sourceNode, m as targetNode, type(r) as type
 	`
-	res, err = neo4j.ExecuteQuery(p.ctx, p.driver, crossQuery, map[string]any{"targets": targets}, neo4j.EagerResultTransformer)
+	res, err = p.executeQuery(crossQuery, map[string]any{"targets": targets})
 	if err != nil {
 		return nil, err
 	}
@@ -162,6 +164,7 @@ func (p *Neo4jProvider) WhatIf(targets []string) (*WhatIfResult, error) {
 	// 3. Shared State
 	// Globals used by both Inside and Outside
 	sharedQuery := `
+		// What-If: Shared State
 		MATCH (n:Function)-[:USES_GLOBAL]->(g:Global)
 		WHERE n.id IN $targets
 		WITH g
@@ -169,7 +172,7 @@ func (p *Neo4jProvider) WhatIf(targets []string) (*WhatIfResult, error) {
 		WHERE NOT m.id IN $targets
 		RETURN DISTINCT g
 	`
-	res, err = neo4j.ExecuteQuery(p.ctx, p.driver, sharedQuery, map[string]any{"targets": targets}, neo4j.EagerResultTransformer)
+	res, err = p.executeQuery(sharedQuery, map[string]any{"targets": targets})
 	if err != nil {
 		return nil, err
 	}
@@ -193,6 +196,7 @@ func (p *Neo4jProvider) WhatIf(targets []string) (*WhatIfResult, error) {
 	// Wait, "unreachable from any non-extracted node" is better.
 	// But let's start simple: Nodes whose incoming edges are ALL from targets.
 	orphanedQuery := `
+		// What-If: Orphaned Nodes
 		MATCH (m)
 		WHERE NOT m.id IN $targets
 		  AND NOT m:File // Files aren't really orphaned in this sense
@@ -201,7 +205,7 @@ func (p *Neo4jProvider) WhatIf(targets []string) (*WhatIfResult, error) {
 		  AND ALL(n IN [(p)-[:CALLS]->(m) | p] WHERE n.id IN $targets)
 		RETURN m
 	`
-	res, err = neo4j.ExecuteQuery(p.ctx, p.driver, orphanedQuery, map[string]any{"targets": targets}, neo4j.EagerResultTransformer)
+	res, err = p.executeQuery(orphanedQuery, map[string]any{"targets": targets})
 	if err != nil {
 		return nil, err
 	}

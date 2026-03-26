@@ -43,12 +43,15 @@ jobs:
         run: |
           echo "*" > .gemini/skills/graphdb/.gitignore
           echo "*" > .gemini/skills/neo4j-manager/.gitignore
+          mkdir -p .gemini/graph_data
+          echo "*" > .gemini/graph_data/.gitignore
 
           tar -czvf graphdb-skill-bundle.tar.gz \
             --exclude=".gemini/tools" \
             --exclude=".gemini/skills/release-manager" \
             .gemini/agents \
-            .gemini/skills
+            .gemini/skills \
+            .gemini/graph_data
 
       - name: Upload Artifacts (For Manual Runs)
         uses: actions/upload-artifact@v4

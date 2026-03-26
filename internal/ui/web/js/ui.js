@@ -134,8 +134,21 @@ export function showNodeDetails(d) {
     const propsContainer = document.getElementById('impact-properties');
     if (propsContainer) {
         propsContainer.innerHTML = '';
+        
+        // Update risk description if it exists in props
+        const riskDescEl = document.getElementById('risk-description');
+        if (riskDescEl) {
+            if (props.description) {
+                riskDescEl.textContent = props.description;
+                riskDescEl.classList.remove('italic');
+            } else {
+                riskDescEl.textContent = 'No description available for this component.';
+                riskDescEl.classList.add('italic');
+            }
+        }
+
         for (const [key, value] of Object.entries(props)) {
-            if (key === 'name' || key === 'id') continue;
+            if (key === 'name' || key === 'id' || key === 'description') continue;
             const row = document.createElement('div');
             row.className = 'grid grid-cols-3 gap-2 border-b border-slate-700/50 pb-1 mb-1';
             
@@ -154,6 +167,17 @@ export function showNodeDetails(d) {
             
             row.innerHTML = `<span class="text-slate-500 font-medium capitalize truncate" title="${key}">${key.replace(/_/g, ' ')}</span><span class="col-span-2 truncate text-slate-300" title="${value}">${displayValue}</span>`;
             propsContainer.appendChild(row);
+        }
+
+        // Add description at the end if it exists, full width
+        if (props.description) {
+            const descRow = document.createElement('div');
+            descRow.className = 'flex flex-col gap-1 border-b border-slate-700/50 pb-2 mb-1 mt-2';
+            descRow.innerHTML = `
+                <span class="text-slate-500 font-medium capitalize text-[10px] uppercase tracking-wider">Description</span>
+                <span class="text-slate-300 text-xs leading-relaxed whitespace-pre-wrap">${props.description}</span>
+            `;
+            propsContainer.appendChild(descRow);
         }
     }
 

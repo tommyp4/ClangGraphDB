@@ -50,7 +50,25 @@ func (c *GlobalEmbeddingClusterer) Cluster(nodes []graph.Node, domain string) ([
 
 		// Generate Name
 		log.Printf("  Naming domain %d/%d (%d functions)...", clusterIdx, len(rawClusters), len(cluster.Nodes))
-		name, description, err := c.Summarizer.Summarize(snippets, "domain")
+
+		if c.Summarizer == nil {
+			// Topology-only mode: use the raw cluster name, Builder will fallback to LCA naming
+			namedClusters = append(namedClusters, ClusterGroup{
+				Name:        cluster.Name,
+				Description: "",
+				Nodes:       cluster.Nodes,
+			})
+			continue
+		}
+
+		// Strategy 1: Hierarchical Prompting
+		var previouslyNamed []string
+		for k := range usedNames {
+			previouslyNamed = append(previouslyNamed, k)
+		}
+		extraContext := strings.Join(previouslyNamed, ", ")
+
+		name, description, err := c.Summarizer.Summarize(snippets, "domain", extraContext)
 		if err != nil {
 			return nil, fmt.Errorf("domain summarization failed for cluster %d: %w", clusterIdx, err)
 		}
@@ -121,7 +139,6 @@ type nodeDistance struct {
 
 func (c *GlobalEmbeddingClusterer) findRepresentatives(nodes []graph.Node, centroid []float32, limit int) []graph.Node {
 	if centroid == nil {
-		// If no centroid (no embeddings), just return the first few nodes
 		if len(nodes) < limit {
 			return nodes
 		}
@@ -134,7 +151,6 @@ func (c *GlobalEmbeddingClusterer) findRepresentatives(nodes []graph.Node, centr
 			dist := cosineDistance(emb, centroid)
 			distances = append(distances, nodeDistance{Node: n, Distance: dist})
 		} else {
-			// Penalty for missing embedding
 			distances = append(distances, nodeDistance{Node: n, Distance: 2.0})
 		}
 	}
@@ -145,9 +161,24 @@ func (c *GlobalEmbeddingClusterer) findRepresentatives(nodes []graph.Node, centr
 	})
 
 	result := make([]graph.Node, 0, limit)
-	for i := 0; i < len(distances) && i < limit; i++ {
+	
+	if len(distances) <= limit {
+		for i := 0; i < len(distances); i++ {
+			result = append(result, distances[i].Node)
+		}
+		return result
+	}
+	
+	// Strategy 1: Edge-Aware Sampling (2 from center, 3 from edges)
+	centerCount := 2
+	edgeCount := limit - centerCount
+	for i := 0; i < centerCount; i++ {
 		result = append(result, distances[i].Node)
 	}
+	for i := len(distances) - edgeCount; i < len(distances); i++ {
+		result = append(result, distances[i].Node)
+	}
+
 	return result
 }
 
@@ -166,6 +197,7 @@ func (c *GlobalEmbeddingClusterer) collectSnippets(nodes []graph.Node) []string 
 					if len(content) > 1000 {
 						content = content[:1000] + "..."
 					}
+					content = "// File: " + file + "\n" + content
 					snippets = append(snippets, content)
 					continue
 				}

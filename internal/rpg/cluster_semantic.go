@@ -97,7 +97,7 @@ func (c *EmbeddingClusterer) Cluster(nodes []graph.Node, domain string) ([]Clust
 		label = "feature"
 	}
 	log.Printf("Grouping %d functions into %d %ss...", len(nodes), k, label)
-	assignments := kmeans(embeddings, k, maxIter, c.Seed, label)
+	assignments := kmeans(embeddings, k, maxIter, c.Seed, label, domain)
 
 	// 5. Group nodes by cluster assignment
 	groups := make([]ClusterGroup, k)
@@ -125,7 +125,7 @@ func (c *EmbeddingClusterer) Cluster(nodes []graph.Node, domain string) ([]Clust
 
 // kmeans runs K-Means clustering on a set of vectors.
 // Returns a slice of cluster assignments (one per input vector).
-func kmeans(vectors [][]float32, k int, maxIterations int, seed int64, label string) []int {
+func kmeans(vectors [][]float32, k int, maxIterations int, seed int64, label string, context string) []int {
 	n := len(vectors)
 	if n == 0 || k <= 0 {
 		return nil
@@ -133,15 +133,19 @@ func kmeans(vectors [][]float32, k int, maxIterations int, seed int64, label str
 	dim := len(vectors[0])
 
 	// Initialize centroids using K-Means++ initialization
-	centroids := kmeansppInit(vectors, k, seed, label)
+	centroids := kmeansppInit(vectors, k, seed, label, context)
 
 	assignments := make([]int, n)
 
-	pb := ui.NewSpinner(fmt.Sprintf("Refining %ss", label))
+	status := fmt.Sprintf("Refining %ss", label)
+	if context != "" && context != "root" {
+		status = fmt.Sprintf("Refining %ss [%s]", label, context)
+	}
+	pb := ui.NewSpinner(status)
 
 	for iter := 0; iter < maxIterations; iter++ {
 		changed := false
-		pb.UpdateDescription(fmt.Sprintf("Refining %ss (pass %d)", label, iter+1))
+		pb.UpdateDescription(fmt.Sprintf("%s (pass %d)", status, iter+1))
 
 		// Assign each vector to nearest centroid
 		for i, v := range vectors {
@@ -193,7 +197,7 @@ func kmeans(vectors [][]float32, k int, maxIterations int, seed int64, label str
 }
 
 // kmeansppInit selects initial centroids using K-Means++ algorithm.
-func kmeansppInit(vectors [][]float32, k int, seed int64, label string) [][]float32 {
+func kmeansppInit(vectors [][]float32, k int, seed int64, label string, context string) [][]float32 {
 	n := len(vectors)
 	centroids := make([][]float32, 0, k)
 	rng := rand.New(rand.NewSource(seed))
@@ -203,7 +207,11 @@ func kmeansppInit(vectors [][]float32, k int, seed int64, label string) [][]floa
 	centroids = append(centroids, vectors[first])
 
 	if k > 1 {
-		pb := ui.NewProgressBar(int64(k), fmt.Sprintf("Seeding %ss", label))
+		status := fmt.Sprintf("Seeding %ss", label)
+		if context != "" && context != "root" {
+			status = fmt.Sprintf("Seeding %ss [%s]", label, context)
+		}
+		pb := ui.NewProgressBar(int64(k), status)
 		pb.Add(1) // for the first one
 
 		for len(centroids) < k {

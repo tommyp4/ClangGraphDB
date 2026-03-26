@@ -10,10 +10,11 @@ import (
 func (p *Neo4jProvider) SeedVolatility(modulePattern string, rules []ContaminationRule) error {
 	// Cleanup legacy flags first
 	cleanupQuery := `
+		// Cleanup legacy contamination flags
 		MATCH (f:Function)
 		REMOVE f.ui_contaminated, f.db_contaminated, f.io_contaminated, f.is_volatile, f.volatility_score
 	`
-	_, err := neo4j.ExecuteQuery(p.ctx, p.driver, cleanupQuery, nil, neo4j.EagerResultTransformer)
+	_, err := p.executeQuery(cleanupQuery, nil)
 	if err != nil {
 		return fmt.Errorf("failed to cleanup legacy flags: %w", err)
 	}
@@ -28,6 +29,7 @@ func (p *Neo4jProvider) SeedVolatility(modulePattern string, rules []Contaminati
 		if rule.Type == "file" {
 			// Seed based on file path
 			query = `
+				// Seed volatility by file path
 				MATCH (f:Function)-[:DEFINED_IN]->(file:File)
 				WHERE file.file =~ $pattern AND file.file =~ $rule_pattern
 				SET f.is_volatile = true
@@ -37,6 +39,7 @@ func (p *Neo4jProvider) SeedVolatility(modulePattern string, rules []Contaminati
 			if rule.Heuristic == "path" {
 				// Seed based on function name
 				query = `
+					// Seed volatility by function path
 					MATCH (f:Function)-[:DEFINED_IN]->(file:File)
 					WHERE file.file =~ $pattern AND f.name =~ $rule_pattern
 					SET f.is_volatile = true
@@ -45,6 +48,7 @@ func (p *Neo4jProvider) SeedVolatility(modulePattern string, rules []Contaminati
 			} else if rule.Heuristic == "content" {
 				// Seed based on function content/body (if available)
 				query = `
+					// Seed volatility by function content
 					MATCH (f:Function)-[:DEFINED_IN]->(file:File)
 					WHERE file.file =~ $pattern AND f.content =~ $rule_pattern
 					SET f.is_volatile = true
@@ -54,7 +58,7 @@ func (p *Neo4jProvider) SeedVolatility(modulePattern string, rules []Contaminati
 		}
 
 		if query != "" {
-			_, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, params, neo4j.EagerResultTransformer)
+			_, err := p.executeQuery(query, params)
 			if err != nil {
 				return fmt.Errorf("failed to apply volatility rule (%s): %w", rule.Layer, err)
 			}
@@ -66,8 +70,11 @@ func (p *Neo4jProvider) SeedVolatility(modulePattern string, rules []Contaminati
 
 // CountVolatileFunctions returns the number of functions flagged as volatile.
 func (p *Neo4jProvider) CountVolatileFunctions() (int64, error) {
-	query := `MATCH (f:Function {is_volatile: true}) RETURN count(f) as count`
-	res, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, nil, neo4j.EagerResultTransformer)
+	query := `
+		// Count Volatile Functions
+		MATCH (f:Function {is_volatile: true}) RETURN count(f) as count
+	`
+	res, err := p.executeQuery(query, nil)
 	if err != nil {
 		return 0, fmt.Errorf("failed to count volatile functions: %w", err)
 	}
@@ -84,6 +91,7 @@ func (p *Neo4jProvider) PropagateVolatility() error {
 	// Cypher query to propagate one level at a time UPWARD.
 	// We run this until no more nodes are updated.
 	query := `
+		// Propagate Volatility Upward
 		MATCH (caller:Function)-[:CALLS]->(callee:Function {is_volatile: true})
 		WHERE caller.is_volatile IS NULL OR caller.is_volatile = false
 		WITH caller LIMIT 5000
@@ -92,7 +100,7 @@ func (p *Neo4jProvider) PropagateVolatility() error {
 	`
 
 	for {
-		res, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, nil, neo4j.EagerResultTransformer)
+		res, err := p.executeQuery(query, nil)
 		if err != nil {
 			return fmt.Errorf("failed to propagate volatility: %w", err)
 		}
@@ -118,18 +126,20 @@ func (p *Neo4jProvider) CalculateRiskScores() error {
 	// Seeded/Propagated nodes have is_volatile=true.
 	// We use the distance to the nearest volatile node.
 	volatilityQuery := `
+		// Calculate Volatility Scores
 		MATCH (f:Function)
 		OPTIONAL MATCH p = (f)-[:CALLS*0..2]->(v:Function {is_volatile: true})
 		WITH f, min(length(p)) as distance
 		SET f.volatility_score = CASE WHEN distance IS NOT NULL THEN 1.0 / (distance + 1.0) ELSE 0.0 END
 	`
-	_, err := neo4j.ExecuteQuery(p.ctx, p.driver, volatilityQuery, nil, neo4j.EagerResultTransformer)
+	_, err := p.executeQuery(volatilityQuery, nil)
 	if err != nil {
 		return fmt.Errorf("failed to calculate volatility scores: %w", err)
 	}
 
 	// 2. Calculate raw scores and store them temporarily
 	query := `
+		// Calculate Raw Risk Scores
 		MATCH (f:Function)
 		OPTIONAL MATCH (f)-[:DEFINED_IN]->(file:File)
 		WITH f, coalesce(file.change_frequency, 0) as churn
@@ -142,7 +152,7 @@ func (p *Neo4jProvider) CalculateRiskScores() error {
 		SET f.raw_risk_score = (fan_in * 0.4 + fan_out * 0.1 + vol_score * 3.0 + churn * 0.4)
 		RETURN max(f.raw_risk_score) as max_score
 	`
-	res, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, nil, neo4j.EagerResultTransformer)
+	res, err := p.executeQuery(query, nil)
 	if err != nil {
 		return fmt.Errorf("failed to calculate raw risk scores: %w", err)
 	}
@@ -158,12 +168,13 @@ func (p *Neo4jProvider) CalculateRiskScores() error {
 
 	// 2. Normalize scores to [0.0, 1.0]
 	normalizeQuery := `
+		// Normalize Risk Scores
 		MATCH (f:Function)
 		WHERE f.raw_risk_score IS NOT NULL
 		SET f.risk_score = f.raw_risk_score / $max_score
 		REMOVE f.raw_risk_score
 	`
-	_, err = neo4j.ExecuteQuery(p.ctx, p.driver, normalizeQuery, map[string]any{"max_score": maxScore}, neo4j.EagerResultTransformer)
+	_, err = p.executeQuery(normalizeQuery, map[string]any{"max_score": maxScore})
 	if err != nil {
 		return fmt.Errorf("failed to normalize risk scores: %w", err)
 	}

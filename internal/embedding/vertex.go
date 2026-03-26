@@ -3,6 +3,9 @@ package embedding
 import (
 	"context"
 	"fmt"
+	"log"
+	"strings"
+	"time"
 
 	"google.golang.org/genai"
 )
@@ -39,13 +42,22 @@ func NewVertexEmbedder(ctx context.Context, projectID, location, modelName strin
 	}, nil
 }
 
+func is429(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToUpper(err.Error())
+	return strings.Contains(msg, "429") || strings.Contains(msg, "RESOURCE_EXHAUSTED") || strings.Contains(msg, "TOO MANY REQUESTS")
+}
+
 // EmbedBatch generates embeddings for a batch of texts.
 func (v *VertexEmbedder) EmbedBatch(texts []string) ([][]float32, error) {
 	if len(texts) == 0 {
 		return nil, nil
 	}
 
-	ctx := context.Background()
+	const maxTotalWait = 5 * time.Minute
+	const requestTimeout = 120 * time.Second
 
 	// Vertex AI typically has a limit of 250 items per batch request.
 	// We use a safe batch size of 100 to stay well within limits.
@@ -73,15 +85,42 @@ func (v *VertexEmbedder) EmbedBatch(texts []string) ([][]float32, error) {
 			TaskType:     "RETRIEVAL_DOCUMENT",
 			AutoTruncate: true,
 		}
-		
+
 		if v.OutputDimensionality > 0 {
 			val := int32(v.OutputDimensionality)
 			config.OutputDimensionality = &val
 		}
 
-		resp, err := v.Client.EmbedContent(ctx, v.Model, batch, config)
-		if err != nil {
-			return nil, fmt.Errorf("failed to embed content batch (chunk %d-%d): %w", i, end, err)
+		// Implement retry with backoff for 429 errors
+		startTime := time.Now()
+		attempt := 0
+		var resp *genai.EmbedContentResponse
+		var err error
+
+		for {
+			ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+			resp, err = v.Client.EmbedContent(ctx, v.Model, batch, config)
+			cancel()
+
+			if err != nil {
+				if is429(err) {
+					attempt++
+					backoff := time.Duration(1<<uint(attempt)) * time.Second
+					if backoff > 30*time.Second {
+						backoff = 30 * time.Second
+					}
+
+					if time.Since(startTime)+backoff > maxTotalWait {
+						return nil, fmt.Errorf("embedding failed: 429 quota exhausted after %v: %w", time.Since(startTime), err)
+					}
+
+					log.Printf("Embedding received 429 (Too Many Requests). Attempt %d, retrying in %v...", attempt, backoff)
+					time.Sleep(backoff)
+					continue
+				}
+				return nil, fmt.Errorf("failed to embed content batch (chunk %d-%d): %w", i, end, err)
+			}
+			break // Success
 		}
 
 		if resp == nil {

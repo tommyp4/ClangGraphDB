@@ -40,6 +40,7 @@ func (l *Neo4jLoader) BatchLoadNodes(ctx context.Context, nodes []graph.Node) er
 	for label, batch := range batches {
 		query := buildNodeQuery(label)
 		_, err := session.ExecuteWrite(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
+			log.Printf("Neo4j Loader Query: %s", query)
 			return tx.Run(ctx, query, map[string]any{"batch": batch})
 		})
 		if err != nil {
@@ -64,6 +65,7 @@ func (l *Neo4jLoader) BatchLoadEdges(ctx context.Context, edges []graph.Edge) er
 	for relType, batch := range batches {
 		query := buildEdgeQuery(relType)
 		_, err := session.ExecuteWrite(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
+			log.Printf("Neo4j Loader Query: %s", query)
 			return tx.Run(ctx, query, map[string]any{"batch": batch})
 		})
 		if err != nil {
@@ -83,6 +85,7 @@ func (l *Neo4jLoader) ApplyConstraints(ctx context.Context) error {
 
 	for _, query := range l.getConstraints() {
 		_, err := session.ExecuteWrite(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
+			log.Printf("Neo4j Loader Query: %s", query)
 			return tx.Run(ctx, query, nil)
 		})
 		if err != nil {
@@ -107,6 +110,7 @@ func (l *Neo4jLoader) UpdateGraphState(ctx context.Context, commit string) error
 
 	query := buildGraphStateQuery()
 	_, err := session.ExecuteWrite(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
+		log.Printf("Neo4j Loader Query: %s", query)
 		return tx.Run(ctx, query, map[string]any{"commit": commit})
 	})
 	return err

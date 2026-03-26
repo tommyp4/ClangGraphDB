@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"graphdb/internal/query"
 	"io"
 	"os"
 	"strings"
@@ -36,23 +37,52 @@ func isTerminal(w io.Writer) bool {
         return false
 }
 
+var (
+	activePbs   = make(map[*ProgressBar]bool)
+	activePbsMu sync.Mutex
+)
+
+// IsAnyActive returns true if any progress bar or spinner is currently active.
+func IsAnyActive() bool {
+	activePbsMu.Lock()
+	defer activePbsMu.Unlock()
+	return len(activePbs) > 0
+}
+
+func registerActive(pb *ProgressBar) {
+	activePbsMu.Lock()
+	defer activePbsMu.Unlock()
+	activePbs[pb] = true
+	query.SetProgressActive(true)
+}
+
+func unregisterActive(pb *ProgressBar) {
+	activePbsMu.Lock()
+	defer activePbsMu.Unlock()
+	if _, ok := activePbs[pb]; ok {
+		delete(activePbs, pb)
+		query.SetProgressActive(false)
+	}
+}
+
 // NewProgressBar creates a new progress bar with a known total.
 func NewProgressBar(total int64, description string) *ProgressBar {
-        pb := &ProgressBar{
-                total:       total,
-                description: description,
-                width:       20,
-                start:       time.Now(),
-                writer:      os.Stderr,
-                Format:      FormatCountFn,
-                isTTY:       isTerminal(os.Stderr),
-                lastPercent: -1,
-                lastRender:  time.Now(),
-        }
-        if !pb.isTTY {
-                fmt.Fprintf(pb.writer, "%s (Total: %d)\n", description, total)
-        }
-        return pb
+	pb := &ProgressBar{
+		total:       total,
+		description: description,
+		width:       20,
+		start:       time.Now(),
+		writer:      os.Stderr,
+		Format:      FormatCountFn,
+		isTTY:       isTerminal(os.Stderr),
+		lastPercent: -1,
+		lastRender:  time.Now(),
+	}
+	registerActive(pb)
+	if !pb.isTTY {
+		fmt.Fprintf(pb.writer, "%s (Total: %d)\n", description, total)
+	}
+	return pb
 }
 
 // FormatCountFn formats integers with commas for readability.
@@ -75,23 +105,24 @@ func FormatCountFn(current, total int64) string {
 
 // NewSpinner creates a new spinner for indeterminate progress.
 func NewSpinner(description string) *ProgressBar {
-        pb := &ProgressBar{
-                description: description,
-                start:       time.Now(),
-                writer:      os.Stderr,
-                isSpinner:   true,
-                stopSpinner: make(chan struct{}),
-                Format: func(current, total int64) string {
-                        return fmt.Sprintf("%d", current)
-                },
-                isTTY: isTerminal(os.Stderr),
-        }
-        if pb.isTTY {
-                go pb.spin()
-        } else {
-                fmt.Fprintf(pb.writer, "%s...\n", description)
-        }
-        return pb
+	pb := &ProgressBar{
+		description: description,
+		start:       time.Now(),
+		writer:      os.Stderr,
+		isSpinner:   true,
+		stopSpinner: make(chan struct{}),
+		Format: func(current, total int64) string {
+			return fmt.Sprintf("%d", current)
+		},
+		isTTY: isTerminal(os.Stderr),
+	}
+	registerActive(pb)
+	if pb.isTTY {
+		go pb.spin()
+	} else {
+		fmt.Fprintf(pb.writer, "%s...\n", description)
+	}
+	return pb
 }
 func (pb *ProgressBar) spin() {
 	chars := []rune{'|', '/', '-', '\\'}
@@ -206,6 +237,7 @@ func (pb *ProgressBar) render() {
 }
 // Finish completes the progress bar.
 func (pb *ProgressBar) Finish() {
+	unregisterActive(pb)
 	if pb.isSpinner {
 		close(pb.stopSpinner)
 		// Give the spinner goroutine a moment to stop writing

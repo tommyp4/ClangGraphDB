@@ -182,7 +182,7 @@ func TestKmeans_Basic(t *testing.T) {
 		{0, 1},
 		{0.1, 0.9},
 	}
-	assignments := kmeans(vectors, 2, 50, 42, "cluster")
+	assignments := kmeans(vectors, 2, 50, 42, "cluster", "")
 
 	// First two should be in one cluster, last two in another
 	if assignments[0] != assignments[1] {
@@ -207,8 +207,8 @@ func TestKmeans_Deterministic(t *testing.T) {
 	}
 
 	seed := int64(123)
-	a1 := kmeans(vectors, 3, 50, seed, "cluster")
-	a2 := kmeans(vectors, 3, 50, seed, "cluster")
+	a1 := kmeans(vectors, 3, 50, seed, "cluster", "")
+	a2 := kmeans(vectors, 3, 50, seed, "cluster", "")
 
 	for i := range a1 {
 		if a1[i] != a2[i] {

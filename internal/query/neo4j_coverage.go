@@ -10,15 +10,16 @@ import (
 // GetCoverage returns the test functions that test a given function.
 func (p *Neo4jProvider) GetCoverage(nodeID string) ([]*graph.Node, error) {
 	query := `
+		// Get Coverage
 		MATCH (p) WHERE p.id = $id OR p.fqn = $id OR p.name = $id
 		MATCH (t)-[:TESTS]->(p)
 		WHERE (t:Function OR t:Method)
 		RETURN t.id as id, labels(t) as labels, properties(t) as props
 	`
 
-	result, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, map[string]any{
+	result, err := p.executeQuery(query, map[string]any{
 		"id": nodeID,
-	}, neo4j.EagerResultTransformer)
+	})
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute GetCoverage query: %w", err)
@@ -50,6 +51,7 @@ func (p *Neo4jProvider) GetCoverage(nodeID string) ([]*graph.Node, error) {
 // LinkTests creates TESTS edges between test functions and production functions based on naming conventions.
 func (p *Neo4jProvider) LinkTests() error {
 	query := `
+		// Link Tests
 		MATCH (t) WHERE (t:Function OR t:Method) AND t.is_test = true
 		MATCH (p) WHERE (p:Function OR p:Method) AND (p.is_test IS NULL OR p.is_test = false)
 		  AND (t.name = "Test" + p.name OR t.name = p.name + "Test" OR t.name = p.name + "Tests")
@@ -57,7 +59,7 @@ func (p *Neo4jProvider) LinkTests() error {
 		RETURN count(*) as count
 	`
 
-	res, err := neo4j.ExecuteQuery(p.ctx, p.driver, query, nil, neo4j.EagerResultTransformer)
+	res, err := p.executeQuery(query, nil)
 	if err != nil {
 		return fmt.Errorf("failed to execute LinkTests query: %w", err)
 	}
