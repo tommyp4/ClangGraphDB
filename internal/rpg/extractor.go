@@ -51,8 +51,8 @@ func (e *LLMFeatureExtractor) Extract(code string, functionName string) ([]strin
 	}
 
 	// Truncate very long functions to stay within context limits
-	if len(code) > 4000 {
-		code = code[:4000] + "\n// ... truncated"
+	if len(code) > 60000 {
+		code = code[:60000] + "\n// ... truncated"
 	}
 
 	prompt := "You are analyzing source code to extract atomic feature descriptors.\n\n" +

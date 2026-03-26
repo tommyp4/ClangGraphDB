@@ -300,3 +300,60 @@ void callerFunc(int param) { targetFunc(); }
 		t.Errorf("Expected call edge not found")
 	}
 }
+
+func TestParseCPP_Fragmentation(t *testing.T) {
+	parser, ok := analysis.GetParser(".cpp")
+	if !ok {
+		t.Fatalf("CPP parser not registered")
+	}
+
+	// 1. Parse the definition file
+	defPath, _ := filepath.Abs("def.cpp")
+	defContent := []byte(`int Auto_Plate(int nJointIndex = -1) { return 0; }`)
+	defNodes, _, err := parser.Parse(defPath, defContent)
+	if err != nil {
+		t.Fatalf("Parse def failed: %v", err)
+	}
+
+	var defID string
+	for _, n := range defNodes {
+		if strings.Contains(n.ID, "Auto_Plate") {
+			defID = n.ID
+			break
+		}
+	}
+	if defID == "" {
+		t.Fatalf("Definition ID not found")
+	}
+	// Expected defID: Function:abs/path/to/def.cpp:Auto_Plate:(intnJointIndex=-1)
+
+	// 2. Parse the call site file
+	callPath, _ := filepath.Abs("call.cpp")
+	callContent := []byte(`
+#include "def.h"
+void caller() { Auto_Plate(10); }
+`)
+	_, callEdges, err := parser.Parse(callPath, callContent)
+	if err != nil {
+		t.Fatalf("Parse call failed: %v", err)
+	}
+
+	foundLink := false
+	for _, e := range callEdges {
+		if strings.Contains(e.SourceID, "caller") && strings.Contains(e.TargetID, "Auto_Plate") {
+			// With the fallback, TargetID should just be "Auto_Plate"
+			// The Neo4j query for GetNeighbors (and other structural queries)
+			// uses: MATCH (n) WHERE n.id = $id OR n.fqn = $id OR n.name = $id
+			// So "Auto_Plate" will match the definition node by its name property.
+			if e.TargetID == "Auto_Plate" {
+				foundLink = true
+			} else {
+				t.Logf("Actual TargetID: %s", e.TargetID)
+			}
+		}
+	}
+
+	if !foundLink {
+		t.Errorf("Fragmentation detected: Call site did not link to definition name")
+	}
+}

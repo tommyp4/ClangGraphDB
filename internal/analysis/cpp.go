@@ -535,7 +535,8 @@ func resolveCppInclude(symbol string, includes []string, currentFile string) str
 			return symbol
 		}
 	}
-	return fmt.Sprintf("UNKNOWN:%s", symbol)
+	// Fallback to the symbol itself to allow name-based resolution in the graph.
+	return symbol
 }
 
 func findEnclosingCppNamespace(n *sitter.Node, content []byte) string {

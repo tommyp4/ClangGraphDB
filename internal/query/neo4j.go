@@ -397,9 +397,9 @@ func (p *Neo4jProvider) GetNeighbors(nodeID string, depth int) (*NeighborResult,
 
 		// 2. Direct Function Calls / Uses
 		OPTIONAL MATCH (s)-[:CALLS|USES]->(d)
-		WITH globals, collect(DISTINCT CASE WHEN d IS NOT NULL THEN {dependency: d.name, type: head(labels(d)), labels: labels(d)} ELSE NULL END) as funcs
+		WITH n, globals, collect(DISTINCT CASE WHEN d IS NOT NULL THEN {dependency: d.name, type: head(labels(d)), labels: labels(d)} ELSE NULL END) as funcs
 		
-		RETURN globals + funcs as dependencies
+		RETURN n, globals + funcs as dependencies
 	`, depth)
 
 	result, err := p.executeQuery(query, map[string]any{

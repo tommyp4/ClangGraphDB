@@ -29,7 +29,7 @@ func getProvider(t *testing.T) *Neo4jProvider {
 
 func cleanup(t *testing.T, p *Neo4jProvider) {
 	_, err := neo4j.ExecuteQuery(p.ctx, p.driver, `
-		MATCH (n) WHERE n.name STARTS WITH 'Test' OR n.file STARTS WITH 'Test' OR n.name = 'ContaminatedCaller' OR n.name = 'SeamFunc' OR n.file = 'test_fixture.go' OR n.name = 'InternalCaller' OR n.name = 'ExternalLib' DETACH DELETE n
+		MATCH (n) WHERE n.name STARTS WITH 'Test' OR n.file STARTS WITH 'Test' OR n.name = 'ContaminatedCaller' OR n.name = 'SeamFunc' OR n.file = 'test_fixture.go' OR n.name = 'InternalCaller' OR n.name = 'ExternalLib' OR n.name = 'HydratedFunc' DETACH DELETE n
 	`, nil, neo4j.EagerResultTransformer)
 	if err != nil {
 		t.Logf("Failed to cleanup: %v", err)
@@ -86,6 +86,52 @@ func TestGetNeighbors(t *testing.T) {
 	}
 	if !foundFunc {
 		t.Error("Expected to find TestCallee dependency")
+	}
+}
+
+func TestGetNeighbors_Hydration(t *testing.T) {
+	p := getProvider(t)
+	defer p.Close()
+	defer cleanup(t, p)
+
+	// Setup fixture data with explicit properties
+	setupQuery := `
+		MERGE (f:Function {id: 'HydratedFunc'})
+		SET f += {
+			name: 'HydratedFunc', 
+			fqn: 'pkg/file.go:HydratedFunc',
+			file: 'pkg/file.go',
+			start_line: 10,
+			end_line: 20
+		}
+	`
+	_, err := neo4j.ExecuteQuery(p.ctx, p.driver, setupQuery, nil, neo4j.EagerResultTransformer)
+	if err != nil {
+		t.Fatalf("Failed to setup fixture: %v", err)
+	}
+
+	// Test
+	result, err := p.GetNeighbors("HydratedFunc", 1)
+	if err != nil {
+		t.Fatalf("GetNeighbors failed: %v", err)
+	}
+
+	// Verify target node hydration
+	if result.Node == nil {
+		t.Fatal("Result node is nil")
+	}
+	if result.Node.Label == "Unknown" {
+		t.Errorf("Expected label 'Function', got 'Unknown'")
+	}
+	if result.Node.Properties == nil {
+		t.Fatal("Result node properties are nil")
+	}
+	
+	expectedProps := []string{"name", "fqn", "file", "start_line", "end_line"}
+	for _, prop := range expectedProps {
+		if _, ok := result.Node.Properties[prop]; !ok {
+			t.Errorf("Missing expected property: %s", prop)
+		}
 	}
 }
 
