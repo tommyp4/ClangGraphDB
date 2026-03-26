@@ -236,8 +236,8 @@ func (o *Orchestrator) RunClustering(dir string) error {
 		OnPhaseStart: func(phaseName string, total int) {
 			log.Printf("Clustering phase: %s (%d domains)", phaseName, total)
 		},
-		OnStepStart: func(stepName string) {
-			log.Printf("  Clustering domain: %s...", stepName)
+		OnStepStart: func(stepName string, index, total int) {
+			log.Printf("  Clustering domain (%d/%d): %s...", index, total, stepName)
 		},
 		OnStepEnd: func(stepName string) {
 			log.Printf("  Finished domain: %s", stepName)
