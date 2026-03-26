@@ -6,7 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## [1.1.0] - 2026-03-26
+## [1.1.314-beta] - 2026-03-26 [Pre-release]
+### Fixed
+- **Query Hydration:** Fixed a bug in `GetNeighbors` where target node properties were omitted from the Cypher `RETURN` clause, resulting in `Unknown` labels and `null` properties in CLI/UI output.
+- **C++ Resolution:** Improved symbol resolution in the C++ parser to allow name-based fallback when exact signature matches fail, preventing node fragmentation across files.
+- **RPG Extraction:** Increased the source code truncation limit from 4,000 to 60,000 characters to ensure large functions (like `Auto_Plate`) are fully analyzed for feature clustering.
 ### Added
 - **RPG:** Decoupled topology generation from LLM-based semantic naming to ensure clustering progress is persisted even if summarization fails later.
 - **Scout Agent:** Modernized the Scout agent with the Feathers Workflow and established a 'graceful fallback' protocol for tool usage.
