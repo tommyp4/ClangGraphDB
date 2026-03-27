@@ -37,7 +37,7 @@ func handleServe(args []string) {
 
 	embedder := setupEmbedder(cfg.GoogleCloudProject, *locationPtr, model, cfg.GeminiEmbeddingDimensions)
 
-	server := ui.NewServer(provider, embedder, cfg)
+	server := ui.NewServer(provider, embedder, cfg, Version)
 
 	addr := fmt.Sprintf(":%d", *portPtr)
 	log.Printf("Starting web visualizer on http://localhost%s\n", addr)

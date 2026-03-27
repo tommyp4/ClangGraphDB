@@ -148,7 +148,7 @@ export function showNodeDetails(d) {
         }
 
         for (const [key, value] of Object.entries(props)) {
-            if (key === 'name' || key === 'id' || key === 'description') continue;
+            if (key === 'name' || key === 'id' || key === 'description' || key === 'atomic_features') continue;
             const row = document.createElement('div');
             row.className = 'grid grid-cols-3 gap-2 border-b border-slate-700/50 pb-1 mb-1';
             
@@ -167,6 +167,17 @@ export function showNodeDetails(d) {
             
             row.innerHTML = `<span class="text-slate-500 font-medium capitalize truncate" title="${key}">${key.replace(/_/g, ' ')}</span><span class="col-span-2 truncate text-slate-300" title="${value}">${displayValue}</span>`;
             propsContainer.appendChild(row);
+        }
+
+        // Add atomic features at the end if it exists, full width
+        if (props.atomic_features && Array.isArray(props.atomic_features) && props.atomic_features.length > 0) {
+            const afRow = document.createElement('div');
+            afRow.className = 'flex flex-col gap-1 border-b border-slate-700/50 pb-2 mb-1 mt-2';
+            afRow.innerHTML = `
+                <span class="text-slate-500 font-medium capitalize text-[10px] uppercase tracking-wider">Atomic Features</span>
+                <span class="text-slate-300 text-xs leading-relaxed whitespace-pre-wrap">${props.atomic_features.join(', ')}</span>
+            `;
+            propsContainer.appendChild(afRow);
         }
 
         // Add description at the end if it exists, full width

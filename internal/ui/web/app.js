@@ -1,15 +1,19 @@
 import { nodes, links, nodesMap, linksMap } from './js/state.js';
-import { fetchOverview, fetchStatus, fetchConfig } from './js/api.js';
+import { fetchOverview, fetchStatus, fetchConfig, fetchHealth } from './js/api.js';
 import { initGraph, updateGraph, renderGraph } from './js/graph.js';
 import { updateLegend } from './js/ui.js';
 import { initEventListeners, getHandlers } from './js/interactions.js';
 
 async function pollStatus() {
     try {
-        const status = await fetchStatus();
+        const [status, health] = await Promise.all([fetchStatus(), fetchHealth()]);
         const nodesCount = status.stats && status.stats.nodes ? status.stats.nodes.toLocaleString() : '0';
         document.getElementById('status-indexed').textContent = `INDEXED: ${nodesCount} NODES`;
         
+        if (health && health.version) {
+            document.getElementById('version-text').textContent = `VERSION: ${health.version}`;
+        }
+
         const indicator = document.getElementById('status-indicator');
         const text = document.getElementById('status-text');
         

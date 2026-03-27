@@ -49,6 +49,12 @@ export async function fetchStatus() {
     return await response.json();
 }
 
+export async function fetchHealth() {
+    const response = await fetch('/api/health');
+    if (!response.ok) throw new Error('Failed to fetch health');
+    return await response.json();
+}
+
 export async function fetchConfig() {
     const response = await fetch('/api/config');
     if (!response.ok) throw new Error('Failed to fetch config');

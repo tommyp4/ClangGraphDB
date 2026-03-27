@@ -22,15 +22,17 @@ type Server struct {
 	embedder embedding.Embedder
 	config   config.Config
 	mux      *http.ServeMux
+	version  string
 }
 
 // NewServer Constructor:
-func NewServer(p query.GraphProvider, e embedding.Embedder, cfg config.Config) *Server {
+func NewServer(p query.GraphProvider, e embedding.Embedder, cfg config.Config, version string) *Server {
 	s := &Server{
 		provider: p,
 		embedder: e,
 		config:   cfg,
 		mux:      http.NewServeMux(),
+		version:  version,
 	}
 	s.routes()
 	return s
@@ -66,7 +68,10 @@ func (s *Server) handleConfig() http.HandlerFunc {
 func (s *Server) handleHealth() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+		json.NewEncoder(w).Encode(map[string]string{
+			"status":  "ok",
+			"version": s.version,
+		})
 	}
 }
 
