@@ -6,63 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## [1.1.314-beta] - 2026-03-26 [Pre-release]
+## [1.1.1] - 2026-03-27
 ### Fixed
 - **Query Hydration:** Fixed a bug in `GetNeighbors` where target node properties were omitted from the Cypher `RETURN` clause, resulting in `Unknown` labels and `null` properties in CLI/UI output.
 - **C++ Resolution:** Improved symbol resolution in the C++ parser to allow name-based fallback when exact signature matches fail, preventing node fragmentation across files.
 - **RPG Extraction:** Increased the source code truncation limit from 4,000 to 60,000 characters to ensure large functions (like `Auto_Plate`) are fully analyzed for feature clustering.
-### Added
-- **RPG:** Decoupled topology generation from LLM-based semantic naming to ensure clustering progress is persisted even if summarization fails later.
-- **Scout Agent:** Modernized the Scout agent with the Feathers Workflow and established a 'graceful fallback' protocol for tool usage.
-- **Observability:** Centralized Neo4j query logging with parameter sanitization and concise query descriptions extracted from Cypher comments.
-- **UI:** Enhanced impact summary descriptions to wrap and display on multiple lines for better readability.
+- **Search Resilience:** Upgraded semantic search to function as a Hybrid Search by including a literal fallback in the Cypher query (matching exact names or prefixes) alongside vector similarity scoring. Note: The API still correctly fails hard if the embedding model is completely unreachable.
 
-### Changed
-- **RPG:** Refined domain discovery with diverse sampling (edge-aware) and hierarchical context in LLM prompts.
-- **Retry Logic:** Implemented exponential backoff for 429 errors in Summarization, Extraction, and Embedding with a 5-minute safety cap.
-- **UI:** Suppressed query logging when progress bars are active to prevent UI flickering.
-- **CLI:** Renamed `--log-file` to `--log` and updated `GRAPHDB_LOG` environment variable for consistency.
-- **Agent Tuning:** Increased Scout agent turn limit to 120 and timeout to 60 minutes for deeper research.
-
-### Fixed
-- **RPG:** Removed soft-failing fallbacks in favor of hard failures for non-retryable errors to ensure process integrity.
-- **CI:** Added `.gemini/graph_data/.gitignore` to the release bundle to prevent tracking of local graph data.
-
-
-## [1.1.307-beta] - 2026-03-25 [Pre-release]
-### Changed
-- **UI:** Suppressed query logging in `neo4j.go` when progress bars are active to prevent UI flickering.
-- **Observability:** Updated `executeQuery` to extract concise query descriptions from Cypher comments, improving log clarity.
-- **Observability:** Added `// description` comments to all major Cypher queries.
-
-## [1.1.305-beta] - 2026-03-25 [Pre-release]
-### Added
-- **RPG:** Decoupled topology generation from LLM-based semantic naming to ensure clustering progress is persisted even if summarization fails later.
-- **Scout:** Modernized the Scout agent with the Feathers Workflow and established a 'graceful fallback' protocol for tool usage.
-- **Observability:** Centralized Neo4j query logging with parameter sanitization for better transparency across all providers.
-
-### Changed
-- **RPG:** Refined domain discovery with diverse sampling (edge-aware) and hierarchical context in LLM prompts.
-- **Retry Logic:** Implemented exponential backoff for 429 errors in Summarization, Extraction, and Embedding with a 5-minute safety cap.
-- **CLI:** Renamed `--log-file` to `--log` and updated `GRAPHDB_LOG` environment variable for consistency.
-- **Agent Tuning:** Increased Scout agent turn limit to 120 and timeout to 60 minutes for deeper research.
-
-### Fixed
-- **RPG:** Removed soft-failing fallbacks in favor of hard failures for non-retryable errors to ensure process integrity.
-- **CI:** Added `.gemini/graph_data/.gitignore` to the release bundle to prevent tracking of local graph data.
-
-
-## [1.0.1] - 2026-03-22
-### Fixed
-- **UI:** Synchronized physical and semantic layer toggle states to prevent UI desyncs on initialization.
-- **UI:** Corrected node coloring logic to correctly identify semantic types ("Domain" and "Feature") from nested node properties.
-- **UI:** Fixed layout glitches in the layer toggle buttons.
-
-### Added
-- **UI:** Added a "Collapse All" button to easily reset the graph exploration state.
-- **Web Server:** Disabled client-side caching for embedded static web assets to ensure fresh UI loads.
-
-## [1.0.0] - 2026-03-21
+## [1.1.0] - 2026-03-26
 ### Added
 - **Documentation:** Mapped Michael Feathers legacy modernization workflows to GraphDB and detailed RPG granularity for complex God functions.
 
