@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.2.0] - 2026-03-27
+### Added
+- **UI Versioning:** Added a version display to the web UI footer, polling from a new `/api/health` endpoint to ensure consistency between the binary and the interface.
+- **UI UX:** Enhanced the properties pane to support multi-line, full-width display for 'Atomic Features', improving readability for complex semantic clusters.
+- **Architecture:** Introduced the `internal/progress` package to decouple UI progress state from core query and loader logic, successfully resolving long-standing circular dependencies.
+
+### Changed
+- **Logging:** Centralized query logging into a new `internal/logger` package. Cypher queries are now silenced in the terminal by default (directed to `io.Discard`) to prevent interference with interactive UI elements, but can still be captured via the `--log` flag.
+- **Server:** Updated the `Server` struct and constructor to track and expose the binary version.
+
+### Fixed
+- **Circular Dependencies:** Resolved import cycles in the Neo4j loader and query providers by migrating shared progress tracking state to the new isolated `internal/progress` package.
+
 ## [1.1.1] - 2026-03-27
 ### Fixed
 - **Query Hydration:** Fixed a bug in `GetNeighbors` where target node properties were omitted from the Cypher `RETURN` clause, resulting in `Unknown` labels and `null` properties in CLI/UI output.
