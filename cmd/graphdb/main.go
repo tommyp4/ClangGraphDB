@@ -3,8 +3,7 @@ package main
 import (
 	"fmt"
 	"graphdb/internal/config"
-	"io"
-	"log"
+	"graphdb/internal/logger"
 	"os"
 	"strings"
 )
@@ -47,20 +46,9 @@ func main() {
 		logFile = os.Getenv("GRAPHDB_LOG")
 	}
 
-	// Configure logging if requested
-	if logFile != "" {
-		f, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-		if err != nil {
-			log.Fatalf("Failed to open log file %s: %v", logFile, err)
-		}
-		defer f.Close()
+	// Configure logging
+	logger.Init(logFile)
 
-		// Write to both standard error (default) and the log file
-		mw := io.MultiWriter(os.Stderr, f)
-		log.SetOutput(mw)
-		// Add timestamp, microseconds, and file/line number for robust debugging
-		log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile)
-	}
 
 	if len(args) < 1 {
 		printUsage()

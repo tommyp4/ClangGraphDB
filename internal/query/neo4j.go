@@ -5,40 +5,21 @@ import (
 	"fmt"
 	"graphdb/internal/config"
 	"graphdb/internal/graph"
+	"graphdb/internal/logger"
+	"graphdb/internal/progress"
 	"graphdb/internal/tools/snippet"
-	"log"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j/dbtype"
 )
 
-var (
-	activePbs   int
-	activePbsMu sync.Mutex
-)
-
-// SetProgressActive increments or decrements the active progress bar count.
-// When activePbs > 0, query logging is suppressed.
-func SetProgressActive(active bool) {
-	activePbsMu.Lock()
-	defer activePbsMu.Unlock()
-	if active {
-		activePbs++
-	} else {
-		activePbs--
-		if activePbs < 0 {
-			activePbs = 0
-		}
-	}
-}
+// SetProgressActive is no longer used, as progress is tracked in progress.IsAnyActive()
+func SetProgressActive(active bool) {}
 
 func isProgressActive() bool {
-	activePbsMu.Lock()
-	defer activePbsMu.Unlock()
-	return activePbs > 0
+	return progress.IsAnyActive()
 }
 
 // Neo4jProvider implements GraphProvider using the official Neo4j Go driver.
@@ -87,12 +68,11 @@ func (p *Neo4jProvider) executeQuery(query string, params map[string]any) (*neo4
 		description = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(lines[0]), "//"))
 	}
 
-	// Only log if no progress bar is active to avoid messing up the UI
-	if !isProgressActive() {
-		log.Printf("Query: %s", description)
-	}
+	// Use the dedicated Query logger, which only writes to the log file if enabled
+	// and is always silent in the terminal.
+	logger.Query.Printf("Query: %s", description)
 
-	if params != nil && !isProgressActive() {
+	if params != nil {
 		// Sanitize params for logging to avoid bloat (redact large vectors/embeddings)
 		sanitized := make(map[string]any)
 		for k, v := range params {
@@ -102,7 +82,7 @@ func (p *Neo4jProvider) executeQuery(query string, params map[string]any) (*neo4
 				sanitized[k] = v
 			}
 		}
-		log.Printf("Params: %v", sanitized)
+		logger.Query.Printf("Params: %v", sanitized)
 	}
 	return neo4j.ExecuteQuery(p.ctx, p.driver, query, params, neo4j.EagerResultTransformer)
 }

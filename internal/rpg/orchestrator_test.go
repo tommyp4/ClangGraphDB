@@ -29,10 +29,10 @@ func (m *MockGraphProvider) Close() error { return nil }
 func (m *MockGraphProvider) Traverse(startNodeID string, relationship string, direction query.Direction, depth int) ([]*graph.Path, error) {
 	return nil, nil
 }
-func (m *MockGraphProvider) SearchFeatures(embedding []float32, limit int) ([]*query.FeatureResult, error) {
+func (m *MockGraphProvider) SearchFeatures(query string, embedding []float32, limit int) ([]*query.FeatureResult, error) {
 	return nil, nil
 }
-func (m *MockGraphProvider) SearchSimilarFunctions(embedding []float32, limit int) ([]*query.FeatureResult, error) {
+func (m *MockGraphProvider) SearchSimilarFunctions(query string, embedding []float32, limit int) ([]*query.FeatureResult, error) {
 	return nil, nil
 }
 func (m *MockGraphProvider) GetNeighbors(nodeID string, depth int) (*query.NeighborResult, error) {

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"graphdb/internal/graph"
 	"graphdb/internal/loader"
-	"log"
+	"graphdb/internal/logger"
 	"time"
 
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
@@ -361,9 +361,7 @@ func (p *Neo4jProvider) batchWriteNodes(ctx context.Context, nodes []*graph.Node
 				FOREACH (ignore IN CASE WHEN row.node_label = 'Domain' THEN [1] ELSE [] END | SET n:Domain)
 				FOREACH (ignore IN CASE WHEN row.node_label = 'Feature' THEN [1] ELSE [] END | SET n:Feature)
 			`
-			if !isProgressActive() {
-				log.Printf("Query: Batch Write Nodes (%d nodes)", len(nodeBatch))
-			}
+			logger.Query.Printf("Query: Batch Write Nodes (%d nodes)", len(nodeBatch))
 			_, txErr := tx.Run(batchCtx, query, map[string]any{"batch": nodeBatch})
 			return nil, txErr
 		})
@@ -374,9 +372,7 @@ func (p *Neo4jProvider) batchWriteNodes(ctx context.Context, nodes []*graph.Node
 			return fmt.Errorf("failed to write node batch %d/%d: %w", batchNum, totalBatches, err)
 		}
 
-		if !isProgressActive() {
-			log.Printf("Writing feature topology: nodes batch %d/%d (%d/%d)", batchNum, totalBatches, end, len(nodes))
-		}
+		logger.Query.Printf("Writing feature topology: nodes batch %d/%d (%d/%d)", batchNum, totalBatches, end, len(nodes))
 	}
 
 	return nil
@@ -423,9 +419,7 @@ func (p *Neo4jProvider) batchWriteEdges(ctx context.Context, edges []*graph.Edge
 					MATCH (target:CodeElement {id: row.targetId})
 					MERGE (source)-[r:%s]->(target)
 				`, sanitizedRelType)
-				if !isProgressActive() {
-					log.Printf("Query: Batch Write Edges [%s] (%d edges)", relType, len(batch))
-				}
+				logger.Query.Printf("Query: Batch Write Edges [%s] (%d edges)", relType, len(batch))
 				_, txErr := tx.Run(batchCtx, query, map[string]any{"batch": batch})
 				return nil, txErr
 			})
@@ -436,9 +430,7 @@ func (p *Neo4jProvider) batchWriteEdges(ctx context.Context, edges []*graph.Edge
 				return fmt.Errorf("failed to write edge batch [%s] %d/%d: %w", relType, batchNum, totalBatches, err)
 			}
 
-			if !isProgressActive() {
-				log.Printf("Writing feature topology: edges [%s] batch %d/%d (%d/%d)", relType, batchNum, totalBatches, end, len(groupEdges))
-			}
+			logger.Query.Printf("Writing feature topology: edges [%s] batch %d/%d (%d/%d)", relType, batchNum, totalBatches, end, len(groupEdges))
 		}
 	}
 

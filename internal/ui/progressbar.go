@@ -2,7 +2,7 @@ package ui
 
 import (
 	"fmt"
-	"graphdb/internal/query"
+	"graphdb/internal/progress"
 	"io"
 	"os"
 	"strings"
@@ -37,32 +37,17 @@ func isTerminal(w io.Writer) bool {
         return false
 }
 
-var (
-	activePbs   = make(map[*ProgressBar]bool)
-	activePbsMu sync.Mutex
-)
-
 // IsAnyActive returns true if any progress bar or spinner is currently active.
 func IsAnyActive() bool {
-	activePbsMu.Lock()
-	defer activePbsMu.Unlock()
-	return len(activePbs) > 0
+	return progress.IsAnyActive()
 }
 
 func registerActive(pb *ProgressBar) {
-	activePbsMu.Lock()
-	defer activePbsMu.Unlock()
-	activePbs[pb] = true
-	query.SetProgressActive(true)
+	progress.RegisterActive(pb)
 }
 
 func unregisterActive(pb *ProgressBar) {
-	activePbsMu.Lock()
-	defer activePbsMu.Unlock()
-	if _, ok := activePbs[pb]; ok {
-		delete(activePbs, pb)
-		query.SetProgressActive(false)
-	}
+	progress.UnregisterActive(pb)
 }
 
 // NewProgressBar creates a new progress bar with a known total.

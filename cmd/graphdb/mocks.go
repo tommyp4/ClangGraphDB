@@ -36,10 +36,10 @@ func (m *MockProvider) Close() error { return nil }
 func (m *MockProvider) Traverse(startNodeID string, relationship string, direction query.Direction, depth int) ([]*graph.Path, error) {
 	return nil, nil
 }
-func (m *MockProvider) SearchFeatures(embedding []float32, limit int) ([]*query.FeatureResult, error) {
+func (m *MockProvider) SearchFeatures(query string, embedding []float32, limit int) ([]*query.FeatureResult, error) {
 	return nil, nil
 }
-func (m *MockProvider) SearchSimilarFunctions(embedding []float32, limit int) ([]*query.FeatureResult, error) {
+func (m *MockProvider) SearchSimilarFunctions(query string, embedding []float32, limit int) ([]*query.FeatureResult, error) {
 	return nil, nil
 }
 func (m *MockProvider) GetNeighbors(nodeID string, depth int) (*query.NeighborResult, error) {
