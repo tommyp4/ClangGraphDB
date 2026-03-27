@@ -46,7 +46,7 @@ func TestHealthCheck(t *testing.T) {
 type mockGraphProvider struct {
 	query.GraphProvider
 	getNeighborsFunc           func(target string, depth int) (*query.NeighborResult, error)
-	SearchSimilarFunctionsFunc func(embedding []float32, limit int) ([]*query.FeatureResult, error)
+	SearchSimilarFunctionsFunc func(query string, embedding []float32, limit int) ([]*query.FeatureResult, error)
 	WhatIfFunc                 func(targets []string) (*query.WhatIfResult, error)
 	SemanticTraceFunc          func(target string) ([]*graph.Path, error)
 	}
@@ -58,9 +58,9 @@ func (m *mockGraphProvider) GetNeighbors(target string, depth int) (*query.Neigh
 	return nil, nil
 }
 
-func (m *mockGraphProvider) SearchSimilarFunctions(embedding []float32, limit int) ([]*query.FeatureResult, error) {
+func (m *mockGraphProvider) SearchSimilarFunctions(query string, embedding []float32, limit int) ([]*query.FeatureResult, error) {
 	if m.SearchSimilarFunctionsFunc != nil {
-		return m.SearchSimilarFunctionsFunc(embedding, limit)
+		return m.SearchSimilarFunctionsFunc(query, embedding, limit)
 	}
 	return nil, nil
 }
@@ -135,7 +135,10 @@ func TestQuerySearchSimilar(t *testing.T) {
 	}
 
 	mockProvider := &mockGraphProvider{
-		SearchSimilarFunctionsFunc: func(embedding []float32, limit int) ([]*query.FeatureResult, error) {
+		SearchSimilarFunctionsFunc: func(query string, embedding []float32, limit int) ([]*query.FeatureResult, error) {
+			if query != "find the database" {
+				t.Errorf("unexpected query: %s", query)
+			}
 			if len(embedding) != 3 || embedding[0] != 0.1 {
 				t.Errorf("unexpected embedding: %v", embedding)
 			}

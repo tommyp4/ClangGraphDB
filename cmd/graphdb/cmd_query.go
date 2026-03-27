@@ -63,7 +63,7 @@ func handleQuery(args []string) {
 		if err != nil {
 			log.Fatalf("Embedding failed: %v", err)
 		}
-		result, err = provider.SearchFeatures(embeddings[0], *limitPtr)
+		result, err = provider.SearchFeatures(*targetPtr, embeddings[0], *limitPtr)
 		if err != nil {
 			log.Fatalf("SearchFeatures failed: %v", err)
 		}
@@ -77,12 +77,11 @@ func handleQuery(args []string) {
 		if err != nil {
 			log.Fatalf("Embedding failed: %v", err)
 		}
-		result, err = provider.SearchSimilarFunctions(embeddings[0], *limitPtr)
+		result, err = provider.SearchSimilarFunctions(*targetPtr, embeddings[0], *limitPtr)
 		if err != nil {
 			log.Fatalf("SearchSimilarFunctions failed: %v", err)
 		}
-
-	case "hybrid-context":
+		case "hybrid-context":
 		if *targetPtr == "" {
 			log.Fatal("-target is required for 'hybrid-context'")
 		}
@@ -98,11 +97,11 @@ func handleQuery(args []string) {
 		if err != nil {
 			log.Printf("Warning: Embedding failed for hybrid search: %v", err)
 		}
-
 		var similar []*query.FeatureResult
 		if len(embeddings) > 0 {
-			similar, _ = provider.SearchSimilarFunctions(embeddings[0], *limitPtr)
+			similar, _ = provider.SearchSimilarFunctions(*targetPtr, embeddings[0], *limitPtr)
 		}
+
 
 		result = map[string]interface{}{
 			"neighbors": neighbors,

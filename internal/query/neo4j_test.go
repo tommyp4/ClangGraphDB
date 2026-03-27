@@ -350,7 +350,7 @@ func TestSearchSimilarFunctions(t *testing.T) {
 	queryVec := makeVector32(768, 0.9, 0) // float32 for Go input
 
 	// Call the new method name
-	results, err := p.SearchSimilarFunctions(queryVec, 1)
+	results, err := p.SearchSimilarFunctions("TestSim1", queryVec, 1)
 	if err != nil {
 		t.Logf("SearchSimilarFunctions failed (index might be missing): %v", err)
 		return
@@ -386,7 +386,7 @@ func TestSearchFeatures(t *testing.T) {
 
 	queryVec := makeVector32(768, 0.9, 0)
 
-	results, err := p.SearchFeatures(queryVec, 1)
+	results, err := p.SearchFeatures("TestFeature", queryVec, 1)
 	if err != nil {
 		t.Logf("SearchFeatures failed (index might be missing): %v", err)
 		return

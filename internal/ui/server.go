@@ -132,7 +132,7 @@ func (s *Server) handleQuery() http.HandlerFunc {
 				s.error(w, "Embedding failed: "+err.Error(), http.StatusInternalServerError)
 				return
 			}
-			result, err = s.provider.SearchFeatures(embeddings[0], req.Limit)
+			result, err = s.provider.SearchFeatures(req.Target, embeddings[0], req.Limit)
 		case "search-similar":
 			if req.Target == "" {
 				s.error(w, "Missing target for search-similar query", http.StatusBadRequest)
@@ -147,7 +147,7 @@ func (s *Server) handleQuery() http.HandlerFunc {
 				s.error(w, "Embedding failed: "+err.Error(), http.StatusInternalServerError)
 				return
 			}
-			result, err = s.provider.SearchSimilarFunctions(embeddings[0], req.Limit)
+			result, err = s.provider.SearchSimilarFunctions(req.Target, embeddings[0], req.Limit)
 		case "hybrid-context":
 			if req.Target == "" {
 				s.error(w, "Missing target for hybrid-context query", http.StatusBadRequest)
@@ -162,7 +162,7 @@ func (s *Server) handleQuery() http.HandlerFunc {
 			if s.embedder != nil {
 				embeddings, err := s.embedder.EmbedBatch([]string{req.Target})
 				if err == nil && len(embeddings) > 0 {
-					similar, _ = s.provider.SearchSimilarFunctions(embeddings[0], req.Limit)
+					similar, _ = s.provider.SearchSimilarFunctions(req.Target, embeddings[0], req.Limit)
 				}
 			}
 			result = map[string]interface{}{

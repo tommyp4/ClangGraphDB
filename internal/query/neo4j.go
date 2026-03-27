@@ -287,19 +287,54 @@ func (p *Neo4jProvider) SemanticTrace(nodeID string) ([]*graph.Path, error) {
 	return paths, nil
 }
 
-// SearchSimilarFunctions searches for function nodes using vector embeddings.
-func (p *Neo4jProvider) SearchSimilarFunctions(embedding []float32, limit int) ([]*FeatureResult, error) {
-	query := `
-		// Search Similar Functions
-		CALL db.index.vector.queryNodes('function_embeddings', $limit, $embedding)
-		YIELD node, score
-		RETURN node.id as id, labels(node)[0] as label, score, properties(node) as props
-	`
+// SearchSimilarFunctions searches for function nodes using vector embeddings with a literal fallback.
+func (p *Neo4jProvider) SearchSimilarFunctions(queryStr string, embedding []float32, limit int) ([]*FeatureResult, error) {
+	// Check if embedding is valid (not all zeros)
+	hasEmbedding := false
+	for _, v := range embedding {
+		if v != 0 {
+			hasEmbedding = true
+			break
+		}
+	}
 
-	result, err := p.executeQuery(query, map[string]any{
-		"limit":     limit,
-		"embedding": embedding,
-	})
+	var query string
+	params := map[string]any{
+		"query": queryStr,
+		"limit": limit,
+	}
+
+	if hasEmbedding {
+		query = `
+			// Search Similar Functions (with literal fallback)
+			OPTIONAL MATCH (exact:Function)
+			WHERE exact.name = $query OR exact.id = $query OR exact.fqn = $query OR exact.name STARTS WITH $query
+			WITH collect(exact) as exactNodes
+
+			CALL db.index.vector.queryNodes('function_embeddings', $limit, $embedding)
+			YIELD node, score
+			WITH exactNodes, node, score
+
+			UNWIND (exactNodes + [node]) as n
+			WITH n, max(CASE WHEN n IN exactNodes THEN 1.0 ELSE score END) as finalScore
+			WHERE n IS NOT NULL
+			RETURN n.id as id, labels(n)[0] as label, finalScore as score, properties(n) as props
+			ORDER BY score DESC
+			LIMIT $limit
+		`
+		params["embedding"] = embedding
+	} else {
+		query = `
+			// Search Similar Functions (literal only fallback)
+			MATCH (n:Function)
+			WHERE n.name = $query OR n.id = $query OR n.fqn = $query OR n.name STARTS WITH $query
+			RETURN n.id as id, labels(n)[0] as label, 1.0 as score, properties(n) as props
+			ORDER BY score DESC
+			LIMIT $limit
+		`
+	}
+
+	result, err := p.executeQuery(query, params)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute vector search on functions: %w", err)
@@ -332,19 +367,54 @@ func (p *Neo4jProvider) SearchSimilarFunctions(embedding []float32, limit int) (
 	return features, nil
 }
 
-// SearchFeatures searches for Feature nodes using vector embeddings.
-func (p *Neo4jProvider) SearchFeatures(embedding []float32, limit int) ([]*FeatureResult, error) {
-	query := `
-		// Search Features
-		CALL db.index.vector.queryNodes('feature_embeddings', $limit, $embedding)
-		YIELD node, score
-		RETURN node.id as id, labels(node)[0] as label, score, properties(node) as props
-	`
+// SearchFeatures searches for Feature nodes using vector embeddings with a literal fallback.
+func (p *Neo4jProvider) SearchFeatures(queryStr string, embedding []float32, limit int) ([]*FeatureResult, error) {
+	// Check if embedding is valid (not all zeros)
+	hasEmbedding := false
+	for _, v := range embedding {
+		if v != 0 {
+			hasEmbedding = true
+			break
+		}
+	}
 
-	result, err := p.executeQuery(query, map[string]any{
-		"limit":     limit,
-		"embedding": embedding,
-	})
+	var query string
+	params := map[string]any{
+		"query": queryStr,
+		"limit": limit,
+	}
+
+	if hasEmbedding {
+		query = `
+			// Search Features (with literal fallback)
+			OPTIONAL MATCH (exact:Feature)
+			WHERE exact.name = $query OR exact.id = $query OR exact.name CONTAINS $query
+			WITH collect(exact) as exactNodes
+
+			CALL db.index.vector.queryNodes('feature_embeddings', $limit, $embedding)
+			YIELD node, score
+			WITH exactNodes, node, score
+
+			UNWIND (exactNodes + [node]) as n
+			WITH n, max(CASE WHEN n IN exactNodes THEN 1.0 ELSE score END) as finalScore
+			WHERE n IS NOT NULL
+			RETURN n.id as id, labels(n)[0] as label, finalScore as score, properties(n) as props
+			ORDER BY score DESC
+			LIMIT $limit
+		`
+		params["embedding"] = embedding
+	} else {
+		query = `
+			// Search Features (literal only fallback)
+			MATCH (n:Feature)
+			WHERE n.name = $query OR n.id = $query OR n.name CONTAINS $query
+			RETURN n.id as id, labels(n)[0] as label, 1.0 as score, properties(n) as props
+			ORDER BY score DESC
+			LIMIT $limit
+		`
+	}
+
+	result, err := p.executeQuery(query, params)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute vector search on features: %w", err)

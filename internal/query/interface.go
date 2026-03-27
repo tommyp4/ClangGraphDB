@@ -113,8 +113,8 @@ type GraphProvider interface {
 	Traverse(startNodeID string, relationship string, direction Direction, depth int) ([]*graph.Path, error)
 
 	// High-Level Features
-	SearchFeatures(embedding []float32, limit int) ([]*FeatureResult, error)
-	SearchSimilarFunctions(embedding []float32, limit int) ([]*FeatureResult, error)
+	SearchFeatures(query string, embedding []float32, limit int) ([]*FeatureResult, error)
+	SearchSimilarFunctions(query string, embedding []float32, limit int) ([]*FeatureResult, error)
 	GetNeighbors(nodeID string, depth int) (*NeighborResult, error)
 	GetCallers(nodeID string) ([]string, error)
 	GetImpact(nodeID string, depth int) (*ImpactResult, error)
