@@ -94,8 +94,10 @@ func getInt(v interface{}) (int, bool) {
 }
 
 type VertexSummarizer struct {
-	Client *genai.Client
-	Model  string
+	Client   *genai.Client
+	Model    string
+	Project  string
+	Location string
 }
 
 func NewVertexSummarizer(ctx context.Context, projectID, location, model string) (*VertexSummarizer, error) {
@@ -109,8 +111,10 @@ func NewVertexSummarizer(ctx context.Context, projectID, location, model string)
 	}
 
 	return &VertexSummarizer{
-		Client: client,
-		Model:  model,
+		Client:   client,
+		Model:    model,
+		Project:  projectID,
+		Location: location,
 	}, nil
 }
 
@@ -120,6 +124,14 @@ func is429(err error) bool {
 	}
 	msg := strings.ToUpper(err.Error())
 	return strings.Contains(msg, "429") || strings.Contains(msg, "RESOURCE_EXHAUSTED") || strings.Contains(msg, "TOO MANY REQUESTS")
+}
+
+func is404(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToUpper(err.Error())
+	return strings.Contains(msg, "404") || strings.Contains(msg, "NOT FOUND") || strings.Contains(msg, "NOT_FOUND")
 }
 
 func (s *VertexSummarizer) Summarize(snippets []string, level string, extraContext string) (string, string, error) {
@@ -184,6 +196,14 @@ Code Snippets:
 		cancel()
 
 		if err != nil {
+			if is404(err) {
+				return "", "", fmt.Errorf("\n\nCRITICAL ERROR: Vertex AI returned a 404 Not Found error.\n"+
+					"This usually means the GOOGLE_CLOUD_LOCATION or GOOGLE_CLOUD_PROJECT is incorrect, "+
+					"or the model is not available in your region.\n"+
+					"Check your .env file or environment variables.\n"+
+					"Project: %s, Location: %s, Model: %s\n"+
+					"HALTING: You must fix your configuration before continuing.\n", s.Project, s.Location, s.Model)
+			}
 			if is429(err) {
 				attempt++
 				backoff := time.Duration(1<<uint(attempt)) * time.Second

@@ -17,8 +17,10 @@ type ModelClient interface {
 
 // VertexEmbedder implements the Embedder interface using Google Cloud Vertex AI via the GenAI SDK.
 type VertexEmbedder struct {
-	Client              ModelClient
-	Model               string
+	Client               ModelClient
+	Model                string
+	Project              string
+	Location             string
 	OutputDimensionality int
 }
 
@@ -36,8 +38,10 @@ func NewVertexEmbedder(ctx context.Context, projectID, location, modelName strin
 	}
 
 	return &VertexEmbedder{
-		Client:              client.Models,
-		Model:               modelName,
+		Client:               client.Models,
+		Model:                modelName,
+		Project:              projectID,
+		Location:             location,
 		OutputDimensionality: outputDimensionality,
 	}, nil
 }
@@ -48,6 +52,14 @@ func is429(err error) bool {
 	}
 	msg := strings.ToUpper(err.Error())
 	return strings.Contains(msg, "429") || strings.Contains(msg, "RESOURCE_EXHAUSTED") || strings.Contains(msg, "TOO MANY REQUESTS")
+}
+
+func is404(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToUpper(err.Error())
+	return strings.Contains(msg, "404") || strings.Contains(msg, "NOT FOUND") || strings.Contains(msg, "NOT_FOUND")
 }
 
 // EmbedBatch generates embeddings for a batch of texts.
@@ -103,6 +115,14 @@ func (v *VertexEmbedder) EmbedBatch(texts []string) ([][]float32, error) {
 			cancel()
 
 			if err != nil {
+				if is404(err) {
+					return nil, fmt.Errorf("\n\nCRITICAL ERROR: Vertex AI returned a 404 Not Found error during embedding.\n"+
+						"This usually means the GOOGLE_CLOUD_LOCATION or GOOGLE_CLOUD_PROJECT is incorrect, "+
+						"or the embedding model is not available in your region.\n"+
+						"Check your .env file or environment variables.\n"+
+						"Project: %s, Location: %s, Model: %s\n"+
+						"HALTING: You must fix your configuration before continuing.\n", v.Project, v.Location, v.Model)
+				}
 				if is429(err) {
 					attempt++
 					backoff := time.Duration(1<<uint(attempt)) * time.Second

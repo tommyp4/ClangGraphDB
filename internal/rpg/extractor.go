@@ -19,8 +19,10 @@ type FeatureExtractor interface {
 // LLMFeatureExtractor uses a Vertex AI / Gemini model to extract
 // atomic Object-Action feature descriptors from function source code.
 type LLMFeatureExtractor struct {
-	Client *genai.Client
-	Model  string
+	Client   *genai.Client
+	Model    string
+	Project  string
+	Location string
 }
 
 type extractorResponse struct {
@@ -40,8 +42,10 @@ func NewLLMFeatureExtractor(ctx context.Context, projectID, location, model stri
 	}
 
 	return &LLMFeatureExtractor{
-		Client: client,
-		Model:  model,
+		Client:   client,
+		Model:    model,
+		Project:  projectID,
+		Location: location,
 	}, nil
 }
 
@@ -96,6 +100,14 @@ func (e *LLMFeatureExtractor) Extract(code string, functionName string) ([]strin
 		cancel()
 
 		if err != nil {
+			if is404(err) {
+				return nil, false, fmt.Errorf("\n\nCRITICAL ERROR: Vertex AI returned a 404 Not Found error during extraction.\n"+
+					"This usually means the GOOGLE_CLOUD_LOCATION or GOOGLE_CLOUD_PROJECT is incorrect, "+
+					"or the model is not available in your region.\n"+
+					"Check your .env file or environment variables.\n"+
+					"Project: %s, Location: %s, Model: %s\n"+
+					"HALTING: You must fix your configuration before continuing.\n", e.Project, e.Location, e.Model)
+			}
 			if is429(err) {
 				attempt++
 				backoff := time.Duration(1<<uint(attempt)) * time.Second
