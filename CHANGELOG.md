@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.2.1] - 2026-03-31
+### Added
+- **Error Handling:** Improved Vertex AI integration to handle 404 Not Found errors as explicit hard failures. The CLI now provides users with immediate, diagnostic feedback and halts further agent execution when configuration issues (such as incorrect regions or missing projects) are detected.
+
+### Changed
+- **Documentation:** Removed redundant system documentation from this repository, as it is now managed within the `plan-commands` orchestration framework.
+
 ## [1.2.0] - 2026-03-27
 ### Added
 - **UI Versioning:** Added a version display to the web UI footer, polling from a new `/api/health` endpoint to ensure consistency between the binary and the interface.
