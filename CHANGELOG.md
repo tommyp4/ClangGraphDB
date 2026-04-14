@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.3.334-beta] - 2026-04-14 [Pre-release]
+### Fixed
+- **RPG Pipeline:** Resolved RPG feature extraction bugs (including directory context), variable-hop Cypher queries for navigation, and type assertion errors.
+- **Testing:** Fixed the mock end-to-end testing environment missing Neo4j dummy credentials.
+### Changed
+- **Config & Docs:** Updated `.gitignore` rules for `.jsonl` and untracked binaries, and added explicit instructions for 404 model errors.
+
 ## [1.3.327-beta] - 2026-04-14 [Pre-release]
 ### Added
 - **Python Parser:** Added Python parser support using tree-sitter, including class, function, inheritance, and import resolution extraction.
