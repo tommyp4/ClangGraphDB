@@ -59,7 +59,7 @@ func TestCLI_Ingest(t *testing.T) {
                 "-nodes", nodesFile,
                 "-edges", edgesFile,
         )
-            cmd.Env = append(os.Environ(), "GRAPHDB_MOCK_ENABLED=true")
+            cmd.Env = append(os.Environ(), "GRAPHDB_MOCK_ENABLED=true", "NEO4J_URI=bolt://mock", "NEO4J_USER=mock", "NEO4J_PASSWORD=mock")
             output, err := cmd.CombinedOutput()
             if err != nil {
                 t.Fatalf("Ingest command failed: %v\nOutput: %s", err, output)
@@ -103,7 +103,7 @@ func TestCLI_Query_Seams(t *testing.T) {
 	
 	    // Run query
 	    cmd := exec.Command(cliPath, "query", "-type", "seams", "-module", ".*")
-	    cmd.Env = append(os.Environ(), "GRAPHDB_MOCK_ENABLED=true")
+	    cmd.Env = append(os.Environ(), "GRAPHDB_MOCK_ENABLED=true", "NEO4J_URI=bolt://mock", "NEO4J_USER=mock", "NEO4J_PASSWORD=mock")
         output, err := cmd.Output()
         if err != nil {
 		t.Fatalf("Query command failed: %v\nOutput: %s", err, output)
@@ -125,7 +125,7 @@ func TestCLI_GlobalLogFile(t *testing.T) {
 
 	// Run an ingest command that will quickly fail or complete, but we pass the new global flag
 	cmd := exec.Command(cliPath, "--log="+logFilePath, "ingest", "-dir", "nonexistent_dir_for_test")
-	cmd.Env = append(os.Environ(), "GRAPHDB_MOCK_ENABLED=true")
+	cmd.Env = append(os.Environ(), "GRAPHDB_MOCK_ENABLED=true", "NEO4J_URI=bolt://mock", "NEO4J_USER=mock", "NEO4J_PASSWORD=mock")
 	_ = cmd.Run() // It's okay if it fails (due to nonexistent dir), we just care that it logs
 
 	// Verify log file exists
