@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.3.339-beta] - 2026-04-14 [Pre-release]
+### Fixed
+- **RPG Pipeline:** Prevented pipeline crashes on meaningless feature data by filtering out non-semantic nodes (like tests and 'unknown' placeholders). Added structured output constraints and robust handling/jitter for transient LLM API errors (429, 500+).
+
+### Changed
+- **Documentation:** Dynamically update README instructions for the latest beta release via the release manager skill.
+
 ## [1.3.336-beta] - 2026-04-14 [Pre-release]
 ### Fixed
 - **Python Parser:** Captured correct start/end line boundaries for AST nodes using tree-sitter definition blocks instead of just identifiers.
