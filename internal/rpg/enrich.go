@@ -6,6 +6,7 @@ import (
 	"graphdb/internal/embedding"
 	"graphdb/internal/graph"
 	"log"
+	"math/rand"
 	"strings"
 	"time"
 
@@ -130,12 +131,20 @@ func NewVertexSummarizer(ctx context.Context, projectID, location, model string)
 	}, nil
 }
 
-func is429(err error) bool {
+func isTransientError(err error) bool {
 	if err == nil {
 		return false
 	}
 	msg := strings.ToUpper(err.Error())
-	return strings.Contains(msg, "429") || strings.Contains(msg, "RESOURCE_EXHAUSTED") || strings.Contains(msg, "TOO MANY REQUESTS")
+	return strings.Contains(msg, "429") ||
+		strings.Contains(msg, "RESOURCE_EXHAUSTED") ||
+		strings.Contains(msg, "TOO MANY REQUESTS") ||
+		strings.Contains(msg, "500") ||
+		strings.Contains(msg, "502") ||
+		strings.Contains(msg, "503") ||
+		strings.Contains(msg, "504") ||
+		strings.Contains(msg, "INTERNAL SERVER ERROR") ||
+		strings.Contains(msg, "SERVICE UNAVAILABLE")
 }
 
 func is404(err error) bool {
@@ -199,12 +208,30 @@ Code Snippets:
 	const maxTotalWait = 5 * time.Minute
 	const requestTimeout = 120 * time.Second
 
+	config := &genai.GenerateContentConfig{
+		ResponseMIMEType: "application/json",
+		ResponseSchema: &genai.Schema{
+			Type: genai.TypeObject,
+			Properties: map[string]*genai.Schema{
+				"name": {
+					Type:        genai.TypeString,
+					Description: "A concise name for this module or feature",
+				},
+				"description": {
+					Type:        genai.TypeString,
+					Description: "A 1-3 sentence description of this module's responsibility and boundaries",
+				},
+			},
+			Required: []string{"name", "description"},
+		},
+	}
+
 	startTime := time.Now()
 	attempt := 0
 
 	for {
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-		resp, err := s.Client.Models.GenerateContent(ctx, s.Model, genai.Text(prompt), nil)
+		resp, err := s.Client.Models.GenerateContent(ctx, s.Model, genai.Text(prompt), config)
 		cancel()
 
 		if err != nil {
@@ -216,18 +243,21 @@ Code Snippets:
 					"Project: %s, Location: %s, Model: %s\n"+
 					"HALTING: You must fix your configuration before continuing.\n", s.Project, s.Location, s.Model)
 			}
-			if is429(err) {
+			if isTransientError(err) {
 				attempt++
 				backoff := time.Duration(1<<uint(attempt)) * time.Second
 				if backoff > 30*time.Second {
 					backoff = 30 * time.Second
 				}
+				// Add jitter (up to 20% of backoff)
+				jitter := time.Duration(rand.Int63n(int64(backoff) / 5))
+				backoff += jitter
 
 				if time.Since(startTime)+backoff > maxTotalWait {
-					return "", "", fmt.Errorf("summarization failed: 429 quota exhausted after %v: %w", time.Since(startTime), err)
+					return "", "", fmt.Errorf("summarization failed: transient error quota/time exhausted after %v: %w", time.Since(startTime), err)
 				}
 
-				log.Printf("Summarize received 429 (Too Many Requests). Attempt %d, retrying in %v...", attempt, backoff)
+				log.Printf("Summarize received transient error (e.g. 429/503). Attempt %d, retrying in %v...", attempt, backoff)
 				time.Sleep(backoff)
 				continue
 			}

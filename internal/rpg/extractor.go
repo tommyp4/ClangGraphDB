@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math/rand"
 	"time"
 
 	"google.golang.org/genai"
@@ -108,18 +109,20 @@ func (e *LLMFeatureExtractor) Extract(code string, functionName string) ([]strin
 					"Project: %s, Location: %s, Model: %s\n"+
 					"HALTING: You must fix your configuration before continuing.\n", e.Project, e.Location, e.Model)
 			}
-			if is429(err) {
+			if isTransientError(err) {
 				attempt++
 				backoff := time.Duration(1<<uint(attempt)) * time.Second
 				if backoff > 30*time.Second {
 					backoff = 30 * time.Second
 				}
+				jitter := time.Duration(rand.Int63n(int64(backoff) / 5))
+				backoff += jitter
 
 				if time.Since(startTime)+backoff > maxTotalWait {
-					return nil, false, fmt.Errorf("extraction failed: 429 quota exhausted after %v: %w", time.Since(startTime), err)
+					return nil, false, fmt.Errorf("extraction failed: transient error quota/time exhausted after %v: %w", time.Since(startTime), err)
 				}
 
-				log.Printf("Extraction received 429 (Too Many Requests). Attempt %d, retrying in %v...", attempt, backoff)
+				log.Printf("Extraction received transient error (e.g. 429/503). Attempt %d, retrying in %v...", attempt, backoff)
 				time.Sleep(backoff)
 				continue
 			}

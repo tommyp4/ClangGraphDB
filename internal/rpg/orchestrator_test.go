@@ -432,7 +432,7 @@ func TestOrchestratorSummarization_AbortsOnFirstError(t *testing.T) {
 		callCount++
 		return nodes, nil
 	}
-	
+
 	mockProvider.CountUnnamedFeaturesFn = func() (int64, error) {
 		return 6, nil
 	}

@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-func TestIs429(t *testing.T) {
+func TestIsTransientError(t *testing.T) {
 	tests := []struct {
 		err      error
 		expected bool
@@ -14,13 +14,17 @@ func TestIs429(t *testing.T) {
 		{fmt.Errorf("429 Too Many Requests"), true},
 		{fmt.Errorf("RESOURCE_EXHAUSTED: Quota exceeded"), true},
 		{fmt.Errorf("too many requests"), true},
-		{fmt.Errorf("500 Internal Server Error"), false},
+		{fmt.Errorf("500 Internal Server Error"), true},
+		{fmt.Errorf("502 Bad Gateway"), true},
+		{fmt.Errorf("503 Service Unavailable"), true},
+		{fmt.Errorf("504 Gateway Timeout"), true},
+		{fmt.Errorf("400 Bad Request"), false},
 		{nil, false},
 	}
 
 	for _, tt := range tests {
-		if got := is429(tt.err); got != tt.expected {
-			t.Errorf("is429(%v) = %v; want %v", tt.err, got, tt.expected)
+		if got := isTransientError(tt.err); got != tt.expected {
+			t.Errorf("isTransientError(%v) = %v; want %v", tt.err, got, tt.expected)
 		}
 	}
 }

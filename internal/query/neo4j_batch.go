@@ -164,7 +164,8 @@ func (p *Neo4jProvider) GetEmbeddingsOnly() (map[string][]float32, error) {
 	query := `
 		// Get Embeddings Only
 		MATCH (n)
-		WHERE (n:Function OR n:Feature) AND n.embedding IS NOT NULL
+		WHERE (n:Feature OR (n:Function AND coalesce(n.is_test, false) = false AND NOT (size(n.atomic_features) = 1 AND n.atomic_features[0] = 'unknown')))
+		  AND n.embedding IS NOT NULL
 		RETURN n.id as id, n.embedding as embedding
 	`
 	result, err := p.executeQuery(query, nil)
@@ -197,6 +198,8 @@ func (p *Neo4jProvider) GetFunctionMetadata() ([]*graph.Node, error) {
 	query := `
 		// Get Function Metadata
 		MATCH (n:Function)
+		WHERE coalesce(n.is_test, false) = false
+		  AND NOT (size(n.atomic_features) = 1 AND n.atomic_features[0] = 'unknown')
 		RETURN n.id as id, n.name as name, n.file as file, n.start_line as start_line, n.end_line as end_line, n.atomic_features as atomic_features
 	`
 	result, err := p.executeQuery(query, nil)
