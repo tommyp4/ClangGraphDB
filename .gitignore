@@ -4,7 +4,6 @@ VIEW/
 # Logs and Build Artifacts
 build_logs/
 *.log
-execution-trace.jsonl
 build_verification_report.txt
 
 # Data Directories
@@ -25,7 +24,6 @@ temp_tools/
 
 # Test Artifacts
 test/output/
-asp_test.jsonl
 
 # Dependencies
 /node_modules/
