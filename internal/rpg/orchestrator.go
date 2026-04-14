@@ -9,6 +9,7 @@ import (
 	"graphdb/internal/ui"
 	"log"
 	"math"
+	"path/filepath"
 )
 
 type Orchestrator struct {
@@ -271,7 +272,7 @@ func (o *Orchestrator) RunClustering(dir string) error {
 	return nil
 }
 
-func (o *Orchestrator) RunSummarization(batchSize int) error {
+func (o *Orchestrator) RunSummarization(batchSize int, dir string) error {
 	log.Printf("Starting resumable summarization (batch size: %d)...", batchSize)
 
 	total, err := o.Provider.CountUnnamedFeatures()
@@ -296,10 +297,24 @@ func (o *Orchestrator) RunSummarization(batchSize int) error {
 			break
 		}
 
+		loader := o.Loader
+		if loader == nil {
+			loader = snippet.SliceFile
+		}
+
+		// Wrap loader to handle base directory
+		wrappedLoader := func(path string, start, end int) (string, error) {
+			fullPath := path
+			if dir != "" && dir != "." {
+				fullPath = filepath.Join(dir, path)
+			}
+			return loader(fullPath, start, end)
+		}
+
 		enricher := &Enricher{
 			Client:   o.Summarizer,
 			Embedder: o.Embedder,
-			Loader:   snippet.SliceFile,
+			Loader:   wrappedLoader,
 		}
 
 		for _, node := range nodes {
