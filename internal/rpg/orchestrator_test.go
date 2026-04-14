@@ -459,7 +459,7 @@ func TestOrchestratorSummarization_AbortsOnFirstError(t *testing.T) {
 		},
 	}
 
-	err := orchestrator.RunSummarization(10)
+	err := orchestrator.RunSummarization(10, ".")
 	if err == nil {
 		t.Fatalf("RunSummarization should have failed")
 	}

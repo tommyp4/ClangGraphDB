@@ -80,7 +80,7 @@ func handleEnrichFeatures(args []string) {
 	}
 
 	// 4. Summarization
-	if err := orchestrator.RunSummarization(*batchSizePtr); err != nil {
+	if err := orchestrator.RunSummarization(*batchSizePtr, *dirPtr); err != nil {
 		log.Fatalf("Summarization failed: %v", err)
 	}
 

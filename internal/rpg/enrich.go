@@ -30,8 +30,20 @@ func (e *Enricher) Enrich(feature *Feature, functions []graph.Node, level string
 		var snippet string
 
 		// Include atomic features as context if available
-		if af, ok := fn.Properties["atomic_features"].([]string); ok && len(af) > 0 {
-			snippet = "// Atomic features: " + strings.Join(af, ", ") + "\n"
+		if afRaw, ok := fn.Properties["atomic_features"]; ok && afRaw != nil {
+			var af []string
+			if slice, ok := afRaw.([]string); ok {
+				af = slice
+			} else if slice, ok := afRaw.([]any); ok {
+				for _, v := range slice {
+					if s, ok := v.(string); ok {
+						af = append(af, s)
+					}
+				}
+			}
+			if len(af) > 0 {
+				snippet = "// Atomic features: " + strings.Join(af, ", ") + "\n"
+			}
 		}
 
 		file, okFile := fn.Properties["file"].(string)
