@@ -46,6 +46,13 @@ When running `build-all` or `enrich-features` on exceptionally large repositorie
 2. You must rely purely on the Go binary's internal `.env` loading. 
 3. If a command fails due to an `Unauthorized` or authentication error, **STOP**. Do not try to guess or brute-force the password. Report the failure directly to the user and state that the credentials in their environment or `.env` file appear to be invalid or missing.
 
+### Model & Location Errors
+**CRITICAL RULES FOR MODEL ERRORS:**
+If a command (especially `enrich-features`, `build-all`, or any semantic query) fails with a **404 error** related to the Vertex AI model or location:
+1. **STOP IMMEDIATELY**. Do not attempt to retry or automatically switch models/regions.
+2. **INTERVENTION REQUIRED**: This indicates that either the `GOOGLE_CLOUD_LOCATION` or the `GEMINI_EMBEDDING_MODEL` (or related model settings) in the `.env` file is mistyped or unsupported in that region.
+3. Report the exact error to the user and state that they must verify and correct their `.env` configuration before you can proceed.
+
 ## Workflows
 
 ### 1. The "One-Shot" Build (Recommended)
