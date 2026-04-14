@@ -16,12 +16,14 @@ When the user requests to bump the version, prepare a release, or publish a pre-
 3.  **Summarize & Update Changelog:** 
     *   Synthesize those commits into human-readable bullet points (e.g., Added, Changed, Fixed).
     *   Prepend these notes into the `CHANGELOG.md` file under the new version header, following the existing format. If it is a pre-release, clearly mark it as `[Pre-release]` in the header.
-4.  **Commit & Tag:**
-    *   Commit the updated changelog: `git commit -am "chore: release <version>"`
+4.  **Update README.md (Pre-releases only):**
+    *   If publishing a pre-release, search `README.md` for the previous beta version tag (under the "Pre-releases (Beta)" section) and replace it with the newly generated `<version>` tag so the installation commands are always up-to-date.
+5.  **Commit & Tag:**
+    *   Commit the updated changelog and README: `git commit -am "chore: release <version>"`
     *   For stable releases, create a new Git tag: `git tag <version>` (e.g., `v1.0.0`) on the *current* branch.
     *   For pre-releases, generate the version using the total git commit count as the revision number: `v<major>.<minor>.<commit_count>-beta` (e.g., `git rev-list --count HEAD` might yield 142, resulting in `v1.1.142-beta`). Create the tag: `git tag v1.1.142-beta`.
-5.  **Push:** Push the commit and the tag to GitHub: `git push origin HEAD && git push origin <version>`.
-6.  **Confirm Execution:** Inform the user that pushing the tag triggered the `.github/workflows/release.yml` GitHub Actions workflow.
+6.  **Push:** Push the commit and the tag to GitHub: `git push origin HEAD && git push origin <version>`.
+7.  **Confirm Execution:** Inform the user that pushing the tag triggered the `.github/workflows/release.yml` GitHub Actions workflow.
 
 ### Background Information
 
