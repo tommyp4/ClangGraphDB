@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.3.327-beta] - 2026-04-14 [Pre-release]
+### Added
+- **Python Parser:** Added Python parser support using tree-sitter, including class, function, inheritance, and import resolution extraction.
+
 ## [1.3.0] - 2026-04-14
 ### Added
 - **Server Infrastructure:** Improved server startup feedback and diagnostic error reporting during initialization.
