@@ -32,21 +32,26 @@ def my_function():
 	foundFunction := false
 
 	for _, n := range nodes {
-		name := n.Properties["name"].(string)
-		if n.Label == "Class" && name == "MyClass" {
-			foundClass = true
-			assert.Equal(t, "test.py:MyClass", n.Properties["fqn"])
-		}
-		if n.Label == "Function" && name == "my_method" {
-			foundMethod = true
-			assert.Equal(t, "test.py:MyClass.my_method", n.Properties["fqn"])
-		}
-		if n.Label == "Function" && name == "my_function" {
-			foundFunction = true
-			assert.Equal(t, "test.py:my_function", n.Properties["fqn"])
-		}
+	        name := n.Properties["name"].(string)
+	        if n.Label == "Class" && name == "MyClass" {
+	                foundClass = true
+	                assert.Equal(t, "test.py:MyClass", n.Properties["fqn"])
+	                assert.Equal(t, 2, n.Properties["start_line"])
+	                assert.Equal(t, 4, n.Properties["end_line"])
+	        }
+	        if n.Label == "Function" && name == "my_method" {
+	                foundMethod = true
+	                assert.Equal(t, "test.py:MyClass.my_method", n.Properties["fqn"])
+	                assert.Equal(t, 3, n.Properties["start_line"])
+	                assert.Equal(t, 4, n.Properties["end_line"])
+	        }
+	        if n.Label == "Function" && name == "my_function" {
+	                foundFunction = true
+	                assert.Equal(t, "test.py:my_function", n.Properties["fqn"])
+	                assert.Equal(t, 6, n.Properties["start_line"])
+	                assert.Equal(t, 7, n.Properties["end_line"])
+	        }
 	}
-
 	assert.True(t, foundClass, "Class MyClass not found")
 	assert.True(t, foundMethod, "Method my_method not found")
 	assert.True(t, foundFunction, "Function my_function not found")

@@ -100,48 +100,63 @@ func (p *PythonParser) Parse(filePath string, content []byte) ([]*graph.Node, []
 			break
 		}
 
+		var classNameNode *sitter.Node
+		var classDefNode *sitter.Node
+		var funcNameNode *sitter.Node
+		var funcDefNode *sitter.Node
+
 		for _, c := range m.Captures {
 			captureName := qDef.CaptureNameForId(c.Index)
-			nodeContent := c.Node.Content(content)
-
 			if captureName == "class.name" {
-				fqn := fmt.Sprintf("%s:%s", filePath, nodeContent)
-				nodeID := GenerateNodeID("Class", fqn, "")
-				nodes = append(nodes, &graph.Node{
-					ID:    nodeID,
-					Label: "Class",
-					Properties: map[string]interface{}{
-						"name":       nodeContent,
-						"fqn":        fqn,
-						"file":       filePath,
-						"start_line": int(c.Node.StartPoint().Row + 1),
-						"end_line":   int(c.Node.EndPoint().Row + 1),
-					},
-				})
+				classNameNode = c.Node
+			} else if captureName == "class.def" {
+				classDefNode = c.Node
+			} else if captureName == "function.name" {
+				funcNameNode = c.Node
+			} else if captureName == "function.def" {
+				funcDefNode = c.Node
+			}
+		}
+
+		if classNameNode != nil && classDefNode != nil {
+			nodeContent := classNameNode.Content(content)
+			fqn := fmt.Sprintf("%s:%s", filePath, nodeContent)
+			nodeID := GenerateNodeID("Class", fqn, "")
+			nodes = append(nodes, &graph.Node{
+				ID:    nodeID,
+				Label: "Class",
+				Properties: map[string]interface{}{
+					"name":       nodeContent,
+					"fqn":        fqn,
+					"file":       filePath,
+					"start_line": int(classDefNode.StartPoint().Row + 1),
+					"end_line":   int(classDefNode.EndPoint().Row + 1),
+				},
+			})
+		}
+
+		if funcNameNode != nil && funcDefNode != nil {
+			nodeContent := funcNameNode.Content(content)
+			enclosingClass := findEnclosingPythonClass(funcNameNode, content)
+			var fqn string
+			if enclosingClass != "" {
+				fqn = fmt.Sprintf("%s:%s.%s", filePath, enclosingClass, nodeContent)
+			} else {
+				fqn = fmt.Sprintf("%s:%s", filePath, nodeContent)
 			}
 
-			if captureName == "function.name" {
-				enclosingClass := findEnclosingPythonClass(c.Node, content)
-				var fqn string
-				if enclosingClass != "" {
-					fqn = fmt.Sprintf("%s:%s.%s", filePath, enclosingClass, nodeContent)
-				} else {
-					fqn = fmt.Sprintf("%s:%s", filePath, nodeContent)
-				}
-
-				nodeID := GenerateNodeID("Function", fqn, "")
-				nodes = append(nodes, &graph.Node{
-					ID:    nodeID,
-					Label: "Function",
-					Properties: map[string]interface{}{
-						"name":       nodeContent,
-						"fqn":        fqn,
-						"file":       filePath,
-						"start_line": int(c.Node.StartPoint().Row + 1),
-						"end_line":   int(c.Node.EndPoint().Row + 1),
-					},
-				})
-			}
+			nodeID := GenerateNodeID("Function", fqn, "")
+			nodes = append(nodes, &graph.Node{
+				ID:    nodeID,
+				Label: "Function",
+				Properties: map[string]interface{}{
+					"name":       nodeContent,
+					"fqn":        fqn,
+					"file":       filePath,
+					"start_line": int(funcDefNode.StartPoint().Row + 1),
+					"end_line":   int(funcDefNode.EndPoint().Row + 1),
+				},
+			})
 		}
 	}
 
