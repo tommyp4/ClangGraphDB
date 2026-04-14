@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.3.336-beta] - 2026-04-14 [Pre-release]
+### Fixed
+- **Python Parser:** Captured correct start/end line boundaries for AST nodes using tree-sitter definition blocks instead of just identifiers.
+
 ## [1.3.334-beta] - 2026-04-14 [Pre-release]
 ### Fixed
 - **RPG Pipeline:** Resolved RPG feature extraction bugs (including directory context), variable-hop Cypher queries for navigation, and type assertion errors.
