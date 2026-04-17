@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.5.347-beta] - 2026-04-17 [Pre-release]
+### Added
+- **LLM Concurrency**: Introduced `LLM_CONCURRENCY` to configure concurrent requests during feature extraction and summarization.
+### Fixed
+- **Embedding Endpoints**: Fixed an issue where Vertex AI embeddings were incorrectly routed when a custom GenAI base URL was set.
+- **Build**: Fixed a build conflict caused by scratchpad scripts in the `scripts` directory during `make test`.
+
 ## [1.5.344-beta] - 2026-04-17 [Pre-release]
 ### Added
 - **LLM Support**: Added support for custom LLM backends via `GENAI_BACKEND` and `GENAI_BASE_URL` configuration variables.
