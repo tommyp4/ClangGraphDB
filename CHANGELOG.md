@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-## [1.5.343-beta] - 2026-04-17 [Pre-release]
+## [1.5.344-beta] - 2026-04-17 [Pre-release]
 ### Added
 - **LLM Support**: Added support for custom LLM backends via `GENAI_BACKEND` and `GENAI_BASE_URL` configuration variables.
 - **Context Injection**: Added the ability to inject application context during graph enrichment via the `-app-context` flag or `OVERVIEW.md`.
