@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.4.0] - 2026-04-16
+### Added
+- **Web UI:** Added a dedicated "Tests" layer toggle to dynamically show or hide test components (files and functions) from the graph visualization.
+
+### Changed
+- **Web UI:** Enhanced the "Reset View" button to perform a full state clear and graph data reload instead of just resetting zoom coordinates.
+
 ## [1.3.339-beta] - 2026-04-14 [Pre-release]
 ### Fixed
 - **RPG Pipeline:** Prevented pipeline crashes on meaningless feature data by filtering out non-semantic nodes (like tests and 'unknown' placeholders). Added structured output constraints and robust handling/jitter for transient LLM API errors (429, 500+).
