@@ -18,8 +18,35 @@ export function initEventListeners() {
         svg.transition().duration(300).call(zoom.scaleBy, 0.7);
     });
 
-    document.getElementById('reset-view').addEventListener('click', () => {
-        svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity);
+    document.getElementById('reset-view').addEventListener('click', async () => {
+        try {
+            const data = await fetchOverview();
+            if (data && data.nodes) {
+                const fetchedNodes = data.nodes.map(n => ({
+                    id: n.id || n.Id,
+                    name: (n.properties && n.properties.name) || (n.Properties && n.Properties.name) || n.id || n.Id,
+                    properties: n.properties || n.Properties,
+                    ...n
+                }));
+
+                nodesMap.clear();
+                linksMap.clear();
+                nodes.length = 0;
+                links.length = 0;
+                updateGraph(fetchedNodes, data.edges || []);
+                
+                // Reset zoom
+                const { svg, zoom } = getGraphComponents();
+                svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity);
+                
+                // Clear selection
+                state.lastSelectedNode = null;
+                const panel = document.getElementById('impact-panel');
+                if (panel) panel.style.display = 'none';
+            }
+        } catch (err) {
+            console.error("Failed to fetch initial overview during reset:", err);
+        }
     });
 
     document.getElementById('collapse-all').addEventListener('click', () => {
@@ -54,6 +81,7 @@ export function initEventListeners() {
     // Initialize visual state
     updateLayerButtonState('btn-physical-layer', visibilitySettings.showPhysical);
     updateLayerButtonState('btn-semantic-layer', visibilitySettings.showSemantic);
+    updateLayerButtonState('btn-test-layer', visibilitySettings.showTests);
 
     document.getElementById('btn-physical-layer').addEventListener('click', (e) => {
         visibilitySettings.showPhysical = !visibilitySettings.showPhysical;
@@ -70,6 +98,12 @@ export function initEventListeners() {
         if (visibilitySettings.showSemantic) {
             nodes.filter(n => isNodeVisible(n) && isPhysical(n)).forEach(n => fetchAndExpandNeighborhood(n, "IMPLEMENTS"));
         }
+        renderGraph();
+    });
+
+    document.getElementById('btn-test-layer').addEventListener('click', (e) => {
+        visibilitySettings.showTests = !visibilitySettings.showTests;
+        updateLayerButtonState('btn-test-layer', visibilitySettings.showTests);
         renderGraph();
     });
 

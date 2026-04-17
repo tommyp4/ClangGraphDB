@@ -59,6 +59,11 @@ export function isPhysical(n) {
 
 export function isNodeVisible(n) {
     if (!n) return false;
+    
+    if (n.properties && n.properties.is_test === true && !visibilitySettings.showTests) {
+        return false;
+    }
+
     if (isSemantic(n)) return visibilitySettings.showSemantic;
     return visibilitySettings.showPhysical;
 }

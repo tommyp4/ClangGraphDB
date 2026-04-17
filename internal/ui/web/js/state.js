@@ -10,7 +10,8 @@ export const state = {
 
 export const visibilitySettings = {
     showPhysical: true,
-    showSemantic: true
+    showSemantic: true,
+    showTests: true
 };
 
 export const seamState = {
