@@ -18,6 +18,10 @@ type Config struct {
 	GeminiEmbeddingModel      string
 	GeminiEmbeddingDimensions int
 	GeminiGenerativeModel     string
+	GenAIBackend              string
+	GenAIBaseURL              string
+	GenAIAPIKey               string
+	GenAIAPIVersion           string
 }
 
 // LoadConfig loads the configuration from environment variables.
@@ -37,6 +41,10 @@ func LoadConfig() Config {
 		GeminiEmbeddingModel:      os.Getenv("GEMINI_EMBEDDING_MODEL"),
 		GeminiEmbeddingDimensions: dims,
 		GeminiGenerativeModel:     os.Getenv("GEMINI_GENERATIVE_MODEL"),
+		GenAIBackend:              os.Getenv("GENAI_BACKEND"),
+		GenAIBaseURL:              os.Getenv("GENAI_BASE_URL"),
+		GenAIAPIKey:               os.Getenv("GENAI_API_KEY"),
+		GenAIAPIVersion:           os.Getenv("GENAI_API_VERSION"),
 	}
 }
 

@@ -19,12 +19,11 @@ func handleServe(args []string) {
 	fs.Parse(args)
 
 	cfg := config.LoadConfig()
-	model := *modelPtr
-	if model == "" {
-		model = cfg.GeminiEmbeddingModel
+	if *modelPtr != "" {
+		cfg.GeminiEmbeddingModel = *modelPtr
 	}
-	if model == "" {
-		model = "gemini-embedding-001"
+	if *locationPtr != "" {
+		cfg.GoogleCloudLocation = *locationPtr
 	}
 
 	if cfg.Neo4jURI == "" {
@@ -38,7 +37,7 @@ func handleServe(args []string) {
 		os.Exit(1)
 	}
 
-	embedder := setupEmbedder(cfg.GoogleCloudProject, *locationPtr, model, cfg.GeminiEmbeddingDimensions)
+	embedder := setupEmbedder(cfg)
 
 	server := ui.NewServer(provider, embedder, cfg, Version)
 

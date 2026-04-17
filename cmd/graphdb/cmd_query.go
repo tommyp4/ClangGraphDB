@@ -32,12 +32,11 @@ func handleQuery(args []string) {
 	fs.Parse(args)
 
 	cfg := config.LoadConfig()
-	model := *modelPtr
-	if model == "" {
-		model = cfg.GeminiEmbeddingModel
+	if *modelPtr != "" {
+		cfg.GeminiEmbeddingModel = *modelPtr
 	}
-	if model == "" {
-		model = "gemini-embedding-001"
+	if *locationPtr != "" {
+		cfg.GoogleCloudLocation = *locationPtr
 	}
 
 	if cfg.Neo4jURI == "" {
@@ -58,7 +57,7 @@ func handleQuery(args []string) {
 		if *targetPtr == "" {
 			log.Fatal("-target is required for 'search-features'")
 		}
-		embedder := setupEmbedder(cfg.GoogleCloudProject, *locationPtr, model, cfg.GeminiEmbeddingDimensions)
+		embedder := setupEmbedder(cfg)
 		embeddings, err := embedder.EmbedBatch([]string{*targetPtr})
 		if err != nil {
 			log.Fatalf("Embedding failed: %v", err)
@@ -72,7 +71,7 @@ func handleQuery(args []string) {
 		if *targetPtr == "" {
 			log.Fatal("-target is required for 'search-similar'")
 		}
-		embedder := setupEmbedder(cfg.GoogleCloudProject, *locationPtr, model, cfg.GeminiEmbeddingDimensions)
+		embedder := setupEmbedder(cfg)
 		embeddings, err := embedder.EmbedBatch([]string{*targetPtr})
 		if err != nil {
 			log.Fatalf("Embedding failed: %v", err)
@@ -92,7 +91,7 @@ func handleQuery(args []string) {
 		}
 
 		// 2. Semantic Search (Dependency Layer)
-		embedder := setupEmbedder(cfg.GoogleCloudProject, *locationPtr, model, cfg.GeminiEmbeddingDimensions)
+		embedder := setupEmbedder(cfg)
 		embeddings, err := embedder.EmbedBatch([]string{*targetPtr})
 		if err != nil {
 			log.Printf("Warning: Embedding failed for hybrid search: %v", err)

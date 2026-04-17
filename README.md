@@ -62,6 +62,26 @@ GEMINI_EMBEDDING_MODEL=gemini-embedding-001
 GEMINI_EMBEDDING_DIMENSIONS=768
 ```
 
+### Custom LLM Backends (Optional)
+If you want to use a privately hosted model (like a custom Cloud Run Gemma endpoint, local Ollama, Azure OpenAI, etc.) instead of the default Vertex AI, you can override the Go SDK's `BaseURL` and backend type by adding these variables to your `.env` file:
+
+```ini
+# The type of backend (e.g., "gemini", "openai", "anthropic", "azure", "ollama")
+GENAI_BACKEND=gemini
+
+# Your custom endpoint URL (e.g., https://your-cloud-run-url or http://localhost:11434/v1)
+GENAI_BASE_URL=https://<YOUR_CUSTOM_ENDPOINT_URL>
+
+# API key (or "dummy-key" if your custom server ignores it)
+GENAI_API_KEY=dummy-key
+
+# API version mapping (e.g., v1beta)
+GENAI_API_VERSION=v1beta
+
+# The specific model ID your backend should use
+GEMINI_GENERATIVE_MODEL=gemma-4
+```
+
 ## 🗄️ Neo4j Database Setup
 
 The Code Property Graph is stored in a Neo4j database. To automate the database lifecycle, the installation bundle includes the **`neo4j-manager`** skill.

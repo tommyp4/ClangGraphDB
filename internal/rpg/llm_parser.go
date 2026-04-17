@@ -6,27 +6,30 @@ import (
 	"strings"
 )
 
-// ParseLLMJSON aggressively strips markdown and whitespace before unmarshaling.
+// ParseLLMJSON aggressively scans for JSON object or array boundaries before unmarshaling.
 func ParseLLMJSON(responseText string, target interface{}) error {
 	origText := responseText
 
-	// 1. Initial trim
-	responseText = strings.TrimSpace(responseText)
-
-	// 2. Trim optional prefix
-	if strings.HasPrefix(responseText, "```json") {
-		responseText = strings.TrimPrefix(responseText, "```json")
-	} else if strings.HasPrefix(responseText, "```") {
-		responseText = strings.TrimPrefix(responseText, "```")
+	startIdx := strings.IndexAny(responseText, "{[")
+	if startIdx == -1 {
+		return fmt.Errorf("failed to find beginning of JSON: %s", origText)
 	}
 
-	// 3. Re-trim leading whitespace and any extra backticks
-	responseText = strings.TrimLeft(responseText, "` \n\t\r")
+	var endChar byte
+	if responseText[startIdx] == '{' {
+		endChar = '}'
+	} else {
+		endChar = ']'
+	}
 
-	// 4. Trim suffix (extra backticks and whitespace from the right)
-	responseText = strings.TrimRight(responseText, "` \n\t\r")
+	endIdx := strings.LastIndexByte(responseText, endChar)
+	if endIdx == -1 || endIdx <= startIdx {
+		return fmt.Errorf("failed to find end of JSON: %s", origText)
+	}
 
-	if err := json.Unmarshal([]byte(responseText), target); err != nil {
+	jsonStr := responseText[startIdx : endIdx+1]
+
+	if err := json.Unmarshal([]byte(jsonStr), target); err != nil {
 		return fmt.Errorf("failed to parse LLM response: %w. Raw: %s", err, origText)
 	}
 	return nil

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"graphdb/internal/embedding"
 	"graphdb/internal/graph"
+	"graphdb/internal/config"
 	"log"
 	"math/rand"
 	"strings"
@@ -107,27 +108,42 @@ func getInt(v interface{}) (int, bool) {
 }
 
 type VertexSummarizer struct {
-	Client   *genai.Client
-	Model    string
-	Project  string
-	Location string
+	Client     *genai.Client
+	Model      string
+	Project    string
+	Location   string
+	AppContext string
 }
 
-func NewVertexSummarizer(ctx context.Context, projectID, location, model string) (*VertexSummarizer, error) {
-	client, err := genai.NewClient(ctx, &genai.ClientConfig{
-		Project:  projectID,
-		Location: location,
+func NewVertexSummarizer(ctx context.Context, cfg config.Config, appContext string) (*VertexSummarizer, error) {
+	clientCfg := &genai.ClientConfig{
+		Project:  cfg.GoogleCloudProject,
+		Location: cfg.GoogleCloudLocation,
 		Backend:  genai.BackendVertexAI,
-	})
+	}
+
+	if cfg.GenAIBaseURL != "" || cfg.GenAIAPIVersion != "" {
+		apiVersion := cfg.GenAIAPIVersion
+		if apiVersion == "" {
+			apiVersion = "v1" // Default Vertex API version
+		}
+		clientCfg.HTTPOptions = genai.HTTPOptions{
+			BaseURL:    cfg.GenAIBaseURL,
+			APIVersion: apiVersion,
+		}
+	}
+
+	client, err := genai.NewClient(ctx, clientCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create genai client: %w", err)
 	}
 
 	return &VertexSummarizer{
-		Client:   client,
-		Model:    model,
-		Project:  projectID,
-		Location: location,
+		Client:     client,
+		Model:      cfg.GeminiGenerativeModel,
+		Project:    cfg.GoogleCloudProject,
+		Location:   cfg.GoogleCloudLocation,
+		AppContext: appContext,
 	}, nil
 }
 
@@ -162,12 +178,16 @@ func (s *VertexSummarizer) Summarize(snippets []string, level string, extraConte
 
 	// ... (prompt generation code remains the same)
 	var prompt string
+	if s.AppContext != "" {
+		prompt += fmt.Sprintf("APPLICATION CONTEXT:\n%s\n\n", s.AppContext)
+	}
+
 	if strings.ToLower(level) == "domain" {
 		contextStr := ""
 		if extraContext != "" {
 			contextStr = "\nCONTEXT: You have already identified the following domains. Please ensure this new domain is distinct from them:\n" + extraContext + "\n"
 		}
-		prompt = fmt.Sprintf(`You are a software architect analyzing a small, modular repository (Functional Sub-systems / Feature Modules).
+		prompt += fmt.Sprintf(`You are a software architect analyzing a small, modular repository (Functional Sub-systems / Feature Modules).
 Below are representative code snippets from a cluster of related functions.
 Notice the file paths and ensure you capture the specific feature module, not just generic base classes.
 %s
@@ -186,7 +206,7 @@ Return JSON ONLY: {"name": "...", "description": "..."}
 Code Snippets:
 %s`, contextStr, strings.Join(snippets, "\n---\n"))
 	} else {
-		prompt = fmt.Sprintf(`You are a software architect performing Domain-Driven Design (DDD) analysis.
+		prompt += fmt.Sprintf(`You are a software architect performing Domain-Driven Design (DDD) analysis.
 Below are code snippets from a group of closely related functions within a larger domain.
 
 Your task is to name the specific capability or service these functions provide.

@@ -11,27 +11,27 @@ import (
 	"log"
 )
 
-func setupEmbedder(project, location, modelName string, dimensions int) embedding.Embedder {
+func setupEmbedder(cfg config.Config) embedding.Embedder {
 	ctx := context.Background()
-	embedder, err := embedding.NewVertexEmbedder(ctx, project, location, modelName, dimensions)
+	embedder, err := embedding.NewVertexEmbedder(ctx, cfg)
 	if err != nil {
 		log.Fatalf("Failed to initialize Vertex Embedder: %v", err)
 	}
 	return embedder
 }
 
-func setupSummarizer(project, location, model string) rpg.Summarizer {
+func setupSummarizer(cfg config.Config, appContext string) rpg.Summarizer {
 	ctx := context.Background()
-	summarizer, err := rpg.NewVertexSummarizer(ctx, project, location, model)
+	summarizer, err := rpg.NewVertexSummarizer(ctx, cfg, appContext)
 	if err != nil {
 		log.Fatalf("Failed to initialize Vertex Summarizer: %v", err)
 	}
 	return summarizer
 }
 
-func setupExtractor(project, location, model string) rpg.FeatureExtractor {
+func setupExtractor(cfg config.Config, appContext string) rpg.FeatureExtractor {
 	ctx := context.Background()
-	extractor, err := rpg.NewLLMFeatureExtractor(ctx, project, location, model)
+	extractor, err := rpg.NewLLMFeatureExtractor(ctx, cfg, appContext)
 	if err != nil {
 		log.Fatalf("Failed to initialize Vertex Feature Extractor: %v", err)
 	}
