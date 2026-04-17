@@ -60,6 +60,7 @@ GOOGLE_CLOUD_PROJECT=your_project_id
 GOOGLE_CLOUD_LOCATION=us-central1
 GEMINI_EMBEDDING_MODEL=gemini-embedding-001
 GEMINI_EMBEDDING_DIMENSIONS=768
+LLM_CONCURRENCY=5 # Optional: Number of concurrent LLM requests during RPG enrichment
 ```
 
 ### Custom LLM Backends (Optional)
@@ -193,6 +194,10 @@ A lightweight, single-file HTML viewer is included to visualize the trace logs.
     ```
 2.  **Open:** Navigate to `http://localhost:8080/trace-viewer.html` (or open the file directly in a modern browser).
 3.  **Load:** Drag & Drop `.gemini/execution-trace.jsonl` onto the page.
+4.  **Analyze:** Filter by session or file to see the chronological lineage of agent operations.
+
+To disable tracing, remove the `hooks` section from `.gemini/settings.json`.
+.gemini/execution-trace.jsonl` onto the page.
 4.  **Analyze:** Filter by session or file to see the chronological lineage of agent operations.
 
 To disable tracing, remove the `hooks` section from `.gemini/settings.json`.
