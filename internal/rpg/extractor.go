@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"time"
 
+	"graphdb/internal/config"
 	"google.golang.org/genai"
 )
 
@@ -20,10 +21,11 @@ type FeatureExtractor interface {
 // LLMFeatureExtractor uses a Vertex AI / Gemini model to extract
 // atomic Object-Action feature descriptors from function source code.
 type LLMFeatureExtractor struct {
-	Client   *genai.Client
-	Model    string
-	Project  string
-	Location string
+	Client     *genai.Client
+	Model      string
+	Project    string
+	Location   string
+	AppContext string
 }
 
 type extractorResponse struct {
@@ -32,21 +34,35 @@ type extractorResponse struct {
 }
 
 // NewLLMFeatureExtractor creates an LLMFeatureExtractor with defaults.
-func NewLLMFeatureExtractor(ctx context.Context, projectID, location, model string) (*LLMFeatureExtractor, error) {
-	client, err := genai.NewClient(ctx, &genai.ClientConfig{
-		Project:  projectID,
-		Location: location,
+func NewLLMFeatureExtractor(ctx context.Context, cfg config.Config, appContext string) (*LLMFeatureExtractor, error) {
+	clientCfg := &genai.ClientConfig{
+		Project:  cfg.GoogleCloudProject,
+		Location: cfg.GoogleCloudLocation,
 		Backend:  genai.BackendVertexAI,
-	})
+	}
+
+	if cfg.GenAIBaseURL != "" || cfg.GenAIAPIVersion != "" {
+		apiVersion := cfg.GenAIAPIVersion
+		if apiVersion == "" {
+			apiVersion = "v1" // Default Vertex API version
+		}
+		clientCfg.HTTPOptions = genai.HTTPOptions{
+			BaseURL:    cfg.GenAIBaseURL,
+			APIVersion: apiVersion,
+		}
+	}
+
+	client, err := genai.NewClient(ctx, clientCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create genai client: %w", err)
 	}
 
 	return &LLMFeatureExtractor{
-		Client:   client,
-		Model:    model,
-		Project:  projectID,
-		Location: location,
+		Client:     client,
+		Model:      cfg.GeminiGenerativeModel,
+		Project:    cfg.GoogleCloudProject,
+		Location:   cfg.GoogleCloudLocation,
+		AppContext: appContext,
 	}, nil
 }
 
@@ -60,7 +76,12 @@ func (e *LLMFeatureExtractor) Extract(code string, functionName string) ([]strin
 		code = code[:60000] + "\n// ... truncated"
 	}
 
-	prompt := "You are analyzing source code to extract atomic feature descriptors.\n\n" +
+	prompt := ""
+	if e.AppContext != "" {
+		prompt += fmt.Sprintf("APPLICATION CONTEXT:\n%s\n\n", e.AppContext)
+	}
+
+	prompt += "You are analyzing source code to extract atomic feature descriptors.\n\n" +
 		"For the function below, generate descriptors that capture what business entity\n" +
 		"or concept this function operates on and what it does.\n\n" +
 		"Format each descriptor as \"object-action\" (noun first, then verb):\n" +

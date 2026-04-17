@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"graphdb/internal/config"
 	"google.golang.org/genai"
 )
 
@@ -25,24 +26,37 @@ type VertexEmbedder struct {
 }
 
 // NewVertexEmbedder creates a new VertexEmbedder.
-func NewVertexEmbedder(ctx context.Context, projectID, location, modelName string, outputDimensionality int) (*VertexEmbedder, error) {
+func NewVertexEmbedder(ctx context.Context, cfg config.Config) (*VertexEmbedder, error) {
 	// Initialize the client with Vertex AI backend configuration
 	// This automatically uses Application Default Credentials (ADC)
-	client, err := genai.NewClient(ctx, &genai.ClientConfig{
-		Project:  projectID,
-		Location: location,
+	clientCfg := &genai.ClientConfig{
+		Project:  cfg.GoogleCloudProject,
+		Location: cfg.GoogleCloudLocation,
 		Backend:  genai.BackendVertexAI,
-	})
+	}
+
+	if cfg.GenAIBaseURL != "" || cfg.GenAIAPIVersion != "" {
+		apiVersion := cfg.GenAIAPIVersion
+		if apiVersion == "" {
+			apiVersion = "v1" // Default Vertex API version
+		}
+		clientCfg.HTTPOptions = genai.HTTPOptions{
+			BaseURL:    cfg.GenAIBaseURL,
+			APIVersion: apiVersion,
+		}
+	}
+
+	client, err := genai.NewClient(ctx, clientCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create genai client: %w", err)
 	}
 
 	return &VertexEmbedder{
 		Client:               client.Models,
-		Model:                modelName,
-		Project:              projectID,
-		Location:             location,
-		OutputDimensionality: outputDimensionality,
+		Model:                cfg.GeminiEmbeddingModel,
+		Project:              cfg.GoogleCloudProject,
+		Location:             cfg.GoogleCloudLocation,
+		OutputDimensionality: cfg.GeminiEmbeddingDimensions,
 	}, nil
 }
 
