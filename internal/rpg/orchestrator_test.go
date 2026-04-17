@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"graphdb/internal/graph"
 	"graphdb/internal/query"
+	"sync"
 	"testing"
 )
 
@@ -471,5 +472,123 @@ func TestOrchestratorSummarization_AbortsOnFirstError(t *testing.T) {
 	expectedErr := "summarization failed for f0 (Domain): mock summarizer error"
 	if err.Error() != expectedErr {
 		t.Errorf("Unexpected error message: %v; expected: %v", err, expectedErr)
+	}
+}
+
+func TestOrchestrator_RunExtraction_Concurrent(t *testing.T) {
+	mockProvider := &MockGraphProvider{}
+	mockProvider.CountUnextractedFunctionsFn = func() (int64, error) { return 5, nil }
+
+	var mu sync.Mutex
+	callCount := 0
+	mockProvider.GetUnextractedFunctionsFn = func(limit int) ([]*graph.Node, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		if callCount > 0 {
+			return nil, nil
+		}
+		callCount++
+		var nodes []*graph.Node
+		for i := 0; i < 5; i++ {
+			nodes = append(nodes, &graph.Node{
+				ID: fmt.Sprintf("f%d", i),
+				Properties: map[string]any{
+					"name":       "testFunc",
+					"file":       "test.go",
+					"start_line": 1,
+					"end_line":   2,
+				},
+			})
+		}
+		return nodes, nil
+	}
+
+	updateCount := 0
+	mockProvider.UpdateAtomicFeaturesFn = func(id string, features []string, isVolatile bool) error {
+		mu.Lock()
+		defer mu.Unlock()
+		updateCount++
+		return nil
+	}
+
+	orchestrator := &Orchestrator{
+		Provider:       mockProvider,
+		Extractor:      &MockFeatureExtractor{},
+		Loader:         func(path string, start, end int) (string, error) { return "code", nil },
+		LLMConcurrency: 5,
+	}
+
+	err := orchestrator.RunExtraction(10)
+	if err != nil {
+		t.Fatalf("RunExtraction failed: %v", err)
+	}
+
+	if updateCount != 5 {
+		t.Errorf("Expected 5 updates, got %d", updateCount)
+	}
+}
+
+func TestOrchestrator_RunSummarization_Concurrent(t *testing.T) {
+	mockProvider := &MockGraphProvider{}
+	mockProvider.CountUnnamedFeaturesFn = func() (int64, error) { return 5, nil }
+
+	var mu sync.Mutex
+	callCount := 0
+	mockProvider.GetUnnamedFeaturesFn = func(limit int) ([]*graph.Node, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		if callCount > 0 {
+			return nil, nil
+		}
+		callCount++
+		var nodes []*graph.Node
+		for i := 0; i < 5; i++ {
+			nodes = append(nodes, &graph.Node{
+				ID:    fmt.Sprintf("feat%d", i),
+				Label: "Feature",
+				Properties: map[string]any{
+					"name": "Cluster-001",
+				},
+			})
+		}
+		return nodes, nil
+	}
+
+	mockProvider.ExploreDomainFn = func(featureID string) (*query.DomainExplorationResult, error) {
+		return &query.DomainExplorationResult{
+			Functions: []*graph.Node{
+				{
+					Properties: map[string]any{
+						"file":       "test.go",
+						"start_line": 1,
+						"end_line":   2,
+					},
+				},
+			},
+		}, nil
+	}
+
+	updateCount := 0
+	mockProvider.UpdateFeatureSummaryFn = func(id string, name string, description string) error {
+		mu.Lock()
+		defer mu.Unlock()
+		updateCount++
+		return nil
+	}
+
+	orchestrator := &Orchestrator{
+		Provider:       mockProvider,
+		Summarizer:     &MockSummarizer{},
+		Loader:         func(path string, start, end int) (string, error) { return "code", nil },
+		LLMConcurrency: 5,
+	}
+
+	err := orchestrator.RunSummarization(10, ".")
+	if err != nil {
+		t.Fatalf("RunSummarization failed: %v", err)
+	}
+
+	if updateCount != 5 {
+		t.Errorf("Expected 5 updates, got %d", updateCount)
 	}
 }

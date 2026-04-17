@@ -10,15 +10,17 @@ import (
 	"log"
 	"math"
 	"path/filepath"
+	"sync"
 )
 
 type Orchestrator struct {
-	Provider   query.GraphProvider
-	Extractor  FeatureExtractor
-	Embedder   embedding.Embedder
-	Summarizer Summarizer
-	Seed       int64
-	Loader     func(string, int, int) (string, error)
+	Provider       query.GraphProvider
+	Extractor      FeatureExtractor
+	Embedder       embedding.Embedder
+	Summarizer     Summarizer
+	Seed           int64
+	Loader         func(string, int, int) (string, error)
+	LLMConcurrency int
 }
 
 func (o *Orchestrator) RunExtraction(batchSize int) error {
@@ -36,6 +38,11 @@ func (o *Orchestrator) RunExtraction(batchSize int) error {
 	pb := ui.NewProgressBar(total, "Extracting features")
 	defer pb.Finish()
 
+	concurrency := o.LLMConcurrency
+	if concurrency <= 0 {
+		concurrency = 1
+	}
+
 	for {
 		nodes, err := o.Provider.GetUnextractedFunctions(batchSize)
 		if err != nil {
@@ -46,58 +53,80 @@ func (o *Orchestrator) RunExtraction(batchSize int) error {
 			break
 		}
 
+		var wg sync.WaitGroup
+		sem := make(chan struct{}, concurrency)
+		errChan := make(chan error, len(nodes))
+
 		for _, node := range nodes {
-			name, _ := node.Properties["name"].(string)
-			file, _ := node.Properties["file"].(string)
-			startLineRaw, _ := node.Properties["start_line"]
-			endLineRaw, _ := node.Properties["end_line"]
+			wg.Add(1)
+			sem <- struct{}{}
 
-			startLine := 0
-			endLine := 0
-			if v, ok := startLineRaw.(int64); ok {
-				startLine = int(v)
-			} else if v, ok := startLineRaw.(int); ok {
-				startLine = v
-			}
-			if v, ok := endLineRaw.(int64); ok {
-				endLine = int(v)
-			} else if v, ok := endLineRaw.(int); ok {
-				endLine = v
-			}
+			go func(node *graph.Node) {
+				defer wg.Done()
+				defer func() { <-sem }()
 
-			if file == "" || startLine == 0 || endLine == 0 {
-				_ = o.Provider.UpdateAtomicFeatures(node.ID, []string{"unknown"}, false)
+				name, _ := node.Properties["name"].(string)
+				file, _ := node.Properties["file"].(string)
+				startLineRaw, _ := node.Properties["start_line"]
+				endLineRaw, _ := node.Properties["end_line"]
+
+				startLine := 0
+				endLine := 0
+				if v, ok := startLineRaw.(int64); ok {
+					startLine = int(v)
+				} else if v, ok := startLineRaw.(int); ok {
+					startLine = v
+				}
+				if v, ok := endLineRaw.(int64); ok {
+					endLine = int(v)
+				} else if v, ok := endLineRaw.(int); ok {
+					endLine = v
+				}
+
+				if file == "" || startLine == 0 || endLine == 0 {
+					_ = o.Provider.UpdateAtomicFeatures(node.ID, []string{"unknown"}, false)
+					pb.Add(1)
+					return
+				}
+
+				loader := o.Loader
+				if loader == nil {
+					loader = snippet.SliceFile
+				}
+
+				code, err := loader(file, startLine, endLine)
+				if err != nil {
+					log.Printf("Warning: failed to slice file %s:%d-%d: %v", file, startLine, endLine, err)
+					_ = o.Provider.UpdateAtomicFeatures(node.ID, []string{"unreadable_source"}, false)
+					pb.Add(1)
+					return
+				}
+
+				descriptors, isVolatile, err := o.Extractor.Extract(code, name)
+				if err != nil {
+					errChan <- fmt.Errorf("extraction failed for %s: %w", node.ID, err)
+					return
+				}
+
+				if len(descriptors) == 0 {
+					descriptors = []string{"no_features_detected"}
+				}
+
+				err = o.Provider.UpdateAtomicFeatures(node.ID, descriptors, isVolatile)
+				if err != nil {
+					errChan <- fmt.Errorf("failed to update atomic features for %s: %w", node.ID, err)
+					return
+				}
 				pb.Add(1)
-				continue
-			}
+			}(node)
+		}
 
-			loader := o.Loader
-			if loader == nil {
-				loader = snippet.SliceFile
-			}
-
-			code, err := loader(file, startLine, endLine)
+		wg.Wait()
+		close(errChan)
+		for err := range errChan {
 			if err != nil {
-				log.Printf("Warning: failed to slice file %s:%d-%d: %v", file, startLine, endLine, err)
-				_ = o.Provider.UpdateAtomicFeatures(node.ID, []string{"unreadable_source"}, false)
-				pb.Add(1)
-				continue
+				return err
 			}
-
-			descriptors, isVolatile, err := o.Extractor.Extract(code, name)
-			if err != nil {
-				return fmt.Errorf("extraction failed for %s: %w", node.ID, err)
-			}
-
-			if len(descriptors) == 0 {
-				descriptors = []string{"no_features_detected"}
-			}
-
-			err = o.Provider.UpdateAtomicFeatures(node.ID, descriptors, isVolatile)
-			if err != nil {
-				return fmt.Errorf("failed to update atomic features for %s: %w", node.ID, err)
-			}
-			pb.Add(1)
 		}
 	}
 
@@ -287,6 +316,11 @@ func (o *Orchestrator) RunSummarization(batchSize int, dir string) error {
 	pb := ui.NewProgressBar(total, "Summarizing features")
 	defer pb.Finish()
 
+	concurrency := o.LLMConcurrency
+	if concurrency <= 0 {
+		concurrency = 1
+	}
+
 	for {
 		nodes, err := o.Provider.GetUnnamedFeatures(batchSize)
 		if err != nil {
@@ -317,32 +351,55 @@ func (o *Orchestrator) RunSummarization(batchSize int, dir string) error {
 			Loader:   wrappedLoader,
 		}
 
+		var wg sync.WaitGroup
+		sem := make(chan struct{}, concurrency)
+		errChan := make(chan error, len(nodes))
+
 		for _, node := range nodes {
-			domain, err := o.Provider.ExploreDomain(node.ID)
+			wg.Add(1)
+			sem <- struct{}{}
+
+			go func(node *graph.Node) {
+				defer wg.Done()
+				defer func() { <-sem }()
+
+				domain, err := o.Provider.ExploreDomain(node.ID)
+				if err != nil {
+					errChan <- fmt.Errorf("failed to explore domain for %s: %w", node.ID, err)
+					return
+				}
+
+				var memberFuncs []graph.Node
+				for _, fn := range domain.Functions {
+					memberFuncs = append(memberFuncs, *fn)
+				}
+
+				f := &Feature{
+					ID:   node.ID,
+					Name: "",
+				}
+
+				err = enricher.Enrich(f, memberFuncs, node.Label)
+				if err != nil {
+					errChan <- fmt.Errorf("summarization failed for %s (%s): %w", node.ID, node.Label, err)
+					return
+				}
+
+				err = o.Provider.UpdateFeatureSummary(node.ID, f.Name, f.Description)
+				if err != nil {
+					errChan <- fmt.Errorf("failed to update feature summary for %s: %w", node.ID, err)
+					return
+				}
+				pb.Add(1)
+			}(node)
+		}
+
+		wg.Wait()
+		close(errChan)
+		for err := range errChan {
 			if err != nil {
-				return fmt.Errorf("failed to explore domain for %s: %w", node.ID, err)
+				return err
 			}
-
-			var memberFuncs []graph.Node
-			for _, fn := range domain.Functions {
-				memberFuncs = append(memberFuncs, *fn)
-			}
-
-			f := &Feature{
-				ID:   node.ID,
-				Name: "",
-			}
-
-			err = enricher.Enrich(f, memberFuncs, node.Label)
-			if err != nil {
-				return fmt.Errorf("summarization failed for %s (%s): %w", node.ID, node.Label, err)
-			}
-
-			err = o.Provider.UpdateFeatureSummary(node.ID, f.Name, f.Description)
-			if err != nil {
-				return fmt.Errorf("failed to update feature summary for %s: %w", node.ID, err)
-			}
-			pb.Add(1)
 		}
 	}
 

@@ -13,13 +13,13 @@ func handleEnrichFeatures(args []string) {
 	fs := flag.NewFlagSet("enrich-features", flag.ExitOnError)
 	dirPtr := fs.String("dir", ".", "Directory to analyze")
 	batchSizePtr := fs.Int("batch-size", 20, "Batch size for LLM feature extraction")
+	cfg := config.LoadConfig()
+	llmConcurrencyPtr := fs.Int("llm-concurrency", cfg.LLMConcurrency, "Number of concurrent LLM requests during extraction/summarization")
 	embedBatchSizePtr := fs.Int("embed-batch-size", 100, "Batch size for embedding generation")
 	seedPtr := fs.Int64("seed", 42, "Seed for deterministic K-Means clustering")
 	appContextPtr := fs.String("app-context", "", "Optional path to an OVERVIEW.md or context preamble file")
 
 	fs.Parse(args)
-
-	cfg := config.LoadConfig()
 
 	if cfg.GoogleCloudLocation == "" {
 		cfg.GoogleCloudLocation = "us-central1"
@@ -72,11 +72,12 @@ func handleEnrichFeatures(args []string) {
 	summarizer := setupSummarizer(cfg, appContext)
 
 	orchestrator := &rpg.Orchestrator{
-		Provider:   provider,
-		Extractor:  extractor,
-		Embedder:   embedder,
-		Summarizer: summarizer,
-		Seed:       *seedPtr,
+		Provider:       provider,
+		Extractor:      extractor,
+		Embedder:       embedder,
+		Summarizer:     summarizer,
+		Seed:           *seedPtr,
+		LLMConcurrency: *llmConcurrencyPtr,
 	}
 
 	log.Println("Starting Database-backed Feature Enrichment...")

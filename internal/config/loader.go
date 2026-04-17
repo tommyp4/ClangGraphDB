@@ -22,32 +22,39 @@ type Config struct {
 	GenAIBaseURL              string
 	GenAIAPIKey               string
 	GenAIAPIVersion           string
-}
+	LLMConcurrency            int
+	}
 
-// LoadConfig loads the configuration from environment variables.
-func LoadConfig() Config {
+	// LoadConfig loads the configuration from environment variables.
+	func LoadConfig() Config {
 	dimsStr := os.Getenv("GEMINI_EMBEDDING_DIMENSIONS")
 	dims, err := strconv.Atoi(dimsStr)
 	if err != nil || dims <= 0 {
-		dims = 768 // Default for gemini-embedding-001
+	        dims = 768 // Default for gemini-embedding-001
+	}
+
+	concurrencyStr := os.Getenv("LLM_CONCURRENCY")
+	concurrency, err := strconv.Atoi(concurrencyStr)
+	if err != nil || concurrency <= 0 {
+	        concurrency = 5 // Default concurrency
 	}
 
 	return Config{
-		Neo4jURI:                  os.Getenv("NEO4J_URI"),
-		Neo4jUser:                 os.Getenv("NEO4J_USER"),
-		Neo4jPassword:             os.Getenv("NEO4J_PASSWORD"),
-		GoogleCloudProject:        os.Getenv("GOOGLE_CLOUD_PROJECT"),
-		GoogleCloudLocation:       os.Getenv("GOOGLE_CLOUD_LOCATION"),
-		GeminiEmbeddingModel:      os.Getenv("GEMINI_EMBEDDING_MODEL"),
-		GeminiEmbeddingDimensions: dims,
-		GeminiGenerativeModel:     os.Getenv("GEMINI_GENERATIVE_MODEL"),
-		GenAIBackend:              os.Getenv("GENAI_BACKEND"),
-		GenAIBaseURL:              os.Getenv("GENAI_BASE_URL"),
-		GenAIAPIKey:               os.Getenv("GENAI_API_KEY"),
-		GenAIAPIVersion:           os.Getenv("GENAI_API_VERSION"),
+	        Neo4jURI:                  os.Getenv("NEO4J_URI"),
+	        Neo4jUser:                 os.Getenv("NEO4J_USER"),
+	        Neo4jPassword:             os.Getenv("NEO4J_PASSWORD"),
+	        GoogleCloudProject:        os.Getenv("GOOGLE_CLOUD_PROJECT"),
+	        GoogleCloudLocation:       os.Getenv("GOOGLE_CLOUD_LOCATION"),
+	        GeminiEmbeddingModel:      os.Getenv("GEMINI_EMBEDDING_MODEL"),
+	        GeminiEmbeddingDimensions: dims,
+	        GeminiGenerativeModel:     os.Getenv("GEMINI_GENERATIVE_MODEL"),
+	        GenAIBackend:              os.Getenv("GENAI_BACKEND"),
+	        GenAIBaseURL:              os.Getenv("GENAI_BASE_URL"),
+	        GenAIAPIKey:               os.Getenv("GENAI_API_KEY"),
+	        GenAIAPIVersion:           os.Getenv("GENAI_API_VERSION"),
+	        LLMConcurrency:            concurrency,
 	}
-}
-
+	}
 // LoadEnv loads environment variables from a .env file, searching up the directory tree.
 func LoadEnv() error {
 	dir, err := os.Getwd()

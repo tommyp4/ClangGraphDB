@@ -29,21 +29,20 @@ type VertexEmbedder struct {
 func NewVertexEmbedder(ctx context.Context, cfg config.Config) (*VertexEmbedder, error) {
 	// Initialize the client with Vertex AI backend configuration
 	// This automatically uses Application Default Credentials (ADC)
+	// We explicitly ignore GenAIBaseURL here to ensure embeddings always
+	// hit the native Vertex AI endpoints, leaving custom BaseURLs only for
+	// generative models.
 	clientCfg := &genai.ClientConfig{
-		Project:  cfg.GoogleCloudProject,
-		Location: cfg.GoogleCloudLocation,
-		Backend:  genai.BackendVertexAI,
+	        Project:  cfg.GoogleCloudProject,
+	        Location: cfg.GoogleCloudLocation,
+	        Backend:  genai.BackendVertexAI,
 	}
 
-	if cfg.GenAIBaseURL != "" || cfg.GenAIAPIVersion != "" {
-		apiVersion := cfg.GenAIAPIVersion
-		if apiVersion == "" {
-			apiVersion = "v1" // Default Vertex API version
-		}
-		clientCfg.HTTPOptions = genai.HTTPOptions{
-			BaseURL:    cfg.GenAIBaseURL,
-			APIVersion: apiVersion,
-		}
+	// Only override API version if provided, ignore BaseURL
+	if cfg.GenAIAPIVersion != "" {
+	        clientCfg.HTTPOptions = genai.HTTPOptions{
+	                APIVersion: cfg.GenAIAPIVersion,
+	        }
 	}
 
 	client, err := genai.NewClient(ctx, clientCfg)
