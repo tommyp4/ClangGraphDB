@@ -143,9 +143,9 @@ func groupNodesByLabel(nodes []graph.Node) map[string][]map[string]any {
 func buildNodeQuery(label string) string {
 	return fmt.Sprintf(`
 			UNWIND $batch AS row
-			MERGE (n:%s {id: row.id})
+			MERGE (n:CodeElement {id: row.id})
 			SET n += row
-			SET n:CodeElement
+			SET n:%s
 		`, SanitizeLabel(label))
 }
 

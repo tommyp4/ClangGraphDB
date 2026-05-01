@@ -11,11 +11,11 @@ func TestBuildNodeQuery(t *testing.T) {
 	if !strings.Contains(query, "UNWIND $batch AS row") {
 		t.Error("Missing UNWIND clause")
 	}
-	if !strings.Contains(query, "MERGE (n:Function {id: row.id})") {
+	if !strings.Contains(query, "MERGE (n:CodeElement {id: row.id})") {
 		t.Error("Missing MERGE clause with correct label")
 	}
-	if !strings.Contains(query, "SET n:CodeElement") {
-		t.Error("Missing SET n:CodeElement clause")
+	if !strings.Contains(query, "SET n:Function") {
+		t.Error("Missing SET n:Function clause")
 	}
 }
 
