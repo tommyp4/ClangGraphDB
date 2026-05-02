@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.358-beta] - 2026-05-02 [Pre-release]
+### Added
+- **UI:** Added informative tooltips to action buttons (Trace Intent Hierarchy, Simulate Extraction) for better discoverability.
+- **UI:** Added a unified "search-all" query endpoint to simultaneously search across features and functions.
+
+### Fixed
+- **UI:** Automatically fit the graph visualization to the viewport on initial load, after resets, and after searches.
+- **Docs:** Explicitly defined "RPG" as the Repository Planning Graph within the `GEMINI.md` hybrid architecture overview.
+- **Docs:** Clarified WSL binary selection in the GraphDB skill documentation.
+
 ## [1.5.351-beta] - 2026-05-01 [Pre-release]
 ### Fixed
 - **Loader:** Optimized node import query to use the global `CodeElement` index first, drastically speeding up graph import times.
