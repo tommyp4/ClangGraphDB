@@ -36,7 +36,7 @@ func (m *MockGraphProvider) SearchFeatures(query string, embedding []float32, li
 func (m *MockGraphProvider) SearchSimilarFunctions(query string, embedding []float32, limit int) ([]*query.FeatureResult, error) {
 	return nil, nil
 }
-func (m *MockGraphProvider) GetNeighbors(nodeID string, depth int) (*query.NeighborResult, error) {
+func (m *MockGraphProvider) GetNeighbors(nodeID string, depth int, limit int) (*query.NeighborResult, error) {
 	return nil, nil
 }
 func (m *MockGraphProvider) GetCallers(nodeID string) ([]string, error) { return nil, nil }

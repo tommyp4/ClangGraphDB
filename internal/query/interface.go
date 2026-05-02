@@ -115,7 +115,7 @@ type GraphProvider interface {
 	// High-Level Features
 	SearchFeatures(query string, embedding []float32, limit int) ([]*FeatureResult, error)
 	SearchSimilarFunctions(query string, embedding []float32, limit int) ([]*FeatureResult, error)
-	GetNeighbors(nodeID string, depth int) (*NeighborResult, error)
+	GetNeighbors(nodeID string, depth int, limit int) (*NeighborResult, error)
 	GetCallers(nodeID string) ([]string, error)
 	GetImpact(nodeID string, depth int) (*ImpactResult, error)
 	GetGlobals(nodeID string) (*GlobalUsageResult, error)

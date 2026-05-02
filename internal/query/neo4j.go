@@ -425,7 +425,7 @@ func (p *Neo4jProvider) SearchFeatures(queryStr string, embedding []float32, lim
 }
 
 // GetNeighbors retrieves the dependencies (functions, globals) of a node.
-func (p *Neo4jProvider) GetNeighbors(nodeID string, depth int) (*NeighborResult, error) {
+func (p *Neo4jProvider) GetNeighbors(nodeID string, depth int, limit int) (*NeighborResult, error) {
 	query := fmt.Sprintf(`
 		// Get Neighbors
 		MATCH (n)
@@ -448,14 +448,14 @@ func (p *Neo4jProvider) GetNeighbors(nodeID string, depth int) (*NeighborResult,
 		// 2. Direct Function Calls / Uses
 		OPTIONAL MATCH (s)-[:CALLS|USES]->(d)
 		WITH n, globals, collect(DISTINCT CASE WHEN d IS NOT NULL THEN {dependency: d.name, type: head(labels(d)), labels: labels(d)} ELSE NULL END) as funcs
-		
-		RETURN n, globals + funcs as dependencies
-	`, depth)
 
-	result, err := p.executeQuery(query, map[string]any{
-		"func": nodeID,
-	})
+		RETURN n, (globals + funcs)[0..$limit] as dependencies
+		`, depth)
 
+		result, err := p.executeQuery(query, map[string]any{
+		"func":  nodeID,
+		"limit": limit,
+		})
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute GetNeighbors query: %w", err)
 	}

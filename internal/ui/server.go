@@ -199,9 +199,11 @@ func (s *Server) handleQuery() http.HandlerFunc {
 				s.error(w, "Missing target for hybrid-context query", http.StatusBadRequest)
 				return
 			}
-			neighbors, err := s.provider.GetNeighbors(req.Target, req.Depth)
-			if err != nil {
-				s.error(w, "Neighbors lookup failed: "+err.Error(), http.StatusInternalServerError)
+			if req.Limit == 0 {
+			        req.Limit = 10
+			}
+			neighbors, err := s.provider.GetNeighbors(req.Target, req.Depth, req.Limit)
+			if err != nil {				s.error(w, "Neighbors lookup failed: "+err.Error(), http.StatusInternalServerError)
 				return
 			}
 			var similar []*query.FeatureResult
@@ -221,10 +223,13 @@ func (s *Server) handleQuery() http.HandlerFunc {
 				return
 			}
 			if req.Depth == 0 {
-				req.Depth = 1
+			        req.Depth = 1
 			}
-			result, err = s.provider.GetNeighbors(req.Target, req.Depth)
-		case "impact":
+			if req.Limit == 0 {
+			        req.Limit = 10
+			}
+			result, err = s.provider.GetNeighbors(req.Target, req.Depth, req.Limit)
+			case "impact":
 			if req.Target == "" {
 				s.error(w, "Missing target for impact query", http.StatusBadRequest)
 				return

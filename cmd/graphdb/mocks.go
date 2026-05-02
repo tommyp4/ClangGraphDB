@@ -42,7 +42,7 @@ func (m *MockProvider) SearchFeatures(query string, embedding []float32, limit i
 func (m *MockProvider) SearchSimilarFunctions(query string, embedding []float32, limit int) ([]*query.FeatureResult, error) {
 	return nil, nil
 }
-func (m *MockProvider) GetNeighbors(nodeID string, depth int) (*query.NeighborResult, error) {
+func (m *MockProvider) GetNeighbors(nodeID string, depth int, limit int) (*query.NeighborResult, error) {
 	return nil, nil
 }
 func (m *MockProvider) GetCallers(nodeID string) ([]string, error) { return nil, nil }

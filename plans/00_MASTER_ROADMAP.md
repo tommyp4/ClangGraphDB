@@ -353,4 +353,13 @@ Plan: Ref: `plans/12_CAMPAIGN_D3_VISUALIZER.md`
 - [ ] MCP Protocol implementation (Stdio transport).
 - [ ] "RAM Overlay" logic (Local Diff vs. Cloud Base).
 - [ ] Tool implementations (`search_features`, `traverse_deps`).
+
+### Campaign 19: Query Limits & Summary Features
+**Goal:** Handle large query outputs in the CLI to prevent LLM context exhaustion by enforcing depth/limits and providing summary outputs.
+**Status:** Completed
+**Plan:** Ref: `plans/feat_query_limits_and_summary.md`
+**Key Deliverables:**
+- [x] Enforce `-limit` flag down to Cypher in `GetNeighbors`.
+- [x] Add `-summary` flag to CLI for count-based structural views.
+
 Task Verified. Tests Passed. Code Clean. No Shortcuts Detected.

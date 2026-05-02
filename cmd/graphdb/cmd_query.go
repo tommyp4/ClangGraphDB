@@ -19,6 +19,7 @@ func handleQuery(args []string) {
 	target2Ptr := fs.String("target2", "", "Second target (e.g. for locate-usage or what-if)")
 	depthPtr := fs.Int("depth", 1, "Traversal depth")
 	limitPtr := fs.Int("limit", 10, "Result limit")
+	summaryPtr := fs.Bool("summary", false, "Output only structural metrics/counts instead of full arrays")
 	modulePtr := fs.String("module", ".*", "Module pattern for seams")
 	layerPtr := fs.String("layer", "ui", "Contamination layer for seams (ui, db, io, all)")
 	similarityPtr := fs.Float64("similarity", 0.5, "Cosine similarity threshold for semantic-seams (lower means more divergent)")
@@ -85,9 +86,8 @@ func handleQuery(args []string) {
 			log.Fatal("-target is required for 'hybrid-context'")
 		}
 		// 1. Structural Neighbors (Dependency Layer)
-		neighbors, err := provider.GetNeighbors(*targetPtr, *depthPtr)
-		if err != nil {
-			log.Fatalf("Neighbors lookup failed: %v", err)
+		neighbors, err := provider.GetNeighbors(*targetPtr, *depthPtr, *limitPtr)
+		if err != nil {			log.Fatalf("Neighbors lookup failed: %v", err)
 		}
 
 		// 2. Semantic Search (Dependency Layer)
@@ -111,10 +111,9 @@ func handleQuery(args []string) {
 		fallthrough
 	case "neighbors":
 		if *targetPtr == "" {
-			log.Fatal("-target is required for 'neighbors'")
+		        log.Fatal("-target is required for 'neighbors'")
 		}
-		result, err = provider.GetNeighbors(*targetPtr, *depthPtr)
-
+		result, err = provider.GetNeighbors(*targetPtr, *depthPtr, *limitPtr)
 	case "impact":
 		if *targetPtr == "" {
 			log.Fatal("-target is required for 'impact'")
@@ -213,12 +212,55 @@ func handleQuery(args []string) {
 	}
 
 	if err != nil {
-		log.Fatalf("Query failed: %v", err)
+	        log.Fatalf("Query failed: %v", err)
+	}
+
+	if *summaryPtr {
+	        result = summarizeResult(result)
 	}
 
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(result); err != nil {
-		log.Fatalf("Failed to encode result: %v", err)
+	        log.Fatalf("Failed to encode result: %v", err)
 	}
+}
+
+func summarizeResult(result any) any {
+        switch v := result.(type) {
+        case *query.NeighborResult:
+                if v == nil {
+                        return v
+                }
+                return map[string]any{
+                        "node":                     v.Node,
+                        "total_dependencies_found": len(v.Dependencies),
+                }
+        case map[string]interface{}:
+                // Handling the hybrid-context result map
+                summaryMap := make(map[string]interface{})
+                for key, val := range v {
+                        if key == "neighbors" {
+                                if nr, ok := val.(*query.NeighborResult); ok {
+                                        summaryMap[key] = summarizeResult(nr)
+                                } else {
+                                        summaryMap[key] = val
+                                }
+                        } else if key == "similar" {
+                                if frSlice, ok := val.([]*query.FeatureResult); ok {
+                                        summaryMap[key] = map[string]any{
+                                                "total_similar_found": len(frSlice),
+                                        }
+                                } else {
+                                        summaryMap[key] = val
+                                }
+                        } else {
+                                summaryMap[key] = val
+                        }
+                }
+                return summaryMap
+        default:
+                // For other types, return as-is for now, or implement other summaries if needed
+                return result
+        }
 }

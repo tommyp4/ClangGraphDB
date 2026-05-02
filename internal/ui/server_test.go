@@ -51,7 +51,7 @@ type mockGraphProvider struct {
 	SemanticTraceFunc          func(target string) ([]*graph.Path, error)
 	}
 
-func (m *mockGraphProvider) GetNeighbors(target string, depth int) (*query.NeighborResult, error) {
+func (m *mockGraphProvider) GetNeighbors(target string, depth int, limit int) (*query.NeighborResult, error) {
 	if m.getNeighborsFunc != nil {
 		return m.getNeighborsFunc(target, depth)
 	}

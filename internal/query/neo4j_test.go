@@ -60,11 +60,10 @@ func TestGetNeighbors(t *testing.T) {
 	}
 
 	// Test
-	result, err := p.GetNeighbors("TestFunc", 2)
+	result, err := p.GetNeighbors("TestFunc", 2, 10)
 	if err != nil {
-		t.Fatalf("GetNeighbors failed: %v", err)
+	        t.Fatalf("GetNeighbors failed: %v", err)
 	}
-
 	// Verify
 	foundGlobal := false
 	foundFunc := false
@@ -111,11 +110,10 @@ func TestGetNeighbors_Hydration(t *testing.T) {
 	}
 
 	// Test
-	result, err := p.GetNeighbors("HydratedFunc", 1)
+	result, err := p.GetNeighbors("HydratedFunc", 1, 10)
 	if err != nil {
-		t.Fatalf("GetNeighbors failed: %v", err)
+	        t.Fatalf("GetNeighbors failed: %v", err)
 	}
-
 	// Verify target node hydration
 	if result.Node == nil {
 		t.Fatal("Result node is nil")
@@ -535,8 +533,48 @@ func TestLocateUsage_SchemaMismatch(t *testing.T) {
 	// It gets start=0, end=0, then returns "missing location info" error.
 	_, err = p.LocateUsage("schema-test-source", "schema-test-target")
 	if err == nil {
-		t.Errorf("LocateUsage succeeded but should have failed because 'start_line' is missing in the DB.")
+	        t.Errorf("LocateUsage succeeded but should have failed because 'start_line' is missing in the DB.")
 	} else if !strings.Contains(err.Error(), "missing location info") {
-		t.Errorf("LocateUsage failed for unexpected reasons: %v. Expected 'missing location info' error.", err)
+	        t.Errorf("LocateUsage failed for unexpected reasons: %v. Expected 'missing location info' error.", err)
 	}
-}
+	}
+
+	func TestGetNeighbors_Limit(t *testing.T) {
+	p := getProvider(t)
+	defer p.Close()
+	defer cleanup(t, p)
+
+	fixture := `
+	        CREATE (n:Function {id: 'LimitTarget', name: 'LimitTarget'})
+	        CREATE (d1:Function {id: 'D1', name: 'D1'})
+	        CREATE (d2:Function {id: 'D2', name: 'D2'})
+	        CREATE (d3:Function {id: 'D3', name: 'D3'})
+	        CREATE (n)-[:CALLS]->(d1)
+	        CREATE (n)-[:CALLS]->(d2)
+	        CREATE (n)-[:CALLS]->(d3)
+	`
+	_, err := p.executeQuery(fixture, nil)
+	if err != nil {
+	        t.Fatalf("Failed to setup fixture: %v", err)
+	}
+
+	// Test with limit 2 (should return 2 out of 3 dependencies)
+	result, err := p.GetNeighbors("LimitTarget", 1, 2)
+	if err != nil {
+	        t.Fatalf("GetNeighbors failed: %v", err)
+	}
+
+	if len(result.Dependencies) != 2 {
+	        t.Errorf("Expected 2 dependencies due to limit, got %d", len(result.Dependencies))
+	}
+
+	// Test with limit 10 (should return all 3)
+	resultFull, err := p.GetNeighbors("LimitTarget", 1, 10)
+	if err != nil {
+	        t.Fatalf("GetNeighbors failed: %v", err)
+	}
+
+	if len(resultFull.Dependencies) != 3 {
+	        t.Errorf("Expected 3 dependencies, got %d", len(resultFull.Dependencies))
+	}
+	}
