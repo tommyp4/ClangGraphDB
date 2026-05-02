@@ -19,7 +19,7 @@ export async function fetchWhatIf(targetId) {
 }
 
 export async function fetchSearch(target) {
-    const response = await fetch(`/api/query?type=search-similar&target=${encodeURIComponent(target)}`);
+    const response = await fetch(`/api/query?type=search-all&target=${encodeURIComponent(target)}&limit=20`);
     if (!response.ok) throw new Error('Failed to fetch search results');
     return await response.json();
 }

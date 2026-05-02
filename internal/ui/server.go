@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io/fs"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -138,6 +139,46 @@ func (s *Server) handleQuery() http.HandlerFunc {
 				return
 			}
 			result, err = s.provider.SearchFeatures(req.Target, embeddings[0], req.Limit)
+		case "search-all":
+			if req.Target == "" {
+				s.error(w, "Missing target for search-all query", http.StatusBadRequest)
+				return
+			}
+			if s.embedder == nil {
+				s.error(w, "Semantic search is disabled (no embedder)", http.StatusInternalServerError)
+				return
+			}
+			embeddings, err := s.embedder.EmbedBatch([]string{req.Target})
+			if err != nil {
+				s.error(w, "Embedding failed: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+			
+			// Get functions
+			funcs, errF := s.provider.SearchSimilarFunctions(req.Target, embeddings[0], req.Limit)
+			if errF != nil {
+				funcs = []*query.FeatureResult{}
+			}
+			
+			// Get features/domains
+			feats, errFe := s.provider.SearchFeatures(req.Target, embeddings[0], req.Limit)
+			if errFe != nil {
+				feats = []*query.FeatureResult{}
+			}
+			
+			// Merge and sort
+			combined := append(funcs, feats...)
+			sort.Slice(combined, func(i, j int) bool {
+				return combined[i].Score > combined[j].Score
+			})
+			
+			// Truncate to limit
+			if len(combined) > req.Limit {
+				combined = combined[:req.Limit]
+			}
+			
+			result = combined
+			err = nil // Clear any partial errors if we got here
 		case "search-similar":
 			if req.Target == "" {
 				s.error(w, "Missing target for search-similar query", http.StatusBadRequest)
