@@ -15,7 +15,7 @@ You do not need to clone this repository or build from source to use the skill i
 Run this one-liner from your project's root directory:
 
 ```bash
-curl -sL https://github.com/jjdelorme/graphdb-skill/releases/latest/download/graphdb-skill-bundle.tar.gz | tar -xzv
+curl -sL https://github.com/jjdelorme/graphdb-skill/releases/latest/download/graphdb-bundle-linux.tar.gz | tar -xzv
 ```
 
 *Note: The extraction process preserves executable permissions, but if you encounter issues, run: `chmod +x .gemini/skills/graphdb/scripts/graphdb`*
@@ -25,7 +25,7 @@ curl -sL https://github.com/jjdelorme/graphdb-skill/releases/latest/download/gra
 Run this command from your project's root directory:
 
 ```powershell
-curl.exe -sL https://github.com/jjdelorme/graphdb-skill/releases/latest/download/graphdb-skill-bundle.tar.gz -o bundle.tar.gz; tar.exe -xzvf bundle.tar.gz; del bundle.tar.gz
+curl.exe -sL https://github.com/jjdelorme/graphdb-skill/releases/latest/download/graphdb-bundle-windows.tar.gz -o bundle.tar.gz; tar.exe -xzvf bundle.tar.gz; del bundle.tar.gz
 ```
 
 This downloads and extracts the `.gemini/` directory structure directly into your project, instantly registering the `SKILL.md` definitions, the specialized agents, and the compiled Go binary. The bundle automatically includes `.gitignore` files to prevent the downloaded skill components from being committed to your repository.
@@ -37,12 +37,12 @@ If you want to try the latest beta features (or if the `latest` stable release d
 For example, to install `v1.5.360-beta` on Linux/macOS:
 
 ```bash
-curl -sL https://github.com/jjdelorme/graphdb-skill/releases/download/v1.5.360-beta/graphdb-skill-bundle.tar.gz | tar -xzv
+curl -sL https://github.com/jjdelorme/graphdb-skill/releases/download/v1.5.360-beta/graphdb-bundle-linux.tar.gz | tar -xzv
 ```
 
 **(For Windows PowerShell users):**
 ```powershell
-curl.exe -sL https://github.com/jjdelorme/graphdb-skill/releases/download/v1.5.360-beta/graphdb-skill-bundle.tar.gz -o bundle.tar.gz; tar.exe -xzvf bundle.tar.gz; del bundle.tar.gz
+curl.exe -sL https://github.com/jjdelorme/graphdb-skill/releases/download/v1.5.360-beta/graphdb-bundle-windows.tar.gz -o bundle.tar.gz; tar.exe -xzvf bundle.tar.gz; del bundle.tar.gz
 ```
 
 ## ⚙️ Configuration & Credentials

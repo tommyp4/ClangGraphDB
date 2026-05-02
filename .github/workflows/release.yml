@@ -46,9 +46,18 @@ jobs:
           mkdir -p .gemini/graph_data
           echo "*" > .gemini/graph_data/.gitignore
 
-          tar -czvf graphdb-skill-bundle.tar.gz \
+          tar -czvf graphdb-bundle-linux.tar.gz \
             --exclude=".gemini/tools" \
             --exclude=".gemini/skills/release-manager" \
+            --exclude=".gemini/skills/graphdb/scripts/graphdb-win.exe" \
+            .gemini/agents \
+            .gemini/skills \
+            .gemini/graph_data
+
+          tar -czvf graphdb-bundle-windows.tar.gz \
+            --exclude=".gemini/tools" \
+            --exclude=".gemini/skills/release-manager" \
+            --exclude=".gemini/skills/graphdb/scripts/graphdb" \
             .gemini/agents \
             .gemini/skills \
             .gemini/graph_data
@@ -60,7 +69,8 @@ jobs:
           path: |
             .gemini/skills/graphdb/scripts/graphdb
             .gemini/skills/graphdb/scripts/graphdb-win.exe
-            graphdb-skill-bundle.tar.gz
+            graphdb-bundle-linux.tar.gz
+            graphdb-bundle-windows.tar.gz
           retention-days: 7
 
       - name: Create GitHub Release
@@ -71,5 +81,6 @@ jobs:
           files: |
             .gemini/skills/graphdb/scripts/graphdb
             .gemini/skills/graphdb/scripts/graphdb-win.exe
-            graphdb-skill-bundle.tar.gz
+            graphdb-bundle-linux.tar.gz
+            graphdb-bundle-windows.tar.gz
           generate_release_notes: true
