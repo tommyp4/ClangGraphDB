@@ -7,6 +7,7 @@ This workspace hosts the **GraphDB Skill**, a powerful subsystem for the Gemini 
 It employs a **Hybrid Architecture** that combines:
 1.  **Code Property Graph (CPG):** A Neo4j database representing precise structural relationships (Calls, Inheritance, Variable Usage) extracted from source code (C++, C#, VB.NET, SQL, etc.).
 2.  **Vector Embeddings:** Semantic understanding of code functions to identify implicit links and "conceptual" dependencies that static analysis misses. We standardize on **`gemini-embedding-001`** with **768 dimensions** for all embeddings to ensure compatibility across the ecosystem.
+3.  **Repository Planning Graph (RPG):** An AI-generated "Intent Layer" that hierarchically groups low-level code implementations into higher-level business domains and semantic features. It acts as a bridge between the structural code graph and the original developer/business intent.
 
 ## 📂 Repository Structure
 
