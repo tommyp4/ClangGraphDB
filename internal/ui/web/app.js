@@ -1,6 +1,6 @@
 import { nodes, links, nodesMap, linksMap } from './js/state.js';
 import { fetchOverview, fetchStatus, fetchConfig, fetchHealth } from './js/api.js';
-import { initGraph, updateGraph, renderGraph } from './js/graph.js';
+import { initGraph, updateGraph, renderGraph, getGraphComponents, zoomFit } from './js/graph.js';
 import { updateLegend } from './js/ui.js';
 import { initEventListeners, getHandlers } from './js/interactions.js';
 
@@ -122,6 +122,12 @@ async function bootstrap() {
             nodes.length = 0;
             links.length = 0;
             updateGraph(fetchedNodes, data.edges || []);
+
+            const { simulation } = getGraphComponents();
+            simulation.on("end.fit", () => {
+                zoomFit(750);
+                simulation.on("end.fit", null);
+            });
         }
     } catch (err) {
         console.error("Failed to fetch initial overview:", err);

@@ -245,3 +245,49 @@ function dragended(event, d) {
     d.fx = d.x;
     d.fy = d.y;
 }
+
+export function zoomFit(transitionDuration = 750) {
+    if (nodes.length === 0) return;
+
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    nodes.forEach(n => {
+        if (n.x < minX) minX = n.x;
+        if (n.x > maxX) maxX = n.x;
+        if (n.y < minY) minY = n.y;
+        if (n.y > maxY) maxY = n.y;
+    });
+
+    if (minX === Infinity) return;
+
+    const bWidth = maxX - minX;
+    const bHeight = maxY - minY;
+    
+    const containerWidth = document.getElementById('graph-container').clientWidth || width;
+    const containerHeight = document.getElementById('graph-container').clientHeight || height;
+    
+    // In case all nodes are at the exact same spot
+    if (bWidth === 0 && bHeight === 0) {
+        const transform = d3.zoomIdentity.translate(containerWidth / 2 - minX, containerHeight / 2 - minY).scale(1);
+        svg.transition().duration(transitionDuration).call(zoom.transform, transform);
+        return;
+    }
+
+    const midX = minX + bWidth / 2;
+    const midY = minY + bHeight / 2;
+    
+    const padding = 0.15; // 15% padding
+    const scaleX = (containerWidth * (1 - padding * 2)) / (bWidth || 1);
+    const scaleY = (containerHeight * (1 - padding * 2)) / (bHeight || 1);
+    
+    // Min scale to prevent zooming out into oblivion, max scale to not zoom in too tight
+    let scale = Math.min(scaleX, scaleY);
+    scale = Math.max(0.1, Math.min(scale, 1.5));
+
+    const transform = d3.zoomIdentity
+        .translate(containerWidth / 2, containerHeight / 2)
+        .scale(scale)
+        .translate(-midX, -midY);
+
+    svg.transition().duration(transitionDuration).call(zoom.transform, transform);
+}
+

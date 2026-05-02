@@ -1,6 +1,6 @@
 import { nodes, links, nodesMap, linksMap, state, visibilitySettings, seamState } from './state.js';
 import { fetchOverview, fetchTraverse, fetchWhatIf, fetchSearch, fetchSeams, fetchSemanticTrace, fetchNeighbors } from './api.js';
-import { updateGraph, renderGraph, getGraphComponents } from './graph.js';
+import { updateGraph, renderGraph, getGraphComponents, zoomFit } from './graph.js';
 import { showNodeDetails, resolveNodeName, isNodeVisible, isSemantic, isPhysical } from './ui.js';
 import { CSS_CLASSES } from './config.js';
 
@@ -35,14 +35,18 @@ export function initEventListeners() {
                 links.length = 0;
                 updateGraph(fetchedNodes, data.edges || []);
                 
-                // Reset zoom
-                const { svg, zoom } = getGraphComponents();
-                svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity);
-                
                 // Clear selection
                 state.lastSelectedNode = null;
                 const panel = document.getElementById('impact-panel');
                 if (panel) panel.style.display = 'none';
+
+                // Reset zoom using zoomFit after simulation stabilizes
+                const { simulation } = getGraphComponents();
+                simulation.alpha(1).restart();
+                simulation.on("end.fit", () => {
+                    zoomFit(750);
+                    simulation.on("end.fit", null);
+                });
             }
         } catch (err) {
             console.error("Failed to fetch initial overview during reset:", err);
@@ -342,10 +346,12 @@ async function handleSearch() {
             
             updateGraph(fetchedNodes, []);
             
-            const { svg, zoom } = getGraphComponents();
-            setTimeout(() => {
-                svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity);
-            }, 500);
+            const { simulation } = getGraphComponents();
+            simulation.alpha(1).restart();
+            simulation.on("end.fit", () => {
+                zoomFit(750);
+                simulation.on("end.fit", null);
+            });
         }
     } catch (err) {
         console.error("Failed to fetch data:", err);
