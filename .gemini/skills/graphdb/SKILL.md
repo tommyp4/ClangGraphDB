@@ -122,6 +122,10 @@ The primary way to interact with the graph is via the `query` command.
 ${graphdb_bin} query -type <type> -target "<search_term>" [options]
 ```
 
+**Global Query Options:**
+*   `-limit <int>`: Restricts the number of results returned (Default: 10). Primarily affects semantic searches (`search-features`, `search-similar`, `hybrid-context`) and dependency bounds (`neighbors`).
+*   `-summary`: (Boolean) If provided, simplifies the JSON output to only include structural metrics/counts instead of full arrays of nodes. Excellent for preventing context-window bloat when querying nodes with massive fan-out (e.g., getting counts of dependencies rather than the full list).
+
 #### Supported Languages & FQN Formats
 Structural queries utilize "Fully Qualified Names" (FQN). While the internal database IDs are more complex (including labels and signatures), the query engine is polymorphic and accepts simple FQNs or exact IDs.
 
