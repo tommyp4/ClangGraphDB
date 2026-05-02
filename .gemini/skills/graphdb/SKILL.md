@@ -12,11 +12,11 @@ Your goal is to answer questions about dependencies, seams, testing contexts, an
 You will use the `graphdb` Go binary directly. Always execute commands from the **project root directory**.
 
 **Binary Location Selection:**
-*   **Linux/macOS:** `.gemini/skills/graphdb/scripts/graphdb`
-*   **Windows:** `.gemini/skills/graphdb/scripts/graphdb-win.exe`
+*   **Linux / macOS / WSL:** `.gemini/skills/graphdb/scripts/graphdb`
+*   **Windows (PowerShell / CMD):** `.gemini/skills/graphdb/scripts/graphdb-win.exe`
 
 **Variable Definition:**
-Define `${graphdb_bin}` as the path to the binary appropriate for the current operating system.
+Define `${graphdb_bin}` as the path to the binary appropriate for the current operating system. Note: If you are running in WSL (Windows Subsystem for Linux), you are in a Linux environment and MUST use the Linux binary.
 
 **Base Command:** `${graphdb_bin} <command> [options]`
 
