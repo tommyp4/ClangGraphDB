@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.366-beta] - 2026-05-02 [Pre-release]
+### Added
+- **Query:** Added a raw Cypher query passthrough mode (`-type cypher`) for arbitrary read-only database queries.
+- **Query:** Added a native Duplicate Finder command (`-type duplicates`) to globally identify similar functions using vector embeddings.
+- **Tests:** Added comprehensive mock and integration tests for the new query interfaces.
+
 ## [1.5.363-beta] - 2026-05-02 [Pre-release]
 ### Added
 - **Docs:** Documented the new `-summary` and `-limit` global query flags in the GraphDB skill.
