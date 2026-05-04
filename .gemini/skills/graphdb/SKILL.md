@@ -141,6 +141,7 @@ Structural queries utilize "Fully Qualified Names" (FQN). While the internal dat
 | :--- | :--- | :--- | :--- |
 | `search-features` | **Intent Search.** Find features/concepts using vector search. | Natural language query | `-limit` |
 | `search-similar` | **Code Search.** Find functions semantically similar to a query. | Natural language or code snippet | `-limit` |
+| `duplicates` | **Code Search.** Find pairs of duplicated functions using vector embeddings globally. | (Ignored) | `-limit`, `-similarity` (default 0.5) |
 | `neighbors` / `test-context` | **Dependency Analysis.** Find immediate callers and callees. | Function Name (exact) | `-depth` |
 | `coverage` | **Test Analysis.** Returns tests that cover a specific production function or method. | Function Name/ID | |
 | `hybrid-context` | **Combined.** Structural neighbors + semantic similarities. Great for refactoring. | Function Name | `-depth`, `-limit` |
@@ -154,6 +155,7 @@ Structural queries utilize "Fully Qualified Names" (FQN). While the internal dat
 | `fetch-source` | **Read.** Fetch the source code of a function by ID/Name. | Function Name | |
 | `explore-domain` | **Discovery.** Explore the domain model around a concept. | Concept/Entity Name | |
 | `traverse` | **Raw Traversal.** Explore graph relationships directly. | Node ID / Name | `-edge-types`, `-direction`, `-depth` |
+| `cypher` | **Advanced.** Run a raw, read-only Cypher query directly against the Neo4j database. | (Ignored) | `-cypher "<query>"` |
 | `status` | **Verification.** Check the git commit hash stored in the graph. | (None) | |
 
 ### 4. Web Visualizer (HTTP Server)

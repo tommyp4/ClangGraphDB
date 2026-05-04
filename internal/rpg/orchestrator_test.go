@@ -30,7 +30,14 @@ func (m *MockGraphProvider) Close() error { return nil }
 func (m *MockGraphProvider) Traverse(startNodeID string, relationship string, direction query.Direction, depth int) ([]*graph.Path, error) {
 	return nil, nil
 }
-func (m *MockGraphProvider) SearchFeatures(query string, embedding []float32, limit int) ([]*query.FeatureResult, error) {
+func (m *MockGraphProvider) RunCypher(cypherQuery string) ([]map[string]any, error) {
+	return nil, nil
+}
+func (m *MockGraphProvider) FindDuplicates(similarityThreshold float64, limit int) ([]*query.DuplicateResult, error) {
+	return nil, nil
+}
+
+func (m *MockGraphProvider) SearchFeatures(queryStr string, embedding []float32, limit int) ([]*query.FeatureResult, error) {
 	return nil, nil
 }
 func (m *MockGraphProvider) SearchSimilarFunctions(query string, embedding []float32, limit int) ([]*query.FeatureResult, error) {

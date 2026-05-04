@@ -14,11 +14,12 @@ import (
 
 func handleQuery(args []string) {
 	fs := flag.NewFlagSet("query", flag.ExitOnError)
-	typePtr := fs.String("type", "", "Query type: search-features, search-similar, hybrid-context, neighbors, impact, globals, coverage, seams, hotspots, explore-domain, what-if, status, semantic-seams")
+	typePtr := fs.String("type", "", "Query type: search-features, search-similar, hybrid-context, neighbors, impact, globals, coverage, seams, hotspots, explore-domain, what-if, status, semantic-seams, cypher, duplicates")
 	targetPtr := fs.String("target", "", "Target function name or query text (comma-separated for what-if)")
 	target2Ptr := fs.String("target2", "", "Second target (e.g. for locate-usage or what-if)")
 	depthPtr := fs.Int("depth", 1, "Traversal depth")
 	limitPtr := fs.Int("limit", 10, "Result limit")
+	cypherPtr := fs.String("cypher", "", "Raw Cypher query string (for -type cypher)")
 	summaryPtr := fs.Bool("summary", false, "Output only structural metrics/counts instead of full arrays")
 	modulePtr := fs.String("module", ".*", "Module pattern for seams")
 	layerPtr := fs.String("layer", "ui", "Contamination layer for seams (ui, db, io, all)")
@@ -52,6 +53,21 @@ func handleQuery(args []string) {
 	var result any
 
 	switch *typePtr {
+	case "cypher":
+		if *cypherPtr == "" {
+			log.Fatal("-cypher is required for 'cypher' type")
+		}
+		result, err = provider.RunCypher(*cypherPtr)
+		if err != nil {
+			log.Fatalf("Cypher query failed: %v", err)
+		}
+
+	case "duplicates":
+		result, err = provider.FindDuplicates(*similarityPtr, *limitPtr)
+		if err != nil {
+			log.Fatalf("FindDuplicates failed: %v", err)
+		}
+
 	case "features": // Alias
 		fallthrough
 	case "search-features":

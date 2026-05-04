@@ -96,6 +96,15 @@ type WhatIfResult struct {
 	AffectedNodes      []*graph.Node `json:"affected_nodes"`
 }
 
+// DuplicateResult represents a pair of highly similar/duplicated functions.
+type DuplicateResult struct {
+	FunctionA  string  `json:"function_a"`
+	IDA        string  `json:"id_a"`
+	FunctionB  string  `json:"function_b"`
+	IDB        string  `json:"id_b"`
+	Similarity float64 `json:"similarity"`
+}
+
 // SemanticSeamResult represents a structural vs semantic divergence in a class or file.
 type SemanticSeamResult struct {
 	Container  string  `json:"container"`  // File or class name
@@ -111,10 +120,12 @@ type GraphProvider interface {
 
 	// Core Operations
 	Traverse(startNodeID string, relationship string, direction Direction, depth int) ([]*graph.Path, error)
+	RunCypher(query string) ([]map[string]any, error)
 
 	// High-Level Features
 	SearchFeatures(query string, embedding []float32, limit int) ([]*FeatureResult, error)
 	SearchSimilarFunctions(query string, embedding []float32, limit int) ([]*FeatureResult, error)
+	FindDuplicates(similarityThreshold float64, limit int) ([]*DuplicateResult, error)
 	GetNeighbors(nodeID string, depth int, limit int) (*NeighborResult, error)
 	GetCallers(nodeID string) ([]string, error)
 	GetImpact(nodeID string, depth int) (*ImpactResult, error)
