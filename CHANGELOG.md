@@ -5,33 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.5.366-beta] - 2026-05-02 [Pre-release]
+## [1.6.0] - 2026-05-04
 ### Added
 - **Query:** Added a raw Cypher query passthrough mode (`-type cypher`) for arbitrary read-only database queries.
 - **Query:** Added a native Duplicate Finder command (`-type duplicates`) to globally identify similar functions using vector embeddings.
-- **Tests:** Added comprehensive mock and integration tests for the new query interfaces.
-
-## [1.5.363-beta] - 2026-05-02 [Pre-release]
-### Added
-- **Docs:** Documented the new `-summary` and `-limit` global query flags in the GraphDB skill.
-- **Release:** Split the release bundle by OS to reduce download size.
-
-## [1.5.360-beta] - 2026-05-02 [Pre-release]
-### Added
 - **Query:** Enforced limits on queries and added a summary flag to prevent CLI context exhaustion.
-
-## [1.5.358-beta] - 2026-05-02 [Pre-release]
-### Added
 - **UI:** Added informative tooltips to action buttons (Trace Intent Hierarchy, Simulate Extraction) for better discoverability.
 - **UI:** Added a unified "search-all" query endpoint to simultaneously search across features and functions.
+- **Tests:** Added comprehensive mock and integration tests for the new query interfaces.
+- **Docs:** Documented the new `-summary` and `-limit` global query flags in the GraphDB skill.
+- **Release:** Split the release bundle by OS to reduce download size.
 
 ### Fixed
 - **UI:** Automatically fit the graph visualization to the viewport on initial load, after resets, and after searches.
 - **Docs:** Explicitly defined "RPG" as the Repository Planning Graph within the `GEMINI.md` hybrid architecture overview.
 - **Docs:** Clarified WSL binary selection in the GraphDB skill documentation.
-
-## [1.5.351-beta] - 2026-05-01 [Pre-release]
-### Fixed
 - **Loader:** Optimized node import query to use the global `CodeElement` index first, drastically speeding up graph import times.
 
 ## [1.5.0] - 2026-04-27
