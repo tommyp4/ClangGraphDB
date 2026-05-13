@@ -151,7 +151,7 @@ func (fc *fileContext) registerDecls(node *ASTNode, parentFQN string) {
 	switch node.Kind {
 	case "FunctionDecl", "CXXMethodDecl", "CXXConstructorDecl", "CXXDestructorDecl":
 		if !fc.isInRepo(node) || isSTLInternal(node.Name) || isStdNamespace(fqn) {
-			break
+			return
 		}
 		sig := fc.buildSignature(node)
 		label := "Function"
@@ -160,6 +160,7 @@ func (fc *fileContext) registerDecls(node *ASTNode, parentFQN string) {
 		}
 		nodeID := label + ":" + fqn + ":" + sig
 		fc.idMap[node.ID] = nodeID
+		return // don't recurse into function bodies — everything inside is local
 
 	case "CXXRecordDecl":
 		if node.CompleteDefinition && fc.isInRepo(node) && !isSTLInternal(node.Name) && !isStdNamespace(fqn) {
