@@ -150,7 +150,7 @@ func (fc *fileContext) registerDecls(node *ASTNode, parentFQN string) {
 
 	switch node.Kind {
 	case "FunctionDecl", "CXXMethodDecl", "CXXConstructorDecl", "CXXDestructorDecl":
-		if !fc.isInRepo(node) || isSTLInternal(node.Name) {
+		if !fc.isInRepo(node) || isSTLInternal(node.Name) || isStdNamespace(fqn) {
 			break
 		}
 		sig := fc.buildSignature(node)
@@ -162,19 +162,19 @@ func (fc *fileContext) registerDecls(node *ASTNode, parentFQN string) {
 		fc.idMap[node.ID] = nodeID
 
 	case "CXXRecordDecl":
-		if node.CompleteDefinition && fc.isInRepo(node) && !isSTLInternal(node.Name) {
+		if node.CompleteDefinition && fc.isInRepo(node) && !isSTLInternal(node.Name) && !isStdNamespace(fqn) {
 			nodeID := "Class:" + fqn
 			fc.idMap[node.ID] = nodeID
 		}
 
 	case "FieldDecl":
-		if fc.isInRepo(node) && !isSTLInternal(node.Name) {
+		if fc.isInRepo(node) && !isSTLInternal(node.Name) && !isStdNamespace(fqn) {
 			nodeID := "Field:" + fqn
 			fc.idMap[node.ID] = nodeID
 		}
 
 	case "VarDecl":
-		if fc.isFileScope(node) && fc.isInRepo(node) && !isSTLInternal(node.Name) {
+		if fc.isFileScope(node) && fc.isInRepo(node) && !isSTLInternal(node.Name) && !isStdNamespace(fqn) {
 			nodeID := "Global:" + fqn
 			fc.idMap[node.ID] = nodeID
 		}
@@ -478,7 +478,8 @@ func (fc *fileContext) emitNode(id, nodeType string, props map[string]string) {
 }
 
 func (fc *fileContext) emitEdge(source, target, edgeType string) {
-	if isSTLInternalID(source) || isSTLInternalID(target) {
+	if isSTLInternalID(source) || isSTLInternalID(target) ||
+		isStdNamespace(source) || isStdNamespace(target) {
 		return
 	}
 	key := source + "|" + edgeType + "|" + target
@@ -663,6 +664,10 @@ func (e *Extractor) makeRelPath(absPath string) string {
 
 func isSTLInternal(name string) bool {
 	return len(name) > 0 && name[0] == '_'
+}
+
+func isStdNamespace(fqn string) bool {
+	return strings.HasPrefix(fqn, "std::") || strings.Contains(fqn, "::std::")
 }
 
 func isSTLInternalID(id string) bool {
