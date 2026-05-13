@@ -20,7 +20,7 @@ func handleClangIngest(args []string) {
 	configPtr := flags.String("config", "Debug|Win32", "Build configuration")
 	outputPtr := flags.String("output", ".", "Output directory for nodes.jsonl and edges.jsonl")
 	noExtract := flags.Bool("no-extract", false, "Only generate compile_commands.json, skip Clang extraction")
-	workersPtr := flags.Int("workers", 4, "Number of parallel clang workers")
+	workersPtr := flags.Int("workers", 16, "Number of parallel clang workers")
 	verbosePtr := flags.Bool("verbose", false, "Verbose output")
 	includesPtr := flags.Bool("includes", true, "Extract #include relationships")
 	projectFilter := flags.String("project", "", "Only process this project name (for testing)")

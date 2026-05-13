@@ -81,6 +81,8 @@ func main() {
 		handleBuildAll(cmdArgs)
 	case "clang-build-all":
 		handleClangBuildAll(cmdArgs)
+	case "clang-incremental":
+		handleClangIncremental(cmdArgs)
 	case "version", "--version", "-v":
 		fmt.Printf("graphdb version %s\n", Version)
 	case "help", "--help", "-h":
@@ -109,6 +111,7 @@ func printUsage() {
 	fmt.Println("  build-all              One-shot: Ingest -> Import -> All Enrichment Phases")
 	fmt.Println("  clang-ingest           Parse .sln/.vcxproj and extract C++ graph via Clang")
 	fmt.Println("  clang-build-all        Clang ingest -> Import -> All Enrichment Phases")
+	fmt.Println("  clang-incremental      Incremental update: re-extract changed files + transitive includers")
 	fmt.Println("  version                Show version info")
 	fmt.Println("\nRun 'graphdb <command> --help' for command-specific options.")
 }
