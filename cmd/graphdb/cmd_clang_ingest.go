@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"clang-graphdb/internal/clangast"
-	"clang-graphdb/internal/pch"
 	"clang-graphdb/internal/vcxproj"
 )
 
@@ -25,7 +24,6 @@ func handleClangIngest(args []string) {
 	verbosePtr := flags.Bool("verbose", false, "Verbose output")
 	includesPtr := flags.Bool("includes", true, "Extract #include relationships")
 	projectFilter := flags.String("project", "", "Only process this project name (for testing)")
-	noPCH := flags.Bool("no-pch", false, "Disable precompiled header generation")
 
 	flags.Parse(args)
 
@@ -147,30 +145,6 @@ func handleClangIngest(args []string) {
 	repoRoot := findRepoRoot(*slnPtr)
 	log.Printf("  Repo root: %s", repoRoot)
 
-	// Step 3.5: Generate precompiled headers
-	var pchResult *pch.Result
-	if !*noPCH {
-		pchOutputDir := filepath.Join(*outputPtr, "pch")
-		pchTasks := pch.Plan(parsedProjects, *configPtr, pchOutputDir)
-		if len(pchTasks) > 0 {
-			log.Printf("[Step 3.5] Generating precompiled headers for %d projects...", len(pchTasks))
-			pchResult = pch.Generate(pchTasks, clangPath, *workersPtr, *verbosePtr)
-			pch.PopulateNoPCH(pchResult, parsedProjects, *configPtr)
-
-			originalCount := len(commands)
-			var filtered []vcxproj.CompileCommand
-			for _, cmd := range commands {
-				if !pchResult.SkipFiles[cmd.File] {
-					filtered = append(filtered, cmd)
-				}
-			}
-			commands = filtered
-			if skipped := originalCount - len(commands); skipped > 0 {
-				log.Printf("  Filtered %d PCH creator files from extraction", skipped)
-			}
-		}
-	}
-
 	// Step 4: Run AST extraction via clang JSON dump
 	log.Printf("[Step 4/5] Extracting AST from %d files (%d workers)...", len(commands), *workersPtr)
 
@@ -192,10 +166,6 @@ func handleClangIngest(args []string) {
 	extractor := clangast.NewExtractor(clangPath, repoRoot, nodesFile, edgesFile)
 	extractor.Workers = *workersPtr
 	extractor.Verbose = *verbosePtr
-	if pchResult != nil {
-		extractor.PCHByDir = pchResult.PCHByDir
-		extractor.NoPCHFiles = pchResult.NoPCH
-	}
 
 	// Emit File nodes for all source files first
 	for _, cmd := range commands {
