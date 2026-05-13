@@ -1,6 +1,6 @@
-package storage
+﻿package storage
 
-import "graphdb/internal/graph"
+import "clang-graphdb/internal/graph"
 
 type Emitter interface {
 	EmitNode(node *graph.Node) error

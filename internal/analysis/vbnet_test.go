@@ -1,11 +1,11 @@
-package analysis_test
+﻿package analysis_test
 
 import (
 	"os"
 	"path/filepath"
 	"testing"
 
-	"graphdb/internal/analysis"
+	"clang-graphdb/internal/analysis"
 )
 
 func TestParseVBNet(t *testing.T) {

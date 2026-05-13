@@ -1,10 +1,10 @@
-package analysis_test
+﻿package analysis_test
 
 import (
 	"strings"
 	"testing"
 
-	"graphdb/internal/analysis"
+	"clang-graphdb/internal/analysis"
 )
 
 func TestParseTypeScript_WindowsPaths(t *testing.T) {

@@ -1,4 +1,4 @@
-package ui
+﻿package ui
 
 import (
 	"embed"
@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"strings"
 
-	"graphdb/internal/config"
-	"graphdb/internal/embedding"
-	"graphdb/internal/query"
+	"clang-graphdb/internal/config"
+	"clang-graphdb/internal/embedding"
+	"clang-graphdb/internal/query"
 )
 
 //go:embed web/*

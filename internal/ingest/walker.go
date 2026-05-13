@@ -1,8 +1,8 @@
-package ingest
+﻿package ingest
 
 import (
 	"context"
-	"graphdb/internal/storage"
+	"clang-graphdb/internal/storage"
 	"io/fs"
 	"os"
 	"path/filepath"

@@ -1,9 +1,9 @@
-package analysis_test
+﻿package analysis_test
 
 import (
 	"testing"
 
-	"graphdb/internal/analysis"
+	"clang-graphdb/internal/analysis"
 )
 
 func TestParseVBNet_Namespace(t *testing.T) {

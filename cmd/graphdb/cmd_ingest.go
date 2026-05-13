@@ -1,15 +1,15 @@
-package main
+﻿package main
 
 import (
 	"bufio"
 	"bytes"
 	"context"
 	"flag"
-	"graphdb/internal/config"
-	"graphdb/internal/ingest"
-	"graphdb/internal/loader"
-	"graphdb/internal/storage"
-	"graphdb/internal/ui"
+	"clang-graphdb/internal/config"
+	"clang-graphdb/internal/ingest"
+	"clang-graphdb/internal/loader"
+	"clang-graphdb/internal/storage"
+	"clang-graphdb/internal/ui"
 	"log"
 	"os"
 	"os/exec"

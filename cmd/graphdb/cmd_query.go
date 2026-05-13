@@ -1,12 +1,12 @@
-package main
+﻿package main
 
 import (
 	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"graphdb/internal/config"
-	"graphdb/internal/query"
+	"clang-graphdb/internal/config"
+	"clang-graphdb/internal/query"
 	"log"
 	"os"
 	"strings"

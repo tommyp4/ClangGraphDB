@@ -1,4 +1,4 @@
-package main
+﻿package main
 
 import (
 	"bufio"
@@ -7,10 +7,10 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"graphdb/internal/config"
-	"graphdb/internal/graph"
-	"graphdb/internal/loader"
-	"graphdb/internal/ui"
+	"clang-graphdb/internal/config"
+	"clang-graphdb/internal/graph"
+	"clang-graphdb/internal/loader"
+	"clang-graphdb/internal/ui"
 	"log"
 	"os"
 	"path/filepath"

@@ -1,8 +1,8 @@
-package rpg
+﻿package rpg
 
 import (
 	"fmt"
-	"graphdb/internal/graph"
+	"clang-graphdb/internal/graph"
 	"strings"
 	"testing"
 )

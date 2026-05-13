@@ -1,9 +1,9 @@
-package analysis
+﻿package analysis
 
 import (
 	"testing"
 
-	"graphdb/internal/graph"
+	"clang-graphdb/internal/graph"
 )
 
 // MockParser is a dummy parser for testing purposes.

@@ -1,10 +1,10 @@
-package rpg
+﻿package rpg
 
 import (
 	"fmt"
-	"graphdb/internal/embedding"
-	"graphdb/internal/graph"
-	"graphdb/internal/ui"
+	"clang-graphdb/internal/embedding"
+	"clang-graphdb/internal/graph"
+	"clang-graphdb/internal/ui"
 	"log"
 	"math"
 	"math/rand"

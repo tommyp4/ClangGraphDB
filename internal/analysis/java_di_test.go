@@ -1,11 +1,11 @@
-package analysis_test
+﻿package analysis_test
 
 import (
 	"path/filepath"
 	"strings"
 	"testing"
     "os"
-	"graphdb/internal/analysis"
+	"clang-graphdb/internal/analysis"
 )
 
 func TestParseJavaDI(t *testing.T) {

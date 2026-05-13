@@ -1,11 +1,11 @@
-package analysis
+﻿package analysis
 
 import (
 	"fmt"
 	"regexp"
 	"strings"
 
-	"graphdb/internal/graph"
+	"clang-graphdb/internal/graph"
 )
 
 type VBNetParser struct{}

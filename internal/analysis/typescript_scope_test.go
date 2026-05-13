@@ -1,7 +1,7 @@
-package analysis_test
+﻿package analysis_test
 
 import (
-	"graphdb/internal/analysis"
+	"clang-graphdb/internal/analysis"
 	"testing"
 )
 

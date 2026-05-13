@@ -1,7 +1,7 @@
-package rpg
+﻿package rpg
 
 import (
-	"graphdb/internal/graph"
+	"clang-graphdb/internal/graph"
 	"math"
 	"strings"
 	"testing"

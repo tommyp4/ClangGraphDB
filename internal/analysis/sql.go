@@ -1,4 +1,4 @@
-package analysis
+﻿package analysis
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 
 	sitter "github.com/smacker/go-tree-sitter"
 	"github.com/smacker/go-tree-sitter/sql"
-	"graphdb/internal/graph"
+	"clang-graphdb/internal/graph"
 )
 
 type SqlParser struct{}

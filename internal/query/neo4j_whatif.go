@@ -1,7 +1,7 @@
-package query
+﻿package query
 
 import (
-	"graphdb/internal/graph"
+	"clang-graphdb/internal/graph"
 
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 )

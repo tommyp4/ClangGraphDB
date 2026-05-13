@@ -1,10 +1,10 @@
-package main
+﻿package main
 
 import (
 	"flag"
 	"fmt"
-	"graphdb/internal/config"
-	"graphdb/internal/ui"
+	"clang-graphdb/internal/config"
+	"clang-graphdb/internal/ui"
 	"log"
 	"net/http"
 	"os"

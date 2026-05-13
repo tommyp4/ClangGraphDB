@@ -1,10 +1,10 @@
-package rpg
+﻿package rpg
 
 import (
 	"context"
 	"fmt"
-	"graphdb/internal/graph"
-	"graphdb/internal/query"
+	"clang-graphdb/internal/graph"
+	"clang-graphdb/internal/query"
 	"sync"
 	"testing"
 )

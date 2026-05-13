@@ -1,8 +1,8 @@
-package main
+﻿package main
 
 import (
 	"flag"
-	"graphdb/internal/config"
+	"clang-graphdb/internal/config"
 	"log"
 )
 

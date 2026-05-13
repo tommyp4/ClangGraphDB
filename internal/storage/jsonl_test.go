@@ -1,10 +1,10 @@
-package storage_test
+﻿package storage_test
 
 import (
 	"bytes"
 	"encoding/json"
-	"graphdb/internal/graph"
-	"graphdb/internal/storage"
+	"clang-graphdb/internal/graph"
+	"clang-graphdb/internal/storage"
 	"testing"
 )
 

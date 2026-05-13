@@ -1,11 +1,11 @@
-package analysis
+﻿package analysis
 
 import (
 	"path/filepath"
 	"regexp"
 	"strings"
 
-	"graphdb/internal/graph"
+	"clang-graphdb/internal/graph"
 )
 
 type AspParser struct{}

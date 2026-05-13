@@ -1,13 +1,13 @@
-//go:build test_mocks
+﻿//go:build test_mocks
 
 package main
 
 import (
 	"context"
-	"graphdb/internal/config"
-	"graphdb/internal/embedding"
-	"graphdb/internal/query"
-	"graphdb/internal/rpg"
+	"clang-graphdb/internal/config"
+	"clang-graphdb/internal/embedding"
+	"clang-graphdb/internal/query"
+	"clang-graphdb/internal/rpg"
 	"log"
 	"os"
 )

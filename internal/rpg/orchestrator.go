@@ -1,12 +1,12 @@
-package rpg
+﻿package rpg
 
 import (
 	"fmt"
-	"graphdb/internal/embedding"
-	"graphdb/internal/graph"
-	"graphdb/internal/query"
-	"graphdb/internal/tools/snippet"
-	"graphdb/internal/ui"
+	"clang-graphdb/internal/embedding"
+	"clang-graphdb/internal/graph"
+	"clang-graphdb/internal/query"
+	"clang-graphdb/internal/tools/snippet"
+	"clang-graphdb/internal/ui"
 	"log"
 	"math"
 	"path/filepath"

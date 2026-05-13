@@ -1,4 +1,4 @@
-//go:build ignore
+﻿//go:build ignore
 
 package main
 
@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"graphdb/internal/config"
-	"graphdb/internal/rpg"
+	"clang-graphdb/internal/config"
+	"clang-graphdb/internal/rpg"
 )
 
 func main() {

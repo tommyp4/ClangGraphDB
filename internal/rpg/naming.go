@@ -1,9 +1,9 @@
-package rpg
+﻿package rpg
 
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"graphdb/internal/graph"
+	"clang-graphdb/internal/graph"
 	"path/filepath"
 	"regexp"
 	"strings"

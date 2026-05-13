@@ -1,10 +1,10 @@
-package ingest
+﻿package ingest
 
 import (
 	"fmt"
-	"graphdb/internal/analysis"
-	"graphdb/internal/graph"
-	"graphdb/internal/storage"
+	"clang-graphdb/internal/analysis"
+	"clang-graphdb/internal/graph"
+	"clang-graphdb/internal/storage"
 	"log"
 	"os"
 	"path/filepath"

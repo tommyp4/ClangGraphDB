@@ -1,11 +1,11 @@
-package query
+﻿package query
 
 import (
 	"context"
 	"fmt"
-	"graphdb/internal/graph"
-	"graphdb/internal/loader"
-	"graphdb/internal/logger"
+	"clang-graphdb/internal/graph"
+	"clang-graphdb/internal/loader"
+	"clang-graphdb/internal/logger"
 	"time"
 
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"

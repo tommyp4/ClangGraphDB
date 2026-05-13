@@ -1,10 +1,10 @@
-//go:build integration
+﻿//go:build integration
 
 package query
 
 import (
-	"graphdb/internal/config"
-	"graphdb/internal/graph"
+	"clang-graphdb/internal/config"
+	"clang-graphdb/internal/graph"
 	"os"
 	"testing"
 

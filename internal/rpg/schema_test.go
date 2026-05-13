@@ -1,10 +1,10 @@
-package rpg
+﻿package rpg
 
 import (
 	"reflect"
 	"testing"
 
-	"graphdb/internal/graph"
+	"clang-graphdb/internal/graph"
 )
 
 func TestFeature_ToNode(t *testing.T) {

@@ -1,4 +1,4 @@
-package embedding
+﻿package embedding
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"graphdb/internal/config"
+	"clang-graphdb/internal/config"
 	"google.golang.org/genai"
 )
 

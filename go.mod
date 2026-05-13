@@ -1,4 +1,4 @@
-module graphdb
+module clang-graphdb
 
 go 1.25.0
 

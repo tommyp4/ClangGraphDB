@@ -1,11 +1,11 @@
-package loader
+﻿package loader
 
 import (
 	"context"
 	"fmt"
-	"graphdb/internal/graph"
-	"graphdb/internal/logger"
-	"graphdb/internal/progress"
+	"clang-graphdb/internal/graph"
+	"clang-graphdb/internal/logger"
+	"clang-graphdb/internal/progress"
 	"log"
 	"strings"
 

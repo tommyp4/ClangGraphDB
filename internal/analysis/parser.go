@@ -1,8 +1,8 @@
-package analysis
+﻿package analysis
 
 import (
 	"fmt"
-	"graphdb/internal/graph"
+	"clang-graphdb/internal/graph"
 	"strings"
 )
 

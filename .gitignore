@@ -18,9 +18,15 @@ temp_tools/
 
 # Go compiled binaries
 /graphdb
+/graphdb.exe
 /bin/graphdb
 /bin/graphdb_test
 .gemini/skills/graphdb/scripts/
+
+# Clang pipeline output
+output/
+output_*/
+test-output/
 
 # Test Artifacts
 test/output/

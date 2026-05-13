@@ -1,4 +1,4 @@
-package e2e_test
+﻿package e2e_test
 
 import (
 	"context"
@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"graphdb/internal/graph"
-	"graphdb/internal/ingest"
+	"clang-graphdb/internal/graph"
+	"clang-graphdb/internal/ingest"
 )
 
 func TestIngest_Ignore(t *testing.T) {

@@ -1,8 +1,8 @@
-package ui
+﻿package ui
 
 import (
 	"fmt"
-	"graphdb/internal/progress"
+	"clang-graphdb/internal/progress"
 	"io"
 	"os"
 	"strings"

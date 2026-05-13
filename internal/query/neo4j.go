@@ -1,13 +1,13 @@
-package query
+﻿package query
 
 import (
 	"context"
 	"fmt"
-	"graphdb/internal/config"
-	"graphdb/internal/graph"
-	"graphdb/internal/logger"
-	"graphdb/internal/progress"
-	"graphdb/internal/tools/snippet"
+	"clang-graphdb/internal/config"
+	"clang-graphdb/internal/graph"
+	"clang-graphdb/internal/logger"
+	"clang-graphdb/internal/progress"
+	"clang-graphdb/internal/tools/snippet"
 	"strings"
 	"time"
 

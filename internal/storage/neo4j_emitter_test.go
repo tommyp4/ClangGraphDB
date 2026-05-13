@@ -1,8 +1,8 @@
-package storage
+﻿package storage
 
 import (
 	"context"
-	"graphdb/internal/graph"
+	"clang-graphdb/internal/graph"
 	"testing"
 )
 

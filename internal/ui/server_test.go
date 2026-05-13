@@ -1,4 +1,4 @@
-package ui
+﻿package ui
 
 import (
 	"bytes"
@@ -7,10 +7,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"graphdb/internal/config"
-	"graphdb/internal/embedding"
-	"graphdb/internal/graph"
-	"graphdb/internal/query"
+	"clang-graphdb/internal/config"
+	"clang-graphdb/internal/embedding"
+	"clang-graphdb/internal/graph"
+	"clang-graphdb/internal/query"
 )
 
 func TestHealthCheck(t *testing.T) {

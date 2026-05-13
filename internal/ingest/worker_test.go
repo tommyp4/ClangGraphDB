@@ -1,8 +1,8 @@
-package ingest
+﻿package ingest
 
 import (
-	"graphdb/internal/analysis"
-	"graphdb/internal/graph"
+	"clang-graphdb/internal/analysis"
+	"clang-graphdb/internal/graph"
 	"testing"
 	"sync"
 	"path/filepath"

@@ -1,9 +1,9 @@
-package e2e_test
+﻿package e2e_test
 
 import (
 	"context"
-	"graphdb/internal/graph"
-	"graphdb/internal/ingest"
+	"clang-graphdb/internal/graph"
+	"clang-graphdb/internal/ingest"
 	"testing"
     "path/filepath"
     "os"

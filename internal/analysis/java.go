@@ -1,4 +1,4 @@
-package analysis
+﻿package analysis
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 
 	sitter "github.com/smacker/go-tree-sitter"
 	"github.com/smacker/go-tree-sitter/java"
-	"graphdb/internal/graph"
+	"clang-graphdb/internal/graph"
 )
 
 type JavaParser struct{}

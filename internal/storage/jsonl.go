@@ -1,8 +1,8 @@
-package storage
+﻿package storage
 
 import (
 	"encoding/json"
-	"graphdb/internal/graph"
+	"clang-graphdb/internal/graph"
 	"io"
 	"sync"
 )

@@ -1,9 +1,9 @@
-package e2e
+﻿package e2e
 
 import (
-	"graphdb/internal/graph"
-	"graphdb/internal/rpg"
-	"graphdb/internal/tools/snippet"
+	"clang-graphdb/internal/graph"
+	"clang-graphdb/internal/rpg"
+	"clang-graphdb/internal/tools/snippet"
 	"os"
 	"path/filepath"
 	"strings"

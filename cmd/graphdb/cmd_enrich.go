@@ -1,9 +1,9 @@
-package main
+﻿package main
 
 import (
 	"flag"
-	"graphdb/internal/config"
-	"graphdb/internal/rpg"
+	"clang-graphdb/internal/config"
+	"clang-graphdb/internal/rpg"
 	"log"
 	"os"
 	"path/filepath"

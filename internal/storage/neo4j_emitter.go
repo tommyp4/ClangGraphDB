@@ -1,9 +1,9 @@
-package storage
+﻿package storage
 
 import (
 	"context"
 	"fmt"
-	"graphdb/internal/graph"
+	"clang-graphdb/internal/graph"
 )
 
 type NodeEdgeLoader interface {

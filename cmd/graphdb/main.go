@@ -1,9 +1,9 @@
-package main
+﻿package main
 
 import (
 	"fmt"
-	"graphdb/internal/config"
-	"graphdb/internal/logger"
+	"clang-graphdb/internal/config"
+	"clang-graphdb/internal/logger"
 	"os"
 	"strings"
 )
@@ -61,6 +61,8 @@ func main() {
 	switch cmd {
 	case "ingest":
 		ingestCmd(cmdArgs)
+	case "clang-ingest":
+		handleClangIngest(cmdArgs)
 	case "query":
 		handleQuery(cmdArgs)
 	case "enrich-features":
@@ -77,6 +79,8 @@ func main() {
 		handleServe(cmdArgs)
 	case "build-all":
 		handleBuildAll(cmdArgs)
+	case "clang-build-all":
+		handleClangBuildAll(cmdArgs)
 	case "version", "--version", "-v":
 		fmt.Printf("graphdb version %s\n", Version)
 	case "help", "--help", "-h":
@@ -103,6 +107,8 @@ func printUsage() {
 	fmt.Println("  query                  Query the graph (structural or semantic)")
 	fmt.Println("  serve                  Start the HTTP server and D3 visualizer")
 	fmt.Println("  build-all              One-shot: Ingest -> Import -> All Enrichment Phases")
+	fmt.Println("  clang-ingest           Parse .sln/.vcxproj and extract C++ graph via Clang")
+	fmt.Println("  clang-build-all        Clang ingest -> Import -> All Enrichment Phases")
 	fmt.Println("  version                Show version info")
 	fmt.Println("\nRun 'graphdb <command> --help' for command-specific options.")
 }

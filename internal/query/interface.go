@@ -1,8 +1,8 @@
-package query
+﻿package query
 
 import (
 	"context"
-	"graphdb/internal/graph"
+	"clang-graphdb/internal/graph"
 )
 
 // Direction represents the direction of a relationship traversal.

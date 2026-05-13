@@ -1,4 +1,4 @@
-package rpg
+﻿package rpg
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"math/rand"
 	"time"
 
-	"graphdb/internal/config"
+	"clang-graphdb/internal/config"
 	"google.golang.org/genai"
 )
 

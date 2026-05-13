@@ -1,12 +1,12 @@
-//go:build test_mocks
+﻿//go:build test_mocks
 
 package main
 
 import (
 	"context"
 	"fmt"
-	"graphdb/internal/graph"
-	"graphdb/internal/query"
+	"clang-graphdb/internal/graph"
+	"clang-graphdb/internal/query"
 )
 
 // MockEmbedder for testing/dry-run

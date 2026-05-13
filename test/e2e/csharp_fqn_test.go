@@ -1,10 +1,10 @@
-package e2e
+﻿package e2e
 
 import (
 	"context"
 	"encoding/json"
-	"graphdb/internal/ingest"
-	"graphdb/internal/storage"
+	"clang-graphdb/internal/ingest"
+	"clang-graphdb/internal/storage"
 	"os"
 	"path/filepath"
 	"strings"

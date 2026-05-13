@@ -1,7 +1,7 @@
-package loader
+﻿package loader
 
 import (
-	"graphdb/internal/graph"
+	"clang-graphdb/internal/graph"
 	"strings"
 	"testing"
 )
