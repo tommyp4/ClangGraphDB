@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"clang-graphdb/internal/vcxproj"
 )
@@ -74,17 +75,19 @@ func (e *Extractor) Run(commands []vcxproj.CompileCommand) (succeeded, failed in
 			for cmd := range work {
 				nodesBefore := e.nodeCount.Load()
 				edgesBefore := e.edgeCount.Load()
+				fileStart := time.Now()
 				err := e.processFile(cmd)
+				elapsed := time.Since(fileStart)
 				mu.Lock()
 				processed++
 				if err != nil {
 					failed++
-					fmt.Fprintf(os.Stderr, "  [%d/%d] FAIL %s: %v\n", processed, total, filepath.Base(cmd.File), err)
+					fmt.Fprintf(os.Stderr, "  [%d/%d] FAIL %s: %v (%.1fs)\n", processed, total, filepath.Base(cmd.File), err, elapsed.Seconds())
 				} else {
 					succeeded++
 					dn := e.nodeCount.Load() - nodesBefore
 					de := e.edgeCount.Load() - edgesBefore
-					fmt.Fprintf(os.Stderr, "  [%d/%d] OK   %s (+%d nodes, +%d edges)\n", processed, total, filepath.Base(cmd.File), dn, de)
+					fmt.Fprintf(os.Stderr, "  [%d/%d] OK   %s (+%d nodes, +%d edges, %.1fs)\n", processed, total, filepath.Base(cmd.File), dn, de, elapsed.Seconds())
 				}
 				mu.Unlock()
 			}
