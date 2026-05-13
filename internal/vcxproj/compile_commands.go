@@ -96,6 +96,22 @@ func buildBaseArgs(proj *ParsedProject, config *ProjectConfig, systemIncludes []
 		args = append(args, "/W4")
 	}
 
+	// Runtime library
+	switch strings.ToLower(config.RuntimeLibrary) {
+	case "multithreadeddll":
+		args = append(args, "/MD")
+	case "multithreadeddebugdll":
+		args = append(args, "/MDd")
+	case "multithreaded":
+		args = append(args, "/MT")
+	case "multithreadeddebug":
+		args = append(args, "/MTd")
+	default:
+		if strings.ToLower(config.UseOfMfc) == "dynamic" {
+			args = append(args, "/MD")
+		}
+	}
+
 	// Exception handling
 	args = append(args, "/EHsc")
 
@@ -137,6 +153,13 @@ func appendImplicitDefines(args []string, config *ProjectConfig) []string {
 	}
 
 	return args
+}
+
+// BuildProjectArgs returns the base clang-cl arguments for a project config,
+// excluding per-file flags (/c and the source file path).
+func BuildProjectArgs(proj *ParsedProject, config *ProjectConfig) []string {
+	systemIncludes := GetSystemIncludePaths()
+	return buildBaseArgs(proj, config, systemIncludes)
 }
 
 // WriteCompileCommands writes compile_commands.json to the given path.

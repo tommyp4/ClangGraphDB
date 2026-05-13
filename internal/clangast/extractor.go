@@ -23,6 +23,8 @@ type Extractor struct {
 	Workers    int
 	NodesFile  io.Writer
 	EdgesFile  io.Writer
+	PCHByDir   map[string]string // projectDir -> .pch path
+	NoPCHFiles map[string]bool   // files that opt out of PCH
 
 	nodesMu sync.Mutex
 	edgesMu sync.Mutex
@@ -99,8 +101,11 @@ func (e *Extractor) Run(commands []vcxproj.CompileCommand) (succeeded, failed in
 }
 
 func (e *Extractor) processFile(cmd vcxproj.CompileCommand) error {
-	args := make([]string, 0, len(cmd.Arguments)+4)
+	args := make([]string, 0, len(cmd.Arguments)+8)
 	args = append(args, "-Xclang", "-ast-dump=json")
+	if pchPath, ok := e.PCHByDir[cmd.Directory]; ok && !e.NoPCHFiles[cmd.File] {
+		args = append(args, "-Xclang", "-include-pch", "-Xclang", pchPath)
+	}
 	if len(cmd.Arguments) > 1 {
 		for _, a := range cmd.Arguments[1:] {
 			if strings.HasPrefix(a, "/Fo") || strings.HasPrefix(a, "/Fd") ||
@@ -604,8 +609,11 @@ func (e *Extractor) ExtractIncludes(commands []vcxproj.CompileCommand) {
 }
 
 func (e *Extractor) extractFileIncludes(cmd vcxproj.CompileCommand) {
-	args := make([]string, 0, len(cmd.Arguments)+1)
+	args := make([]string, 0, len(cmd.Arguments)+5)
 	args = append(args, "-H", "-fsyntax-only")
+	if pchPath, ok := e.PCHByDir[cmd.Directory]; ok && !e.NoPCHFiles[cmd.File] {
+		args = append(args, "-Xclang", "-include-pch", "-Xclang", pchPath)
+	}
 	if len(cmd.Arguments) > 1 {
 		args = append(args, cmd.Arguments[1:]...)
 	}
