@@ -328,7 +328,7 @@ func (fc *fileContext) handleField(node *ASTNode, fqn, parentFQN string) {
 		"fqn":        fqn,
 		"file":       relPath,
 		"start_line": fmt.Sprintf("%d", node.Loc.Line),
-		"type":       typeName,
+		"cpp_type":   typeName,
 	})
 
 	// DEFINES edge from parent class
@@ -374,7 +374,7 @@ func (fc *fileContext) handleVar(node *ASTNode, fqn string) {
 		"fqn":        fqn,
 		"file":       relPath,
 		"start_line": fmt.Sprintf("%d", node.Loc.Line),
-		"type":       typeName,
+		"cpp_type":   typeName,
 	})
 
 	fileID := "File:" + relPath
