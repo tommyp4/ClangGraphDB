@@ -158,28 +158,24 @@ func (fc *fileContext) registerDecls(node *ASTNode, parentFQN string) {
 		if node.Kind == "CXXConstructorDecl" {
 			label = "Constructor"
 		}
-		relPath := fc.makeRelative(fc.getFile(node))
-		nodeID := label + ":" + relPath + ":" + fqn + ":" + sig
+		nodeID := label + ":" + fqn + ":" + sig
 		fc.idMap[node.ID] = nodeID
 
 	case "CXXRecordDecl":
 		if node.CompleteDefinition && fc.isInRepo(node) {
-			relPath := fc.makeRelative(fc.getFile(node))
-			nodeID := "Class:" + relPath + ":" + fqn + ":"
+			nodeID := "Class:" + fqn
 			fc.idMap[node.ID] = nodeID
 		}
 
 	case "FieldDecl":
 		if fc.isInRepo(node) {
-			relPath := fc.makeRelative(fc.getFile(node))
-			nodeID := "Field:" + relPath + ":" + fqn + ":"
+			nodeID := "Field:" + fqn
 			fc.idMap[node.ID] = nodeID
 		}
 
 	case "VarDecl":
 		if fc.isFileScope(node) && fc.isInRepo(node) {
-			relPath := fc.makeRelative(fc.getFile(node))
-			nodeID := "Global:" + relPath + ":" + fqn + ":"
+			nodeID := "Global:" + fqn
 			fc.idMap[node.ID] = nodeID
 		}
 	}
@@ -257,7 +253,7 @@ func (fc *fileContext) handleFunction(node *ASTNode, fqn string) {
 		// The parent FQN minus the function name gives us the class
 		if idx := strings.LastIndex(fqn, "::"); idx >= 0 {
 			classFQN := fqn[:idx]
-			classID := "Class:" + relPath + ":" + classFQN + ":"
+			classID := "Class:" + classFQN
 			fc.emitEdge(classID, nodeID, "HAS_METHOD")
 		}
 	}
@@ -304,7 +300,7 @@ func (fc *fileContext) handleRecord(node *ASTNode, fqn string) {
 		}
 		baseName := extractTypeName(base.Type.QualType)
 		if baseName != "" {
-			baseID := "Class::" + baseName + ":"
+			baseID := "Class:" + baseName
 			fc.emitEdge(nodeID, baseID, "INHERITS")
 		}
 	}
@@ -337,7 +333,7 @@ func (fc *fileContext) handleField(node *ASTNode, fqn, parentFQN string) {
 
 	// DEFINES edge from parent class
 	if parentFQN != "" {
-		classID := "Class:" + relPath + ":" + parentFQN + ":"
+		classID := "Class:" + parentFQN
 		fc.emitEdge(classID, nodeID, "DEFINES")
 	}
 
@@ -345,8 +341,8 @@ func (fc *fileContext) handleField(node *ASTNode, fqn, parentFQN string) {
 	if typeName != "" {
 		depName := extractTypeName(typeName)
 		if depName != "" && parentFQN != "" {
-			ownerID := "Class:" + relPath + ":" + parentFQN + ":"
-			depID := "Class::" + depName + ":"
+			ownerID := "Class:" + parentFQN
+			depID := "Class:" + depName
 			fc.emitEdge(ownerID, depID, "DEPENDS_ON")
 		}
 	}
