@@ -150,7 +150,7 @@ func (fc *fileContext) registerDecls(node *ASTNode, parentFQN string) {
 
 	switch node.Kind {
 	case "FunctionDecl", "CXXMethodDecl", "CXXConstructorDecl", "CXXDestructorDecl":
-		if !fc.isInRepo(node) {
+		if !fc.isInRepo(node) || isSTLInternal(node.Name) {
 			break
 		}
 		sig := fc.buildSignature(node)
@@ -162,19 +162,19 @@ func (fc *fileContext) registerDecls(node *ASTNode, parentFQN string) {
 		fc.idMap[node.ID] = nodeID
 
 	case "CXXRecordDecl":
-		if node.CompleteDefinition && fc.isInRepo(node) {
+		if node.CompleteDefinition && fc.isInRepo(node) && !isSTLInternal(node.Name) {
 			nodeID := "Class:" + fqn
 			fc.idMap[node.ID] = nodeID
 		}
 
 	case "FieldDecl":
-		if fc.isInRepo(node) {
+		if fc.isInRepo(node) && !isSTLInternal(node.Name) {
 			nodeID := "Field:" + fqn
 			fc.idMap[node.ID] = nodeID
 		}
 
 	case "VarDecl":
-		if fc.isFileScope(node) && fc.isInRepo(node) {
+		if fc.isFileScope(node) && fc.isInRepo(node) && !isSTLInternal(node.Name) {
 			nodeID := "Global:" + fqn
 			fc.idMap[node.ID] = nodeID
 		}
@@ -453,6 +453,9 @@ func (fc *fileContext) findCalleeID(node *ASTNode) string {
 // Emit helpers with dedup
 
 func (fc *fileContext) emitNode(id, nodeType string, props map[string]string) {
+	if name := props["name"]; isSTLInternal(name) {
+		return
+	}
 	if _, loaded := fc.extractor.emittedNodes.LoadOrStore(id, true); loaded {
 		return
 	}
@@ -475,6 +478,9 @@ func (fc *fileContext) emitNode(id, nodeType string, props map[string]string) {
 }
 
 func (fc *fileContext) emitEdge(source, target, edgeType string) {
+	if isSTLInternalID(source) || isSTLInternalID(target) {
+		return
+	}
 	key := source + "|" + edgeType + "|" + target
 	if _, loaded := fc.extractor.emittedEdges.LoadOrStore(key, true); loaded {
 		return
@@ -653,6 +659,28 @@ func (e *Extractor) makeRelPath(absPath string) string {
 		return absPath
 	}
 	return filepath.ToSlash(rel)
+}
+
+func isSTLInternal(name string) bool {
+	return len(name) > 0 && name[0] == '_'
+}
+
+func isSTLInternalID(id string) bool {
+	if idx := strings.LastIndex(id, "::"); idx >= 0 {
+		name := id[idx+2:]
+		if paren := strings.IndexByte(name, '('); paren >= 0 {
+			name = name[:paren]
+		}
+		return isSTLInternal(name)
+	}
+	if colon := strings.IndexByte(id, ':'); colon >= 0 {
+		name := id[colon+1:]
+		if paren := strings.IndexByte(name, '('); paren >= 0 {
+			name = name[:paren]
+		}
+		return isSTLInternal(name)
+	}
+	return isSTLInternal(id)
 }
 
 func (e *Extractor) emitEdgeDirect(source, target, edgeType string) {
