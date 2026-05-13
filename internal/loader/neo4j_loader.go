@@ -43,7 +43,11 @@ func (l *Neo4jLoader) BatchLoadNodes(ctx context.Context, nodes []graph.Node) er
 		query := buildNodeQuery(label)
 		_, err := session.ExecuteWrite(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
 			logger.Query.Printf("Neo4j Loader Query: %s", query)
-			return tx.Run(ctx, query, map[string]any{"batch": batch})
+			result, err := tx.Run(ctx, query, map[string]any{"batch": batch})
+			if err != nil {
+				return nil, err
+			}
+			return result.Consume(ctx)
 		})
 		if err != nil {
 			return fmt.Errorf("failed to load nodes for label %s: %w", label, err)
@@ -68,7 +72,11 @@ func (l *Neo4jLoader) BatchLoadEdges(ctx context.Context, edges []graph.Edge) er
 		query := buildEdgeQuery(relType)
 		_, err := session.ExecuteWrite(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
 			logger.Query.Printf("Neo4j Loader Query: %s", query)
-			return tx.Run(ctx, query, map[string]any{"batch": batch})
+			result, err := tx.Run(ctx, query, map[string]any{"batch": batch})
+			if err != nil {
+				return nil, err
+			}
+			return result.Consume(ctx)
 		})
 		if err != nil {
 			return fmt.Errorf("failed to load edges for type %s: %w", relType, err)
@@ -88,7 +96,11 @@ func (l *Neo4jLoader) ApplyConstraints(ctx context.Context) error {
 	for _, query := range l.getConstraints() {
 		_, err := session.ExecuteWrite(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
 			logger.Query.Printf("Neo4j Loader Query: %s", query)
-			return tx.Run(ctx, query, nil)
+			result, err := tx.Run(ctx, query, nil)
+			if err != nil {
+				return nil, err
+			}
+			return result.Consume(ctx)
 		})
 		if err != nil {
 			// Log the error but continue to the next constraint
@@ -115,7 +127,11 @@ func (l *Neo4jLoader) UpdateGraphState(ctx context.Context, commit string) error
 	query := buildGraphStateQuery()
 	_, err := session.ExecuteWrite(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
 		logger.Query.Printf("Neo4j Loader Query: %s", query)
-		return tx.Run(ctx, query, map[string]any{"commit": commit})
+		result, err := tx.Run(ctx, query, map[string]any{"commit": commit})
+		if err != nil {
+			return nil, err
+		}
+		return result.Consume(ctx)
 	})
 	return err
 }
